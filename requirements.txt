@@ -1,0 +1,17 @@
+flask
+flask_sqlalchemy
+flask_admin
+sqlalchemy
+Flask-Migrate
+Flask-APScheduler
+psycopg2-binary
+redis
+celery
+celery[redis]
+flower
+setproctitle
+filelock
+ujson
+htmlmin
+requests
+Pillow

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Packages{% endblock %}
+
+{% block content %}
+	<div ng-controller="PackagesController" ng-cloak>
+		<div class="alert alert-info" ng-repeat="message in messageList track by $index" class="col-sm-12">
+			{% raw %}
+			<pre>{{ message }}</pre>
+			{% endraw %}
+		</div>
+
+		<div class="row">
+			<div class="col-md-6">
+				<div class="panel panel-default">
+					<div class="panel-heading">Update Packages</div>
+					<div class="panel-body">
+						<button ng-click="updateCheckers()" class="btn btn-default">Update all checker scripts</button>
+						<button ng-click="pushPackages()" class="btn btn-default">Push all packages to workers</button>
+
+						<br/>
+
+						<form class="form-inline" ng-submit="updateSingleChecker(updateService)" style="margin-top: 10px; margin-bottom: 10px">
+							<div class="form-group">
+								<label>Service</label>
+								<select class="form-control" ng-model="updateService">
+									{% for service in services %}
+										<option value="{{ service.id }}">{{ service.name }}</option>
+									{% endfor %}
+								</select>
+							</div>
+							<button type="submit" class="btn btn-default">Update checker</button>
+						</form>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-md-6">
+				<div class="panel panel-default">
+					<div class="panel-heading">Package Statistics</div>
+					<div class="panel-body">
+						<dl class="dl-horizontal" style="margin-bottom: 0">
+							<dt>Packages</dt>
+							<dd>{{ package_count }}</dd>
+							<dt># Files</dt>
+							<dd>{{ file_count }}</dd>
+							<dt>File size</dt>
+							<dd>{{ file_size }} KB</dd>
+						</dl>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="row">
+
+			<div class="col-md-6">
+				{% raw %}
+				<div class="panel panel-default">
+					<div class="panel-heading">Run command on all worker instances</div>
+					<div class="panel-body">
+						<form class="form-inline" ng-submit="runCommands(worker_command)" style="margin-bottom: 10px">
+							<div class="form-group">
+								<input class="form-control" type="text" placeholder="pip install requests" ng-model="worker_command"
+									   style="width: 300px">
+							</div>
+							<button type="submit" class="btn btn-default">Run</button>
+						</form>
+						<div ng-repeat="command in commands">
+							<a ng-href="{{ FLOWER_URL+'task/'+command.task }}" target="_new">{{ command.task }}</a>: <code>{{ command.cmd }}</code>
+						</div>
+					</div>
+				</div>
+				{% endraw %}
+			</div>
+
+			<div class="col-md-6">
+				<div class="panel panel-default">
+					<div class="panel-heading">Test updated script</div>
+					<div class="panel-body">
+						<form class="form-inline" ng-submit="testScript(testService, testTeam, testRound)" style="margin-bottom: 10px">
+							<div class="form-group">
+								<label>Service</label>
+								<select class="form-control" ng-model="testService">
+									{% for service in services %}
+										<option value="{{ service.id }}">{{ service.name }}</option>
+									{% endfor %}
+								</select>
+							</div>
+							<div class="form-group">
+								<label>Team</label>
+								<select class="form-control team-select" ng-model="testTeam">
+									{% for team in teams %}
+										<option value="{{ team.id }}" {{ 'selected="selected"'|safe if team.name=='NOP' else '' }}>{{ team.name }}
+											({{ team.vulnbox_ip }})
+										</option>
+									{% endfor %}
+								</select>
+							</div>
+							<div class="form-group">
+								<label>Round</label>
+								<input class="form-control" type="number" ng-model="testRound" placeholder="auto">
+							</div>
+							<button type="submit" class="btn btn-default">Run Test</button>
+						</form>
+					</div>
+					{% raw %}
+					<ul class="list-group">
+						<li ng-repeat="result in testResults" class="list-group-item">
+							<span class="badge">{{ result.time | date:'HH:mm:ss' }}</span>
+							{{ result.ident }}: {{ result.message }}<br/>
+							<a ng-href="{{ CHECKER_RESULT_URL+result.result_id }}" target="_new">Result #{{ result.result_id }}</a>,
+							<small>Task <a ng-href="{{ FLOWER_URL+'task/'+result.task }}" target="_new">{{ result.task }}</a></small>
+							.
+						</li>
+					</ul>
+					{% endraw %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+{% endblock %}
+
+{% block footer %}
+	<script>
+		const FLOWER_URL = {{ flower_url|tojson|safe }};
+		const CHECKER_RESULT_URL = {{ url_for('checker_results.checker_results_view', id='123456789') |tojson|safe }};
+	</script>
+	<script src="{{ url_for('static', filename='vendor/js/angular.js') }}"></script>
+	<script src="{{ url_for('static', filename='js/packages.js') }}"></script>
+{% endblock %}

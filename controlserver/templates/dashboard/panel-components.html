@@ -1,0 +1,39 @@
+{% raw %}
+<div class="panel panel-default" ng-controller="ComponentsController" ng-cloak>
+	<div class="panel-heading">
+		<button class="btn btn-default btn-xs pull-right" ng-click="updateComponents()"><span class="glyphicon glyphicon-refresh"></span>
+		</button>
+		Components
+	</div>
+	<div class="panel-body">
+		<p>
+			<strong>Redis connections:</strong>
+		</p>
+		<p>
+			<span style="margin-right: 10px" ng-repeat="(name, count) in redis_stats">{{ count }}&times; {{ name || '(unnamed)' }}</span>
+		</p>
+		<div class="row">
+			<div ng-repeat="client in redis_combined" class="connection-indicator col-lg-6 col-md-12">
+				<span class="label label-success">Connected</span>
+				{{ client.name || '(unnamed)' }}
+				<small>({{ client.addr }})</small>
+				<small class="text-muted" ng-if="client.cmd == 'subscribe'" title="Subscriber">(sub)</small>
+				<small class="text-muted" ng-if="client.cmd == 'pubsub'" title="Publisher">(pub)</small>
+				<small class="text-muted" ng-if="client.combine_count > 1">({{ client.combine_count }}&times;)</small>
+			</div>
+			<div ng-repeat="client in redis_offline" class="connection-indicator col-lg-6 col-md-12">
+				<span class="label label-danger">Disconnected</span>
+				{{ client.name || '(unnamed)' }}
+				<small>({{ client.addr }})</small>
+				<small class="text-muted" ng-if="client.cmd == 'subscribe'" title="Subscriber">(sub)</small>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	.connection-indicator {
+		margin-bottom: 10px;
+	}
+</style>
+{% endraw %}

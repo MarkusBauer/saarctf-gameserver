@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+		  integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
+		  integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">-->
+	<link rel="stylesheet" href="index.css">
+
+	<title>Scoreboard</title>
+</head>
+<body>
+<div class="bg-primary-theme">
+	<div class="container-fluid">
+		<h1 class="page-header">saarCTF Scoreboard</h1>
+	</div>
+	<br />
+</div>
+
+<br />
+
+<div class="container-fluid">
+
+	<p class="lead">Round {{ currentRound }}</p>
+
+	<table class="table table-bordered">
+		<thead>
+		<tr>
+			<th>#</th>
+			<th>Team</th>
+			<th>Points</th>
+			{% for service in services %}
+				<th>{{ service.name }}</th>
+			{% endfor %}
+		</tr>
+		</thead>
+		<tbody>
+		{% for ranking in rankings %}
+			<tr>
+				<td>{{ ranking.rank }}</td>
+				<td>{{ ranking.team.name }}
+					<small>(#{{ ranking.team_id }})</small>
+				</td>
+				<td>{{ ranking.points |round(2) }}</td>
+				{% for service in services %}
+					{% set checker_result = checker_results[(ranking.team_id, service.id)] %}
+					{% if not checker_result or checker_result.status == 'REVOKED' %}
+						{% set tdcls = '' %}
+						{% set labelcls = 'default' %}
+					{% elif checker_result.status == 'SUCCESS' %}
+						{% set tdcls = 'success' %}
+						{% set labelcls = 'success' %}
+					{% elif checker_result.status == 'FLAGMISSING' %}
+						{% set tdcls = 'warning' %}
+						{% set labelcls = 'warning' %}
+					{% elif checker_result.status == 'MUMBLE' %}
+						{% set tdcls = 'warning' %}
+						{% set labelcls = 'warning' %}
+					{% elif checker_result.status == 'OFFLINE' or checker_result.status == 'TIMEOUT' %}
+						{% set tdcls = 'danger' %}
+						{% set labelcls = 'danger' %}
+					{% else %}
+						{% set tdcls = 'info' %}
+						{% set labelcls = 'info' %}
+					{% endif %}
+					<td class="{{ tdcls }}">
+						<small class="label label-{{ labelcls }}">{{ checker_result.status if checker_result else '-' }}</small>
+						<br>
+						<small>
+							At/Def:&nbsp;{{ points[(ranking.team_id, service.id)].off_points |round(1) }}&nbsp;/&nbsp;{{ points[(ranking.team_id, service.id)].def_points |round(1) }}<br>
+							SLA:&nbsp;{{ points[(ranking.team_id, service.id)].sla_points |round(1) }}<br>
+							Flags:&nbsp;{{ points[(ranking.team_id, service.id)].flag_captured_count }}&nbsp;/&nbsp;-{{ points[(ranking.team_id, service.id)].flag_stolen_count }}
+							{# {{ points[(ranking.team_id, service.id)].sla_points }}&nbsp;({{ '{:0.1f}%'.format(points[(ranking.team_id, service.id)].sla_points*100/(currentRound or 1)) }}) #}<br>
+						</small>
+					</td>
+				{% endfor %}
+			</tr>
+		{% endfor %}
+
+		</tbody>
+	</table>
+
+</div>
+</body>
+</html>

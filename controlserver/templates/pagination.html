@@ -1,0 +1,82 @@
+{% macro paginator_script() %}
+	<script src="{{ url_for('static', filename='js/pagination.js') }}"></script>
+{% endmacro %}
+
+{% macro paginator(url, data, query_string) %}
+	<nav aria-label="Page navigation">
+		<ul class="pagination">
+			{% if data.has_prev %}
+				<li>
+					<a href="{{ url_for(url, page=data.prev_num) + ('?' + query_string if query_string else '') }}"
+					   aria-label="Previous">
+						<span aria-hidden="true">&laquo;</span>
+					</a>
+				</li>
+			{% else %}
+				<li class="disabled">
+					<a href="#" aria-label="Previous">
+						<span aria-hidden="true">&laquo;</span>
+					</a>
+				</li>
+			{% endif %}
+			{% for page in data.iter_pages() %}
+				<li {{ 'class="active"'|safe if page == data.page else '' }}>
+					{% if page %}
+						<a href="{{ url_for(url, page=page) + ('?' + query_string if query_string else '') }}">{{ page }}</a>
+					{% else %}
+						<a href="#" class="disabled">...</a>
+					{% endif %}
+				</li>
+			{% endfor %}
+			{% if data.has_next %}
+				<li>
+					<a href="{{ url_for(url, page=data.next_num) + ('?' + query_string if query_string else '') }}" aria-label="Next">
+						<span aria-hidden="true">&raquo;</span>
+					</a>
+				</li>
+			{% else %}
+				<li class="disabled">
+					<a href="#" aria-label="Previous">
+						<span aria-hidden="true">&raquo;</span>
+					</a>
+				</li>
+			{% endif %}
+		</ul>
+	</nav>
+{% endmacro %}
+
+
+
+
+{% macro filter_checkbox_list(label, filter_key, items, filter_items) %}
+	<form class="form-inline filter_checkbox_list" data-param="{{ filter_key }}">
+		<label>{{ label }}</label> &nbsp;
+		{% for item in items %}
+			<div class="checkbox">
+				<label>
+					<input type="checkbox" value="{{ item }}" {{ 'checked' if not filter_items or item in filter_items else '' }}> {{ item }}
+				</label>
+			</div> &nbsp;
+		{% endfor %}
+		<button type="submit" class="btn btn-default btn-sm">Apply</button>
+		{% if request.args.get(filter_key, '') %}
+			<button type="button" class="btn btn-default btn-sm" onclick="QueryString.update({ {{ filter_key }} : undefined})" title="Remove status filter">
+				&times;
+			</button>
+		{% endif %}
+	</form>
+{% endmacro %}
+
+
+
+{% macro filter_options(label, filter_key, items, current_item) %}
+	<div class="form-group" style="margin-right: 10px">
+			<label>{{ label }}</label>
+			<select class="form-control filter_options" data-param="{{ filter_key }}">
+				<option value="" {{ 'selected="selected"'|safe if current_item is none else '' }}>-</option>
+				{% for id, item in items %}
+					<option value="{{ id }}" {{ 'selected="selected"'|safe if current_item == id else '' }}>{{ item }}</option>
+				{% endfor %}
+			</select>
+		</div>
+{% endmacro %}

@@ -1,0 +1,67 @@
+image: ubuntu:18.04
+
+variables:
+  # Initialize submodules
+  GIT_SUBMODULE_STRATEGY: recursive
+
+  # https://hub.docker.com/_/postgres#how-to-extend-this-image
+  POSTGRES_USER: saarsec
+  POSTGRES_PASSWORD: 123456789
+  POSTGRES_DB: saarctf
+  # https://hub.docker.com/_/rabbitmq#setting-default-user-and-password
+  RABBITMQ_DEFAULT_USER: saarsec
+  RABBITMQ_DEFAULT_PASS: 123456789
+  RABBITMQ_DEFAULT_VHOST: saarctf
+  # https://hub.docker.com/_/rabbitmq#memory-limits
+  RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 128MB
+
+  # Ensure the docker uses utf-8
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+
+  # Enable caching for npm and pip
+  NPM_CONFIG_CACHE: $CI_PROJECT_DIR/.cache/npm
+  PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+
+  PWNLIB_NOTERM: 1
+  # Enable this variable to print pwntools log output
+  # DEBUG: 1
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .cache
+
+services:
+  - name: postgres:10
+  - name: redis:5.0-alpine
+  - name: rabbitmq:3.7-management-alpine
+
+flag-submission:
+  before_script:
+    - export PATH=$HOME/.local/bin:$PATH
+    - ./ci/configure_caching.sh
+    - ./ci/install_dependencies.sh
+  script:
+    - ./ci/test-flag-submission.sh
+
+demo-checker:
+  before_script:
+    - export PATH=$HOME/.local/bin:$PATH
+    - ./ci/configure_caching.sh
+    - ./ci/install_dependencies.sh
+  variables:
+    FLASK_APP: controlserver/app.py
+  script:
+    - set -euxo pipefail
+    # Configure database credentials for container setup
+    - cp ./config.containers.json ./config.json
+    - ./ci/test-python-unittest.sh
+    - ./ci/test-demo-checker.py
+
+shellcheck:
+  image: koalaman/shellcheck-alpine:v0.7.0
+  allow_failure: true
+  script:
+    # - find -iname \*.sh -exec shellcheck '{}' \;
+    - shellcheck --color=always --shell=bash ./ci/*.sh

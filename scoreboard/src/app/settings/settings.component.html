@@ -1,0 +1,34 @@
+<div class="btn-group" dropdown placement="bottom right" [autoClose]="true">
+	<button id="settings-button" type="button" dropdownToggle class="btn btn-link dropdown-toggle" aria-controls="dropdown-settings">
+		<i class="fas fa-cog"></i><span class="caret"></span>
+	</button>
+	<ul id="dropdown-settings" *dropdownMenu class="dropdown-menu dropdown-menu-right" role="menu" aria-labelledby="settings-button">
+		<li role="menuitem" *ngIf="!ui.showHistory">
+			<a class="dropdown-item href" (click)="ui.showHistory = true">Show differences to last tick</a>
+		</li>
+		<li role="menuitem" *ngIf="ui.showHistory">
+			<a class="dropdown-item href" (click)="ui.showHistory = false">Hide differences to last tick</a>
+		</li>
+
+		<li role="menuitem" *ngIf="!ui.showOnlySums">
+			<a class="dropdown-item href" (click)="ui.showOnlySums = true">Hide detailed scores (slim mode)</a>
+		</li>
+		<li role="menuitem" *ngIf="ui.showOnlySums">
+			<a class="dropdown-item href" (click)="ui.showOnlySums = false">Show detailed scores</a>
+		</li>
+
+		<li role="menuitem" *ngIf="!ui.showImages">
+			<a class="dropdown-item href" (click)="ui.showImages = true">Show team logos</a>
+		</li>
+		<li role="menuitem" *ngIf="ui.showImages">
+			<a class="dropdown-item href" (click)="ui.showImages = false">Hide team logos</a>
+		</li>
+
+		<li role="menuitem" *ngIf="!ui.showNotifications">
+			<a class="dropdown-item href" (click)="ui.showNotifications = true">Show notifications</a>
+		</li>
+		<li role="menuitem" *ngIf="ui.showNotifications">
+			<a class="dropdown-item href" (click)="ui.showNotifications = false">Hide notifications</a>
+		</li>
+	</ul>
+</div>

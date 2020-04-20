@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Checker status{% endblock %}
+
+{% block content %}
+	<style>
+		.table tfoot tr th, .table tfoot tr td {
+			border-top-width: 3px;
+		}
+
+		.table-stats .progress, .no-margin-bottom {
+			margin-bottom: 0;
+		}
+
+		.label-legend .label {
+			margin-left: 15px;
+		}
+	</style>
+
+	<div class="panel panel-default">
+		<div class="panel-heading">
+			<nav class="pull-right" style="margin-top: -4px">
+				<ul class="pagination pagination-sm" style="margin: 0">
+					{% if roundnumber <= 1 %}
+						<li class="disabled">
+							<span>&laquo;</span>
+						</li>
+					{% else %}
+						<li>
+							<a href="{{ url_for('endpoints.checker_status', roundnumber=roundnumber-1) }}">&laquo;</a>
+						</li>
+					{% endif %}
+					<li>
+						<a href="{{ url_for('endpoints.checker_status_overview') }}">&uArr;</a>
+					</li>
+					{% if roundnumber >= current_round %}
+						<li class="disabled">
+							<span>&raquo;</span>
+						</li>
+					{% else %}
+						<li>
+							<a href="{{ url_for('endpoints.checker_status', roundnumber=roundnumber+1) }}">&raquo;</a>
+						</li>
+					{% endif %}
+				</ul>
+			</nav>
+			Checker Script Results
+		</div>
+		<div class="panel-body">
+			<strong>Round {{ roundnumber }}</strong>,
+			finished scripts: {{ count_finished }} / {{ count_dispatched }},
+			started at {{ round_start_dt.strftime('%H:%M:%S') }},
+			{% if server_time <= round_end %}
+				remaining time: {{ round_end - server_time }} sec.
+			{% else %}
+				round is over.
+			{% endif %}
+			<div class="progress no-margin-bottom">
+				<div class="progress-bar" role="progressbar" aria-valuenow="{{ (100 * count_finished / count_dispatched) | round |int }}"
+					 aria-valuemin="0"
+					 aria-valuemax="100"
+					 style="width: {{ (100 * count_finished / count_dispatched) | round |int }}%;">
+					{{ (100 * count_finished / count_dispatched) | round(1) }}% ({{ count_finished }} / {{ count_dispatched }})
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+	<div class="panel panel-default">
+		<div class="panel-heading">Checker Script Result Statistics</div>
+		<table class="table table-bordered">
+			<thead>
+			<tr>
+				<th>Service</th>
+				<th>Finished</th>
+				<th>Time (total / avg)</th>
+				<th>
+					<small>PENDING</small>
+				</th>
+				{% for status in states %}
+					<th style="white-space: nowrap;">
+						<small>{{ status }}
+							<a href="{{ url_for('checker_results.checker_results_index') }}?filter_round={{ roundnumber }}&filter_status={{ status }}"
+							   class="glyphicon glyphicon-search">
+							</a>
+						</small>
+					</th>
+				{% endfor %}
+				<th title="Finished after round end">Late</th>
+				<th>&nbsp;</th>
+			</tr>
+			</thead>
+			<tbody>
+			{% for service in services %}
+				<tr>
+					<th>{{ service.name }}</th>
+					<td>{{ stats_finished[service.id] }} / {{ stats_dispatched[service.id] }}</td>
+					<td>
+						{{ stats_time[service.id]|round(1) }}&nbsp;sec
+						/&nbsp;{{ (stats_time[service.id] / stats_time_count[service.id])|round(2) if stats_time_count[service.id] else '?' }}&nbsp;sec
+					</td>
+					<td>{{ stats_status[service.id]['PENDING'] }}</td>
+					{% for status in states %}
+						<td {{ ('class="'+status_format[status]+'"')|safe if stats_status[service.id][status] > 0 and status_format[status] else '' }}>
+							{{ stats_status[service.id][status] }}
+						</td>
+					{% endfor %}
+					<td>{{ stats_toolate[service.id] }}</td>
+					<td>
+						<a href="{{ url_for('checker_results.checker_results_index') }}?filter_service={{ service.id }}&filter_round={{ roundnumber }}&sort=status"
+						   class="glyphicon glyphicon-search"></a>
+					</td>
+				</tr>
+			{% endfor %}
+			</tbody>
+			<tfoot>
+			<tr>
+				<th>Total</th>
+				<td>{{ count_finished }} / {{ count_dispatched }}</td>
+				<td>
+					{{ total_time|round(1) }} sec
+					/
+					{{ (total_time / total_time_count)|round(2) if total_time_count else '?' }} sec
+				</td>
+				<td>{{ total_status['PENDING'] }}</td>
+				{% for status in states %}
+					<td {{ ('class="'+status_format[status]+'"')|safe if total_status[status] > 0 and status_format[status] else '' }}>
+						{{ total_status[status] }}
+					</td>
+				{% endfor %}
+				<td>{{ total_toolate }}</td>
+				<td>
+					<a href="{{ url_for('checker_results.checker_results_index') }}?filter_round={{ roundnumber }}&sort=status"
+					   class="glyphicon glyphicon-search"></a>
+				</td>
+			</tr>
+			</tfoot>
+		</table>
+	</div>
+
+
+
+	<div class="panel panel-default">
+		<div class="panel-heading">Checker Script Result Timing</div>
+		<div class="panel-body">
+			Finished tasks per time.
+			{% if no_finished_timestamp %}
+				{{ no_finished_timestamp }} results without timestamp (pending, revoked, runner crashed or hard timeout).
+			{% endif %}
+			<div class="label-legend">
+				<strong>Legend:</strong>
+				<span class="label label-success">&nbsp;</span> Finished
+				<span class="label label-info">&nbsp;</span> Finished, but too late
+				<span class="label label-warning">&nbsp;</span> Timeout
+				<span class="label label-danger">&nbsp;</span> Crashed
+			</div>
+		</div>
+		<table class="table table-stats">
+			{% for ts, stats in finished_per_round %}
+				<tr>
+					<td style="width: 180px">
+						{{ ts.strftime('%H:%M:%S') }}
+						<small class="text-muted">
+							{% if ts.timestamp() == round_start %}
+								(round start)
+							{% elif ts.timestamp() >= round_end %}
+								(round ended)
+							{% else %}
+								(+{{ (ts.timestamp() - round_start)|int }} sec)
+							{% endif %}
+						</small>
+					</td>
+					<td>
+						{% set finished_ok = stats['SUCCESS'] + stats['FLAGMISSING'] + stats['MUMBLE'] + stats['OFFLINE'] %}
+						{% set finished_toolate = stats['TOOLATE'] %}
+						{% set finished_warning = stats['TIMEOUT'] %}
+						{% set finished_error = stats['CRASHED'] %}
+
+						<div class="progress">
+							<div class="progress-bar progress-bar-success" style="width: {{ (100*finished_ok/count_dispatched)|round|int }}%">
+								{% if finished_ok %}{{ finished_ok }} / {{ count_dispatched }}{% endif %}
+							</div>
+							<div class="progress-bar progress-bar-info" style="width: {{ (100*finished_toolate/count_dispatched)|round|int }}%">
+								{% if finished_toolate %}{{ finished_toolate }}{% endif %}
+							</div>
+							<div class="progress-bar progress-bar-warning" style="width: {{ (100*finished_warning/count_dispatched)|round|int }}%">
+								{% if finished_warning %}{{ finished_warning }}{% endif %}
+							</div>
+							<div class="progress-bar progress-bar-danger" style="width: {{ (100*finished_error/count_dispatched)|round|int }}%">
+								{% if finished_error %}{{ finished_error }}{% endif %}
+							</div>
+						</div>
+					</td>
+				</tr>
+			{% endfor %}
+		</table>
+	</div>
+{% endblock %}
+
+{% block footer %}
+
+{% endblock %}

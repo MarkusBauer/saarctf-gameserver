@@ -1,0 +1,25 @@
+{
+  "name": "saarctf-framework",
+  "version": "1.0.0",
+  "description": "saarCTF Gameserver Framework",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prebuild": "mkdirp controlserver/static/vendor",
+    "less": "lessc --include-path=node_modules  controlserver/static/less/index.less controlserver/static/css/index.css",
+    "copy": "copyfiles -u 3 \"node_modules/bootstrap/dist/*/**\" controlserver/static/vendor && copyfiles -u 3 \"node_modules/bootstrap/dist/fonts/**\" controlserver/static/ && copyfiles -u 2 node_modules/angular/angular.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/jquery/dist/jquery.js controlserver/static/vendor/js/ && copyfiles -u 3 \"node_modules/eonasdan-bootstrap-datetimepicker/build/*/**\" controlserver/static/vendor/ && copyfiles -u 3 node_modules/moment/min/moment-with-locales.min.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/moment-duration-format/lib/moment-duration-format.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/chart.js/dist/Chart.bundle.min.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/angular-chart.js/dist/angular-chart.min.js controlserver/static/vendor/js/",
+    "build": "npm run copy && npm run less"
+  },
+  "author": "Saarsec",
+  "dependencies": {
+    "angular": "^1.6.10",
+    "angular-chart.js": "^1.1.1",
+    "bootstrap": "^3.3.7",
+    "chart.js": "^2.8.0",
+    "copyfiles": "^2.0.0",
+    "eonasdan-bootstrap-datetimepicker": "^4.17.47",
+    "jquery": "^3.3.1",
+    "less": "^3.0.2",
+    "mkdirp": "^0.5.1",
+    "moment-duration-format": "^2.2.2"
+  }
+}

@@ -1,0 +1,29 @@
+{% raw %}
+<div class="panel panel-default" ng-controller="LogController" ng-cloak>
+	<div class="panel-heading">
+		<button class="btn btn-default btn-xs pull-right" ng-click="updateLogs()"><span class="glyphicon glyphicon-refresh"></span>
+		</button>
+		Events
+	</div>
+	<div class="list-group">
+		<a class="list-group-item" ng-repeat="log in logs track by $index" ng-href="log_messages/view/{{ log.id }}" target="_blank"
+		   ng-class="{'list-group-item-warning': log.level == LogLevel.WARNING, 'list-group-item-danger': log.level == LogLevel.ERROR}"
+		   style="user-drag: none; -webkit-user-drag: none;" ondragstart="return false;">
+			<span class="badge">{{ log.created | newDate | date:'HH:mm:ss' }}</span>
+			<h4 class="list-group-item-heading" ng-if="log.text">
+				<span ng-if="log.level == LogLevel.IMPORTANT || log.level == LogLevel.NOTIFICATION"
+					  class="glyphicon glyphicon-exclamation-sign"></span>
+				{{ log.title }}
+			</h4>
+			<pre class="list-group-item-text" ng-if="log.text">{{ log.text }}</pre>
+
+			<p class="list-group-item-text" ng-if="!log.text"
+			   ng-class="{'bold': log.level == LogLevel.IMPORTANT || log.level == LogLevel.NOTIFICATION}">
+				<span ng-if="log.level == LogLevel.IMPORTANT || log.level == LogLevel.NOTIFICATION"
+					  class="glyphicon glyphicon-exclamation-sign"></span>
+				{{ log.title }}
+			</p>
+		</a>
+	</div>
+</div>
+{% endraw %}

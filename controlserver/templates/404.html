@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Not Found{% endblock %}
+
+{% block content %}
+	<h1>404 Not Found</h1>
+	{% if message %}
+		<p>{{ message }}</p>
+	{% else %}
+		<p>This page has not been found</p>
+	{% endif %}
+{% endblock %}
+
+{% block footer %}
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% from 'pagination.html' import paginator, paginator_script, filter_checkbox_list, filter_options %}
+
+{% block title %}Teams{% endblock %}
+
+{% block content %}
+	{{ filter_checkbox_list('Level filter', 'filter_level', ['online', 'offline', 'ever online'], filter_online) }}
+
+	{% if current_stats_timestamp %}
+		<p class="text-muted pull-right">
+			Traffic stats are from {{ current_stats_timestamp_start.strftime('%H:%M:%S') }} to {{ current_stats_timestamp.strftime('%H:%M:%S (%Z)') }}.
+		</p>
+	{% endif %}
+
+	{{ paginator('.teams_index', teams, query_string) }}
+
+
+	<table class="table table-striped">
+		<thead>
+		<tr>
+			<th><a href="#" class="sort-link" data-sort="id">ID</a></th>
+			<th><a href="#" class="sort-link" data-sort="name">Team Name</a></th>
+			<th><a href="#" class="sort-link" data-sort="id">IP</a></th>
+			<th><a href="#" class="sort-link" data-sort="vpn_connected">VPN</a></th>
+			<th>
+				<a href="#" class="sort-link" data-sort="traffic.sum.bytes">Traffic</a><br/>
+				<small><a href="#" class="sort-link" data-sort="traffic.sum.bytes.up">up</a> / <a href="#" class="sort-link" data-sort="traffic.sum.bytes.down">down</a></small>
+			</th>
+			<th>
+				<a href="#" class="sort-link" data-sort="traffic.sum.syns">Connections</a><br/>
+				<small><a href="#" class="sort-link" data-sort="traffic.sum.syns.up">up</a> / <a href="#" class="sort-link" data-sort="traffic.sum.syns.down">down</a></small>
+			</th>
+			<th>
+				<a href="#" class="sort-link" data-sort="traffic.sum.teams_bytes" title="Team to team traffic">T2T Traffic</a><br/>
+				<small><a href="#" class="sort-link" data-sort="traffic.up_teams_bytes">up</a> / <a href="#" class="sort-link" data-sort="traffic.down_teams_bytes">down</a></small>
+			</th>
+			<th>
+				<a href="#" class="sort-link" data-sort="traffic.sum.teams_syns" title="Team to team connections">T2T Connections</a><br/>
+				<small><a href="#" class="sort-link" data-sort="traffic.up_teams_syns">up</a> / <a href="#" class="sort-link" data-sort="traffic.down_teams_syns">down</a></small>
+			</th>
+			<th>&nbsp;</th>
+		</tr>
+		</thead>
+		<tbody>
+		{% for team, traffic in teams.items %}
+			<tr>
+				<td>{{ team.id }}</td>
+				<td>{{ team.name }}</td>
+				<td>{{ team.vulnbox_ip }}</td>
+				<td>
+					{% if team.vpn_connected %}
+						<span class="label label-success">on</span>
+						since {{ team.vpn_last_connect.strftime('%H:%M:%S') if team.vpn_last_connect else '?' }}
+					{% else %}
+						<span class="label label-danger">off</span>
+						{% if team.vpn_last_disconnect %}
+							since {{ team.vpn_last_disconnect.strftime('%H:%M:%S') }}
+						{% elif team.vpn_last_connect %}
+							last seen: {{ team.vpn_last_connect.strftime('%H:%M:%S') }}
+						{% else %}
+							<span class="text-muted">(never online)</span>
+						{% endif %}
+					{% endif %}
+					<br/>
+					<small>@ <code>{{ team.vulnbox_ip }}</code></small>
+				</td>
+				{% if traffic.id %}
+					<td>
+						<div title="Up: {{ (traffic.up_teams_packets + traffic.up_game_packets) |thousand_spaces }} packets">
+							<small>
+								<span class="glyphicon glyphicon-arrow-up text-muted"></span> {{ (traffic.up_teams_bytes + traffic.up_game_bytes) |filesizeformat }}<br/>
+							</small>
+						</div>
+						<div title="Down: {{ (traffic.down_teams_packets + traffic.down_game_packets) |thousand_spaces }} packets">
+							<small>
+								<span class="glyphicon glyphicon-arrow-down text-muted"></span> {{ (traffic.down_teams_bytes + traffic.down_game_bytes) |filesizeformat }}
+							</small>
+						</div>
+					</td>
+					<td>
+						<div title="Up: {{ (traffic.up_teams_syns + traffic.up_game_syns) |thousand_spaces }} SYNs">
+							<small>
+								<span class="glyphicon glyphicon-arrow-up text-muted"></span> {{ (traffic.up_teams_syns + traffic.up_game_syns) |thousand_spaces }}
+							</small>
+						</div>
+						<div title="Down: {{ (traffic.down_teams_syns + traffic.down_game_syns) |thousand_spaces }} SYNs">
+							<small>
+								<span class="glyphicon glyphicon-arrow-down text-muted"></span> {{ (traffic.down_teams_syns + traffic.down_game_syns) |thousand_spaces }}
+							</small>
+						</div>
+					</td>
+					<td>
+						<div title="Up: {{ traffic.up_teams_packets |thousand_spaces }} packets">
+							<small>
+								<span class="glyphicon glyphicon-arrow-up text-muted"></span> {{ (traffic.up_teams_bytes) |filesizeformat }}<br/>
+							</small>
+						</div>
+						<div title="Down: {{ traffic.down_teams_packets |thousand_spaces }} packets">
+							<small>
+								<span class="glyphicon glyphicon-arrow-down text-muted"></span> {{ (traffic.down_teams_bytes) |filesizeformat }}
+							</small>
+						</div>
+					</td>
+					<td>
+						<div title="Up: {{ traffic.up_teams_syns |thousand_spaces }} SYNs">
+							<small>
+								<span class="glyphicon glyphicon-arrow-up text-muted"></span> {{ traffic.up_teams_syns |thousand_spaces }}
+							</small>
+						</div>
+						<div title="Down: {{ traffic.down_teams_syns |thousand_spaces }} SYNs">
+							<small>
+								<span class="glyphicon glyphicon-arrow-down text-muted"></span> {{ traffic.down_teams_syns |thousand_spaces }}
+							</small>
+						</div>
+					</td>
+				{% else %}
+					<td class="text-muted">-</td>
+					<td class="text-muted">-</td>
+					<td class="text-muted">-</td>
+					<td class="text-muted">-</td>
+				{% endif %}
+				<td>
+					<a href="{{ url_for('.teams_view', id=team.id) }}" class="glyphicon glyphicon-search"></a>
+				</td>
+			</tr>
+		{% endfor %}
+		</tbody>
+	</table>
+
+	<br/>
+	<br/>
+	<p class="text-muted">
+		{% if current_stats_timestamp %}
+			Traffic stats are from {{ current_stats_timestamp_start.strftime('%H:%M:%S') }} to {{ current_stats_timestamp.strftime('%H:%M:%S (%Z)') }}.
+		{% else %}
+			No traffic stats available
+		{% endif %}
+	</p>
+{% endblock %}
+
+{% block footer %}
+	{{ paginator_script() }}
+{% endblock %}

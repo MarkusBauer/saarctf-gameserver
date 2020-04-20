@@ -1,0 +1,42 @@
+@import "bootstrap/less/mixins/gradients.less";
+
+.navbar-text.navbar-right {
+	margin-right: 0px;
+}
+
+#content {
+	margin-top: 90px;
+	margin-bottom: 90px;
+}
+
+[ng\:cloak], [ng-cloak], [data-ng-cloak], [x-ng-cloak], .ng-cloak, .x-ng-cloak {
+	display: none !important;
+}
+
+.bg-primary-theme {
+	color: #fff;
+	.bg-variant(@brand-primary);
+	#gradient > .vertical(@start-color: lighten(@navbar-inverse-bg, 10%); @end-color: @navbar-inverse-bg);
+}
+
+a.href {
+	cursor: pointer;
+}
+
+.dl-horizontal.dl-horizontal-wide {
+	dt {
+		width: 220px;
+	}
+	dd {
+		margin-left: 240px;
+	}
+}
+
+
+.table.table-middle {
+	tbody {
+		td, th {
+			vertical-align: middle;
+		}
+	}
+}

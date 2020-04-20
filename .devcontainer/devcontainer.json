@@ -1,0 +1,25 @@
+// For format details, see https://aka.ms/vscode-remote/devcontainer.json or the definition README at
+// https://github.com/microsoft/vscode-dev-containers/tree/master/containers/ubuntu-18.04-git
+{
+    "name": "saarCTF Gameserver",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "saarctf-gameserver",
+    "postCreateCommand": "./.devcontainer/postInstall.sh",
+    "workspaceFolder": "/workspace",
+    "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash",
+    },
+    // Add the IDs of any extensions you want installed in the array below.
+    "extensions": [
+        "bradymholt.pgformatter",
+        "ckolkman.vscode-postgres",
+        "codezombiech.gitignore",
+        "davidanson.vscode-markdownlint",
+        "ms-python.python",
+        "ms-vscode.cpptools",
+        "redhat.vscode-yaml",
+        "twxs.cmake",
+        "vector-of-bool.cmake-tools",
+        "yzhang.markdown-all-in-one",
+    ]
+}

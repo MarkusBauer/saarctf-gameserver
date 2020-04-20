@@ -1,0 +1,72 @@
+{% raw %}
+<div class="panel panel-default" ng-controller="VPNController" ng-cloak>
+	<div class="panel-heading">
+		<button class="btn btn-default btn-xs pull-right" ng-click="updateComponents()"><span class="glyphicon glyphicon-refresh"></span>
+		</button>
+		VPN Control
+	</div>
+	<div class="panel-body">
+		<p ng-if="state">
+			<span class="label label-success">Network open</span>
+			<button class="btn btn-default pull-right" ng-click="setState(false)" ng-if="!hideControls">Close network</button>
+		</p>
+		<p ng-if="!state">
+			<span class="label label-danger">Network closed</span>
+			<button class="btn btn-default pull-right" ng-click="setState(true)" ng-if="!hideControls">Open network</button>
+		</p>
+
+		<br ng-if="!hideControls"/>
+		<canvas class="chart chart-line" width="21" height="10" id="graph1" ng-show="graph_bytes"></canvas>
+		<canvas class="chart chart-line" width="21" height="10" id="graph2" ng-show="graph_bytes_2"></canvas>
+		<canvas class="chart chart-line" width="21" height="10" id="graph3" ng-show="graph_connections"></canvas>
+
+		<br/>
+		<br/>
+
+		<dl class="dl-horizontal dl-horizontal-wide">
+			<dt># Teams connected</dt>
+			<dd>{{ teams_online }}</dd>
+			<dt># Teams disconnected</dt>
+			<dd>{{ teams_online_once }}</dd>
+			<dt># Teams never connected</dt>
+			<dd>{{ teams_offline }}</dd>
+		</dl>
+
+		<br/>
+
+		<p ng-if="banned.length == 0">No teams are banned.</p>
+		<p ng-if="banned.length > 0"><strong>Banned teams:</strong></p>
+		<ul ng-if="banned.length > 0">
+			<li ng-repeat="team in banned">
+				#{{ team.id }} {{ team.name }}
+				<small>({{ team.network }})</small>
+				<span ng-if="team.tick">until tick {{ team.tick }}</span>
+				&nbsp;&nbsp;
+				<button class="btn btn-xs btn-default" title="Forgive / remove ban" ng-click="unban(team.id)">&times;</button>
+			</li>
+		</ul>
+		<br ng-if="banned.length > 0">
+
+		<form class="form-horizontal" ng-submit="ban(banteam, bantick)" ng-if="!hideControls">
+			<p><strong>Ban team</strong></p>
+			<div class="form-group">
+				<div class="col-sm-7">
+					<select class="form-control" ng-model="banteam" required>
+						{% endraw %}
+						{% for team in teams %}
+							<option value="{{ team.id }}">#{{ team.id }} {{ team.name }}</option>
+						{% endfor %}
+						{% raw %}
+					</select>
+				</div>
+				<div class="col-sm-3">
+					<input type="number" class="form-control" placeholder="until tick" ng-model="bantick">
+				</div>
+				<div class="col-sm-2">
+					<button class="btn btn-default" type="submit">Ban</button>
+				</div>
+			</div>
+		</form>
+	</div>
+</div>
+{% endraw %}

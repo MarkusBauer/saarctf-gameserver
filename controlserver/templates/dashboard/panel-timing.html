@@ -1,0 +1,103 @@
+{% raw %}
+<div class="panel panel-default" ng-controller="TimingController" ng-cloak>
+	<div class="panel-heading">
+		<button class="btn btn-default btn-xs pull-right" ng-click="updateTimingInformation()"><span
+				class="glyphicon glyphicon-refresh"></span>
+		</button>
+		CTF Timing
+	</div>
+	<div class="panel-body">
+		<div ng-if="timer.masterTimers !== 1" class="alert alert-danger">{{ timer.masterTimers }} clocks (master timers) connected!</div>
+
+		<p>
+			<span ng-if="timer.state == CTFTimer.RUNNING" class="label label-success"><span class="glyphicon glyphicon-play"></span> Running</span>
+			<span ng-if="timer.state == CTFTimer.SUSPENDED" class="label label-warning"><span
+					class="glyphicon glyphicon-pause"></span> Suspended</span>
+			<span ng-if="timer.state == CTFTimer.STOPPED" class="label label-danger"><span class="glyphicon glyphicon-stop"></span> Stopped</span>
+
+			<span ng-if="timer.desiredState == CTFTimer.RUNNING && timer.state != CTFTimer.RUNNING"
+				  class="label label-success" title="Not starting? Check if the master timer is running!">Starting soon...</span>
+			<span ng-if="timer.desiredState == CTFTimer.SUSPENDED && timer.state != CTFTimer.SUSPENDED"
+				  class="label label-warning">Suspending after this round</span>
+			<span ng-if="timer.desiredState == CTFTimer.STOPPED && timer.state != CTFTimer.STOPPED"
+				  class="label label-danger">Stopping after this round</span>
+
+			<strong>Round {{ timer.currentRound }}</strong>
+		</p>
+		<p>
+			<span ng-if="timer.roundStart">Round start: {{ timer.roundStart*1000 | date:'dd.MM.yyyy HH:mm:ss' }}<br></span>
+			<span ng-if="timer.state == CTFTimer.RUNNING">Next round in: {{ timer.roundEnd - timer.serverTime }} sec<br></span>
+			Server time: {{ timer.serverTime*1000 | date:'dd.MM.yyyy HH:mm:ss' }}<br>
+			Current round time: {{ timer.roundTime }} sec
+			<span ng-if="timer.startAt"><br/>
+							<span class="glyphicon glyphicon-play"></span> Autostart: {{ timer.startAt | newDate | date:'dd.MM.yyyy HH:mm:ss' }}
+							(in {{ timer.startAt - timer.serverTime |interval }})
+							<a ng-click="setAutostart(null)" class="btn btn-link btn-xs">&times;</a>
+						</span>
+			<span ng-if="timer.lastRound"><br/>
+							<span class="glyphicon glyphicon-stop"></span> Final round: {{ timer.lastRound }}
+							<span ng-if="timer.endAt">(~ {{ timer.endAt | newDate | date:'HH:mm:ss' }})</span>
+							<a ng-click="setLastRound(null)" class="btn btn-link btn-xs">&times;</a>
+						</span>
+		</p>
+		<p ng-if="!hideControls">
+			<button class="btn btn-default" ng-click="setState(CTFTimer.RUNNING)" ng-disabled="timer.desiredState == CTFTimer.RUNNING">
+				<span class="glyphicon glyphicon-play"></span> Start CTF
+			</button>
+			<button class="btn btn-default" ng-click="setState(CTFTimer.SUSPENDED)" ng-disabled="timer.desiredState != CTFTimer.RUNNING">
+				<span class="glyphicon glyphicon-pause"></span> Suspend CTF
+			</button>
+			<button class="btn btn-default" ng-click="setState(CTFTimer.STOPPED)" ng-disabled="timer.desiredState != CTFTimer.RUNNING">
+				<span class="glyphicon glyphicon-stop"></span> Stop CTF
+			</button>
+		</p>
+
+		<br ng-if="!hideControls"/>
+		<br ng-if="!hideControls"/>
+
+
+		<form class="form-horizontal" ng-if="!hideControls">
+			<div class="form-group">
+				<label class="col-sm-4 control-label" title="Change the time each round lasts">Round time</label>
+				<div class="col-sm-8">
+					<div class="input-group">
+						<input type="number" class="form-control" placeholder="Change round time" ng-model="newroundtime">
+						<span class="input-group-btn"><button class="btn btn-default" type="submit"
+															  ng-click="setRoundTime(newroundtime)">Set</button></span>
+					</div>
+				</div>
+			</div>
+		</form>
+
+		<form class="form-horizontal" ng-if="!hideControls">
+			<div class="form-group">
+				<label class="col-sm-4 control-label" title="CTF stops after this round">Set autostart</label>
+				<div class="col-sm-8">
+					<div class="input-group date">
+						<input type="text" class="form-control" placeholder="Start time" ng-model="startAt" bs-datepicker>
+						<span class="input-group-addon">
+                        				<span class="glyphicon glyphicon-time"></span>
+                    				</span>
+						<span class="input-group-btn">
+										<button class="btn btn-default" type="submit" ng-click="setAutostart(startAt)">Set</button>
+									</span>
+					</div>
+				</div>
+			</div>
+		</form>
+
+		<form class="form-horizontal" ng-if="!hideControls">
+			<div class="form-group">
+				<label class="col-sm-4 control-label" title="CTF stops after this round">Set last round</label>
+				<div class="col-sm-8">
+					<div class="input-group">
+						<input type="number" class="form-control" placeholder="Last round" ng-model="lastRoundNumber">
+						<span class="input-group-btn"><button class="btn btn-default" type="submit"
+															  ng-click="setLastRound(lastRoundNumber)">Set</button></span>
+					</div>
+				</div>
+			</div>
+		</form>
+	</div>
+</div>
+{% endraw %}

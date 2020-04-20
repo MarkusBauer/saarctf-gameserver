@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from 'pagination.html' import paginator, paginator_script, filter_checkbox_list, filter_options %}
+
+{% block title %}Logs{% endblock %}
+
+{% block content %}
+	{{ filter_checkbox_list('Level filter', 'filter_level', levels, filter_level) }}
+
+	<form class="form-inline" onsubmit="return false;">
+		{{ filter_options('Component filter', 'filter_component', components, filter_component) }}
+	</form>
+
+	{{ paginator('.log_messages_index', log_messages, query_string) }}
+
+
+	<table class="table table-striped">
+		<thead>
+		<tr>
+			<th><a href="#" class="sort-link" data-sort="id">ID</a></th>
+			<th><a href="#" class="sort-link" data-sort="created">Created</a></th>
+			<th><a href="#" class="sort-link" data-sort="component">Component</a></th>
+			<th><a href="#" class="sort-link" data-sort="level">Level</a></th>
+			<th><a href="#" class="sort-link" data-sort="title">Title</a></th>
+			<th><a href="#" class="sort-link" data-sort="text">Text</a></th>
+			<th>&nbsp;</th>
+		</tr>
+		</thead>
+		<tbody>
+		{% for log_message in log_messages.items %}
+			<tr>
+				<td>{{ log_message.id }}</td>
+				<td>{{ log_message.created.strftime('%H:%M:%S') }}</td>
+				<td>{{ log_message.component }}</td>
+				<td>
+					{% if log_message.level == LogMessage.ERROR %}
+						<span class="label label-danger">Error</span>
+					{% elif log_message.level == LogMessage.WARNING %}
+						<span class="label label-warning">Warning</span>
+					{% elif log_message.level == LogMessage.IMPORTANT %}
+						<strong class="label label-default">Important</strong>
+					{% elif log_message.level == LogMessage.INFO %}
+						Info
+					{% elif log_message.level == LogMessage.DEBUG %}
+						<span class="text-muted">Debug</span>
+					{% else %}
+						{{ log_message.level }}
+					{% endif %}
+				</td>
+				<td>{{ log_message.title or '<i class="text-muted">-</i>'|safe }}</td>
+				<td>
+					{% if log_message.text %}
+						<code>{{ log_message.text[:50]+(' ...' if log_message.text|length > 50 else '') }}</code>
+					{% else %}
+						<i class="text-muted">-</i>
+					{% endif %}
+				</td>
+				<td>
+					<a href="{{ url_for('.log_messages_view', id=log_message.id) }}" class="glyphicon glyphicon-search"></a>
+				</td>
+			</tr>
+		{% endfor %}
+		</tbody>
+	</table>
+{% endblock %}
+
+{% block footer %}
+	{{ paginator_script() }}
+{% endblock %}

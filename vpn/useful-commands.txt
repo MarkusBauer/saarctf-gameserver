@@ -1,0 +1,9 @@
+
+# "Just bind" an IP
+ifconfig lo:1 10.32.1.1 netmask 255.255.255.255 up
+ifconfig lo:1 10.32.2.1 netmask 255.255.255.255 up
+
+# Debug IPTables
+iptables -nvL
+watch -n1 iptables -nvL
+iptables -Z  # clear

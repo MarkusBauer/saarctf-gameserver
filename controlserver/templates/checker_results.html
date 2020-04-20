@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from 'pagination.html' import paginator, paginator_script, filter_options, filter_checkbox_list %}
+
+{% block title %}Checker results{% endblock %}
+
+{% block content %}
+	{{ filter_checkbox_list('Status filter', 'filter_status', states, filter_status) }}
+
+	<form class="form-inline" onsubmit="return false;">
+		{{ filter_options('Team filter', 'filter_team', teams, filter_team) }}
+		{{ filter_options('Service filter', 'filter_service', services, filter_service) }}
+	</form>
+
+
+	{{ paginator('.checker_results_index', checker_results, query_string) }}
+
+
+	<table class="table table-striped">
+		<thead>
+		<tr>
+			<th><a href="#" class="sort-link" data-sort="id">ID</a></th>
+			<th><a href="#" class="sort-link" data-sort="round">Round</a></th>
+			<th><a href="#" class="sort-link" data-sort="team_id">Team</a></th>
+			<th><a href="#" class="sort-link" data-sort="service_id">Service</a></th>
+			<th><a href="#" class="sort-link" data-sort="status">Status</a></th>
+			<th><a href="#" class="sort-link" data-sort="message">Message</a></th>
+			<th><a href="#" class="sort-link" data-sort="time">Time</a></th>
+			<th><a href="#" class="sort-link" data-sort="finished">Finished</a></th>
+			<th><a href="#" class="sort-link" data-sort="run_over_time">Late?</a></th>
+			<th><a href="#" class="sort-link" data-sort="celery_id">Task ID</a></th>
+			<th>&nbsp;</th>
+		</tr>
+		</thead>
+		<tbody>
+		{% for checker_result in checker_results.items %}
+			<tr>
+				<td>{{ checker_result.id }}</td>
+				<td>{{ checker_result.round }}</td>
+				<td>{{ checker_result.team.name }} ({{ checker_result.team.vulnbox_ip }})</td>
+				<td>{{ checker_result.service.name }}</td>
+				<td>
+					{% if checker_result.status == 'SUCCESS' %}
+						<span class="label label-success">ONLINE</span>
+					{% elif checker_result.status == 'FLAGMISSING' or checker_result.status == 'MUMBLE' or checker_result.status == 'OFFLINE' %}
+						<span class="label label-warning">{{ checker_result.status }}</span>
+					{% elif checker_result.status == 'TIMEOUT' or checker_result.status == 'REVOKED' %}
+						<span class="label label-info">{{ checker_result.status }}</span>
+					{% elif checker_result.status == 'PENDING' %}
+						<span class="label label-default">{{ checker_result.status }}</span>
+					{% else %}
+						<span class="label label-danger">{{ checker_result.status }}</span>
+					{% endif %}
+				</td>
+				<td>{{ checker_result.message or '<i class="text-muted">-</i>'|safe }}</td>
+				<td>
+					{% if checker_result.time != None %}
+						{{ '%0.2f'| format(checker_result.time) }} sec
+					{% else %}
+						<i class="text-muted">-</i>
+					{% endif %}
+				</td>
+				<td>
+					{% if checker_result.finished != None %}
+						{{ checker_result.finished.strftime('%H:%M:%S') }}
+					{% else %}
+						<i class="text-muted">-</i>
+					{% endif %}
+				</td>
+				<td>
+					{{ checker_result.run_over_time | bool2html }}
+				</td>
+				<td>
+					{% if checker_result.celery_id is not none %}
+						<a href="{{ FLOWER_URL }}task/{{ checker_result.celery_id }}"
+						   target="_blank">{{ checker_result.celery_id }}</a>
+					{% else %}
+						-
+					{% endif %}
+				</td>
+				<td>
+					<a href="{{ url_for('.checker_results_view', id=checker_result.id) }}"
+					   class="glyphicon glyphicon-search"></a>
+				</td>
+			</tr>
+		{% endfor %}
+		</tbody>
+	</table>
+{% endblock %}
+
+{% block footer %}
+	{{ paginator_script() }}
+{% endblock %}

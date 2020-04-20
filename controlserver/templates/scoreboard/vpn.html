@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+		  integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
+		  integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">-->
+	<link rel="stylesheet" href="index.css">
+
+	<title>Team VPN Status - saarCTF</title>
+	<meta http-equiv="refresh" content="60" >
+</head>
+<body>
+<div class="bg-primary-theme">
+	<div class="container-fluid">
+		<h1 class="page-header">saarCTF Team VPN Status</h1>
+	</div>
+	<br/>
+</div>
+
+<br/>
+
+<div class="container">
+
+	<p class="text-muted">Last update: {{ now.strftime('%d. %b %Y %H:%M:%S %Z') }}</p>
+
+	<table class="table table-bordered">
+		<thead>
+		<tr>
+			<th>#</th>
+			<th>Team</th>
+			<th>VPN Status</th>
+			<th>Last VPN Connection</th>
+		</tr>
+		</thead>
+		<tbody>
+		{% for team in teams %}
+			<tr>
+				<th>{{ team.id }}</th>
+				<td>{{ team.name }}</td>
+				<td>
+					{% if team.vpn_connected %}
+						<span class="label label-success">connected</span>
+					{% else %}
+						<span class="label label-default">disconnected</span>
+					{% endif %}
+				</td>
+				<td>
+					{% if team.vpn_last_connect %}
+						{{ team.vpn_last_connect.strftime('%d. %b %Y %H:%M:%S %Z') }}
+					{% else %}
+						<span class="text-danger">never connected</span>
+					{% endif %}
+				</td>
+			</tr>
+		{% endfor %}
+
+		</tbody>
+	</table>
+
+</div>
+</body>
+</html>

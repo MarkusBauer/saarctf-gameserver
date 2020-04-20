@@ -1,0 +1,132 @@
+
+
+--- Single-loop, inserting into postgresql ---
+Bucket size / # bucket / # connections / # db entries
+ 128 / 1000  /  1 / 320    =>  17304.32 flags / second (python)
+  50 / 2000  /  1 / 370    =>  19017.39 flags / second
+  50 / 2000  / 10 / 420    =>  14454.34 flags / second
+  50 / 2000  /  1 / 100000 =>  17010.17 flags / second
+  50 / 2000  / 10 / 100000 =>  14440.80 flags / second
+5000 / 20    /  1 / 100000 =>  19325.95 flags / second
+  50 / 2000  /  1 / 100000 =>  17949.85 flags / second (+index)
+  50 / 20000 /  1 / 100000 => 439156.80 flags / second (invalid)
+  50 / 20000 / 10 / 100000 => 486361.90 flags / second (invalid)
+  50 / 20000 /  1 / 100000 => 513527.07 flags / second (invalid + optimized)
+  50 / 20000 / 10 / 100000 => 575752.94 flags / second (invalid + optimized)
+
+
+--- Threading, flags with invalid hash ---
+Bucket size / # buckets / # connections / # threads
+50 / 20000 /  1 /  1 =>  482196.11 flags / second
+50 / 20000 / 10 /  1 =>  531652.86 flags / second
+50 / 20000 / 10 /  2 => 1038789.98 flags / second
+50 / 50000 / 10 /  4 => 1590806.61 flags / second
+50 / 50000 / 10 /  6 => 1900094.40 flags / second
+50 / 50000 / 10 /  8 => 1789536.48 flags / second
+50 / 20000 / 30 /  8 => 2218695.97 flags / second
+50 / 20000 / 30 /  8 => 5602750.43 flags / second (expired)
+50 / 20000 / 30 /  8 => 5838802.34 flags / second (invalid base64)
+
+
+--- Threading, valid hash, database filled with ~110000 flags ---
+Bucket size / # buckets / # connections / # threads
+50 / 2000 /  10 /  1 =>  14125.25 flags / second
+50 / 2000 /  10 /  2 =>  37142.13 flags / second
+50 / 2000 /  20 /  4 =>  58894.06 flags / second
+50 / 2000 /  30 /  6 =>  83382.42 flags / second
+50 / 2000 /  40 /  8 => 104885.03 flags / second
+50 / 2000 /  48 / 12 => 125299.36 flags / second
+50 / 2000 /  80 / 16 => 134365.41 flags / second
+50 / 2000 / 160 /  8 => 100770.41 flags / second
+50 / 2000 /   8 /  8 => 105419.25 flags / second
+
+
+--- Cache, Haswell ---
+50 / 2000 /  40 /  4 => 3632740.80 flags / second (expired)
+50 / 2000 /  60 /  6 => 3215375.50 flags / second (expired)
+50 / 2000 /  40 /  4 => 1665564.62 flags / second (invalid hmac)
+50 / 2000 /  60 /  6 =>  874063.60 flags / second (invalid hmac)
+50 / 2000 /  80 /  8 =>  832461.68 flags / second (invalid hmac)
+50 / 2000 /  40 /  4 => 1557477.74 flags / second (with cache)
+50 / 2000 /  60 /  6 =>  831507.14 flags / second (with cache)
+50 / 2000 /  80 /  8 =>  790477.28 flags / second (with cache)
+50 / 2000 /  40 /  4 =>   31623.05 flags / second (without cache)
+50 / 2000 /  60 /  6 =>   44847.42 flags / second (without cache)
+50 / 2000 /  40 /  4 =>   82599.98 flags / second (without cache, async)
+50 / 2000 /  60 /  6 =>   93378.90 flags / second (without cache, async)
+
+
+--- Real insert, Haswell ---
+# Flags / # connections / # threads
+100000 /   1 /  4  =>   847.75 flags / second
+ 50000 /   4 /  4  =>  1174.14 flags / second
+ 50000 /   8 /  8  =>  2319.77 flags / second
+ 50000 /   4 /  4  =>  1740.00 flags / second
+ 10000 /   4 /  4  =>  1884.00 flags / second
+ 10000 /   4 /  4  =>  1584.88 flags / second (no id)
+ 10000 /   4 /  4  =>  1787.10 flags / second (no id)
+ 10000 /   4 /  4  =>  1170.04 flags / second (recreated)
+ 10000 /  64 / 16  =>  4581.09 flags / second (10% resubmit)
+ 10000 /  96 / 32  =>  8819.27 flags / second (10% resubmit)
+ 10000 / 128 / 64  => 15862.36 flags / second (20% resubmit)
+ 10000 /  96 / 96  => 17801.53 flags / second (27% resubmit)
+
+
+--- Async commits ---
+ 20000 /   4 /  2  =>  37594.62 flags / second (0.2% resubmit)
+ 20000 /   4 /  4  =>  48447.18 flags / second (0.5% resubmit)
+ 20000 /  12 /  6  =>  58328.84 flags / second (8.2% resubmit)
+ 20000 /  16 /  8  =>  64752.70 flags / second (0.9% resubmit)
+ 20000 /  64 / 16  =>  63772.24 flags / second (12% resubmit)
+ 20000 /  96 / 32  =>  59724.04 flags / second (12% resubmit)
+
+
+
+
+--- i7 6700k summary ---
+ 40 /  4 => 3019107.17 flags / second (expired)
+ 80 /  8 => 5267760.25 flags / second (expired)
+ 96 / 12 => 4626069.06 flags / second flags / second (expired)
+ 40 /  4 => 1857131.78 flags / second (invalid hmac)
+ 80 /  8 => 2164946.17 flags / second (invalid hmac)
+ 96 / 12 => 1262468.02 flags / second (invalid hmac)
+ 40 /  4 => 1770969.38 flags / second (resubmit with cache)
+ 80 /  8 => 2240861.84 flags / second (resubmit with cache)
+ 96 / 12 => 1256694.35 flags / second (resubmit with cache)
+ 40 /  4 =>  146654.36 flags / second (resubmit without cache)
+ 80 /  8 =>  155523.94 flags / second (resubmit without cache)
+ 96 / 12 =>  169812.42 flags / second (resubmit without cache)
+ 40 /  4 =>   83624.23 flags / second (valid, 19.3% resubmit)
+ 80 /  8 =>  103949.22 flags / second (valid, 20.2% resubmit)
+ 96 / 12 =>  113566.02 flags / second (valid, 16.4% resubmit)
+128 / 16 =>  123813.53 flags / second (valid, 19.1% resubmit)
+
+
+
+
+
+
+--- Summary ---
+CPU      | Threads | Connections | Performance              | Conditions
+--------------------------------------------------------------------------------
+i7 6700k |  1      |  1          |   482.196 flags / second | invalid hmac
+i7 6700k |  8      | 30          | 2.218.695 flags / second | invalid hmac
+i7 6700k |  8      | 30          | 5.602.750 flags / second | expired
+i7 6700k |  8      | 30          | 5.838.802 flags / second | invalid base64
+i7 6700k |  8      | 40          |   104.885 flags / second | resubmit, no cache
+i7 6700k | 16      | 80          |   134.365 flags / second | resubmit, no cache
+
+i5 4690  |  4      | 40          | 1.665.564 flags / second | invalid hmac
+i5 4690  |  6      | 60          |   874.063 flags / second | invalid hmac
+i5 4690  |  4      | 40          |    31.623 flags / second | resubmit, no cache
+i5 4690  |  6      | 60          |    44.847 flags / second | resubmit, no cache
+i5 4690  |  4      | 40          | 1.557.477 flags / second | resubmit, + cache
+i5 4690  |  6      | 60          |   831.507 flags / second | resubmit, + cache
+i5 4690  |  4      |  4          |     1.174 flags / second | valid, scored
+i5 4690  |  4      |  4          |     1.884 flags / second | valid, scored
+i5 4690  |  6      | 12          |     1.236 flags / second | valid, scored
+i5 4690  |  8      |  8          |     2.319 flags / second | valid, scored
+i5 4690  | 16      | 64          |     4.581 flags / second | valid, scored
+i5 4690  | 32      | 96          |     8.819 flags / second | valid, scored
+
+

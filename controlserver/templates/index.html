@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+
+{% block content %}
+	<style>
+		.bold {
+			font-weight: bold;
+		}
+	</style>
+
+	{% if missing_scripts %}
+		<div class="alert alert-danger">Missing script for these services: {{ missing_scripts }}. Update checker scripts to resolve this issue.</div>
+	{% endif %}
+
+	{% if missing_scoreboard %}
+		<div class="alert alert-danger">
+			Missing scoreboard. Run <code>python scripts/recreate_scoreboard.py</code> to resolve this.
+			<a class="href alert-link"
+			   onclick="$.post({{ url_for('.recreate_scoreboard')|tojson|forceescape }}); setTimeout(function(){location.reload();}, 1500); return false">
+				Recreate Scoreboard ...
+			</a>
+		</div>
+	{% endif %}
+
+	{% if unwriteable_scoreboard %}
+		<div class="alert alert-danger">
+			Scoreboard path is not writeable. Please check the permissions of <code>{{ scoreboard_path }}</code> and its content.
+		</div>
+	{% endif %}
+
+	<div class="row">
+		<div class="col-lg-8 col-md-6">
+			<div class="row">
+				<div class="col-lg-6">
+					{% include 'dashboard/panel-timing.html' %}
+					{% include 'dashboard/panel-components.html' %}
+					{% include 'dashboard/panel-flower.html' %}
+				</div>
+				<div class="col-lg-6">
+					{% include 'dashboard/panel-vpn.html' %}
+				</div>
+			</div>
+		</div>
+		<div class="col-lg-4 col-md-6">
+			{% include 'dashboard/panel-logs.html' %}
+		</div>
+	</div>
+
+	{% raw %}
+	<div ng-controller="LayoutController" class="pull-right" style="margin-top: 40px;">
+		<a class="href" ng-click="setHideControls(true)" ng-if="!hideControls">Hide Controls</a>
+		<a class="href" ng-click="setHideControls(false)" ng-if="hideControls">Show Controls</a>
+		<br/>
+		<a href="?nocontrol=1" ng-if="!hideControls">Remove Controls</a>
+		<span ng-if="!notificationsAllowed"><br/><a class="href" ng-click="enableNotifications()">Enable Notifications</a></span>
+	</div>
+	{% endraw %}
+{% endblock %}
+
+{% block footer %}
+	<script src="{{ url_for('static', filename='vendor/js/Chart.bundle.min.js') }}"></script>
+	<script src="{{ url_for('static', filename='vendor/js/angular.js') }}"></script>
+	<script src="{{ url_for('static', filename='vendor/js/angular-chart.min.js') }}"></script>
+	<script src="{{ url_for('static', filename='js/graphs.js') }}"></script>
+	<script src="{{ url_for('static', filename='js/overview.js') }}"></script>
+	<div id="flower-url" data-value="{{ flower_ajax_url }}"></div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from 'pagination.html' import paginator, paginator_script, filter_checkbox_list, filter_options %}
+
+{% block title %}Services{% endblock %}
+
+{% block content %}
+
+	<table class="table table-striped table-middle">
+		<thead>
+		<tr>
+			<th>ID</th>
+			<th>Name</th>
+			<th>Checker Script</th>
+			<th class="text-center">Checker Status</th>
+			<th>Flags</th>
+			<th>First Blood</th>
+		</tr>
+		</thead>
+		<tbody>
+		{% for service in services %}
+			<tr>
+				<td>{{ service.id }}</td>
+				<th>{{ service.name }}</th>
+				<td>
+					<small><code>{{ service.checker_script_dir }}</code></small>
+					<br/>
+					<small><code>{{ service.checker_script }}</code></small>
+					<br/>
+					Timeout: {{ service.checker_timeout }} sec
+				</td>
+				<td class="text-center">
+					{% if service.checker_enabled %}
+						<span class="label label-success">on</span><br/>
+						<a href="#" class="btn btn-sm btn-link" onclick="setCheckerStatus({{ service.id }}, false); return false;">(disable)</a>
+					{% else %}
+						<span class="label label-danger">off</span><br/>
+						<a href="#" class="btn btn-sm btn-link" onclick="setCheckerStatus({{ service.id }}, true); return false;">(enable)</a>
+					{% endif %}
+				</td>
+				<td>
+					{{ service.flags_per_round }} flag{% if service.flags_per_round != 1 %}s{% endif %}/round<br/>
+					{{ '' if service.flag_ids else 'no ' }} flag ids
+				</td>
+				<td>
+					{% for flag in first_bloods[service.id] %}
+						{% if service.num_payloads %}[{{ flag.payload }}]: {% endif %}
+						{{ flag.ts.strftime('%H:%M:%S') }} (round {{ flag.round_submitted }}):
+						<strong>{{ flag.submitted_by_team.name }}</strong>
+						<small>(from {{ flag.victim_team.name }})</small>
+						{% if not loop.last %}<br/>{% endif %}
+					{% else %}
+						<span class="text-muted">-</span>
+					{% endfor %}
+					{% if service.num_payloads %}
+						<br/>
+						<span class="text-muted">({{ service.num_payloads - (first_bloods[service.id] |length) }} flags remaining)</span>
+					{% endif %}
+				</td>
+			</tr>
+		{% endfor %}
+
+		</tbody>
+	</table>
+{% endblock %}
+
+{% block footer %}
+	<script src="{{ url_for('static', filename='vendor/js/jquery.js') }}"></script>
+	<script>
+		function setCheckerStatus(id, status) {
+			if (!status && !confirm('Do you really want to disable the checking of service #' + id + '?'))
+				return;
+			$.post({{ url_for('services.services_set_checker_status') |tojson }}, {id: id, status: status ? 1 : 0}).then(function () {
+				window.location.href = location.href;
+			});
+		}
+	</script>
+{% endblock %}

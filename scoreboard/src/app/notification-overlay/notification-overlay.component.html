@@ -1,0 +1,40 @@
+<div class="backdrop" [@backdropAnimations]="visible" *ngIf="visible"></div>
+<div class="msgcontainer" [@mainAnimations]="visible" *ngIf="visible">
+	<div class="message-what">
+		First Blood
+		<div class="bigicon">
+			<i class="fas fa-tint"></i>
+		</div>
+	</div>
+	<div class="message-service"><small>on </small><strong>{{servicename}}</strong></div>
+	<div class="message-team"><small>by </small><strong>{{teamname}}</strong></div>
+</div>
+
+<div class="pyrocontainer" [@pyroAnimations]="pyroBackdropVisible" *ngIf="pyroBackdropVisible">
+	<div class="pyro" *ngIf="pyroVisible">
+		<div class="before"></div>
+		<div class="after"></div>
+	</div>
+
+	<div class="message-what">
+		Game is over!
+	</div>
+
+	<div class="teams">
+		<table class="finaltable">
+			<tr *ngFor="let teaminfo of topTeams; let i = index">
+				<td>{{i + 1}}.</td>
+				<td>
+					<img class="media-object" [src]="'logos/'+teaminfo[0].logo" alt="" loading="lazy">
+				</td>
+				<td><strong>{{teaminfo[0].name}}</strong></td>
+				<td><small>{{teaminfo[1].toFixed(1)}} points</small></td>
+			</tr>
+		</table>
+	</div>
+
+	<div class="message-sub">
+		<strong>Thanks for playing!</strong><br/>
+		<small>this game was powered by saarsec</small>
+	</div>
+</div>

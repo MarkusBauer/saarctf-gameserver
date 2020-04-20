@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="ControlServerApp">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>saarCTF Controller - {% block title %}{% endblock %}</title>
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+</head>
+<body>
+
+{% if request.args['nocontrol'] != '1' %}
+	<nav class="navbar navbar-inverse navbar-fixed-top">
+		<div class="container">
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1"
+						aria-expanded="false">
+					<span class="sr-only">Toggle navigation</span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+				</button>
+				<a class="navbar-brand" href="{{ url_for('endpoints.frontpage') }}">saarCTF</a>
+			</div>
+
+			<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+				<ul class="nav navbar-nav">
+					<li {{ 'class="active"'|safe if request.endpoint == 'endpoints.frontpage' else '' }}>
+						<a href="{{ url_for('endpoints.frontpage') }}">Dashboard</a>
+					</li>
+					<li {{ 'class="active"'|safe if request.endpoint == 'endpoints.packages' else '' }}>
+						<a href="{{ url_for('endpoints.packages') }}">Scripts</a>
+					</li>
+					<li {{ 'class="active"'|safe if request.endpoint in ['endpoints.checker_status', 'endpoints.checker_status_overview'] else '' }}>
+						<a href="{{ url_for('endpoints.checker_status_overview') }}">Checker Status</a>
+					</li>
+					<li class="dropdown {{ 'active'|safe if request.endpoint in ['checker_results.checker_results_index', 'log_messages.log_messages_index', 'teams.teams_index'] else '' }}">
+						<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Data <span
+								class="caret"></span></a>
+						<ul class="dropdown-menu">
+							<li {{ 'class="active"'|safe if request.endpoint == 'checker_results.checker_results_index' else '' }}>
+								<a href="{{ url_for('checker_results.checker_results_index') }}">Checker Results</a>
+							</li>
+							<li {{ 'class="active"'|safe if request.endpoint == 'log_messages.log_messages_index' else '' }}>
+								<a href="{{ url_for('log_messages.log_messages_index') }}">Logs</a>
+							</li>
+							<li {{ 'class="active"'|safe if request.endpoint == 'teams.teams_index' else '' }}>
+								<a href="{{ url_for('teams.teams_index') }}">Teams</a>
+							</li>
+							<li {{ 'class="active"'|safe if request.endpoint == 'services.services_index' else '' }}>
+								<a href="{{ url_for('services.services_index') }}">Services</a>
+							</li>
+							<li {{ 'class="active"'|safe if request.endpoint == 'flags.flags_index' else '' }}>
+								<a href="{{ url_for('flags.flags_index') }}">Check Flags</a>
+							</li>
+							<li class="divider"></li>
+							<li>
+								<a href="{{ url_for('service.index_view') }}">DB Admin</a>
+							</li>
+						</ul>
+					</li>
+					{% if scoreboard_url %}
+						<li><a href="{{ scoreboard_url }}" target="_blank">Scoreboard</a></li>
+					{% endif %}
+					<li><a href="{{ flower_url }}" target="_blank">Celery Flower</a></li>
+					{% if coder_url %}
+						<li><a href="{{ coder_url }}" target="_blank">Code Editor</a></li>
+					{% endif %}
+					{% if grafana_url %}
+						<li><a href="{{ grafana_url }}" target="_blank">Grafana</a></li>
+					{% endif %}
+				</ul>
+
+				<p class="navbar-text navbar-right">
+					Round: {{ current_round }}
+				</p>
+			</div>
+		</div>
+	</nav>
+{% else %}
+	<style>#content {
+		margin-top: 0;
+	}</style>
+{% endif %}
+
+{% if fluid_layout %}
+	<div id="content" class="container-fluid">
+{% else %}
+	<div id="content" class="container">
+{% endif %}
+{% block content %}{% endblock %}
+</div>
+
+
+
+
+
+
+<script src="{{ url_for('static', filename='vendor/js/jquery.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/js/bootstrap.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/js/moment-with-locales.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/js/moment-duration-format.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/js/bootstrap-datetimepicker.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/general.js') }}"></script>
+{% block footer %}{% endblock %}
+</body>
+</html>

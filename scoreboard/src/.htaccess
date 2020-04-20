@@ -1,0 +1,10 @@
+Header add Access-Control-Allow-Origin "*"
+Header add Access-Control-Allow-Methods: "GET,POST,OPTIONS,DELETE,PUT"
+
+FileETag MTime Size
+<FilesMatch ".(json|json.gz)$">
+	Header set Cache-Control "max-age=0, public, must-revalidate"
+</FilesMatch>
+<FilesMatch ".(js|css|ico)$">
+	Header set Cache-Control "max-age=300, public, must-revalidate"
+</FilesMatch>

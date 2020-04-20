@@ -1,0 +1,47 @@
+version: "2.2"
+
+services:
+  saarctf-gameserver:
+    build:
+      context: "."
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:Z
+
+    ports:
+      - 5000:5000
+      - 5555:5555
+      - 31337:31337
+
+    # Uncomment the next four lines if you will use a ptrace-based debugger like C++, Go, and Rust.
+    # cap_add:
+    #   - SYS_PTRACE
+    # security_opt:
+    #   - seccomp:unconfined
+
+    user: "1000"
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+  postgres:
+    image: postgres:10
+    restart: on-failure
+    environment:
+      # https://hub.docker.com/_/postgres#how-to-extend-this-image
+      POSTGRES_USER: saarsec
+      POSTGRES_PASSWORD: 123456789
+      POSTGRES_DB: saarctf
+  redis:
+    image: redis:5.0-alpine
+    restart: on-failure
+  rabbitmq:
+    # If the rabbitmq container hangs with 100% CPU usage this might be caused by a too large value for `ulimit -n`
+    image: rabbitmq:3.7-management-alpine
+    restart: on-failure
+    environment:
+      # https://hub.docker.com/_/rabbitmq#setting-default-user-and-password
+      RABBITMQ_DEFAULT_USER: saarsec
+      RABBITMQ_DEFAULT_PASS: 123456789
+      # https://hub.docker.com/_/rabbitmq#memory-limits
+      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 100MiB
+      RABBITMQ_DEFAULT_VHOST: saarctf

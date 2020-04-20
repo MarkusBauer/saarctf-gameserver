@@ -1,0 +1,38 @@
+{
+  "databases": {
+    "postgres": {
+      "__comment": "Leave server empty to use local socket",
+      "server": "",
+      "port": 5432,
+      "username": "",
+      "password": "",
+      "database": "saarctf_2"
+    },
+    "redis": {
+      "host": "localhost",
+      "port": 6379,
+      "db": 3
+    },
+    "rabbitmq": {
+      "host": "localhost",
+      "port": 5672,
+      "vhost": "saarctf",
+      "username": "saarctf",
+      "password": "123456789"
+    }
+  },
+  "secret_flags": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "flags_rounds_valid": 10,
+  "nop_team_id": 1,
+  "network": {
+    "game": "127.0.0.0/16",
+    "__ip_syntax": ["number", "or list", ["a", "b", "c"], "= ((team_id / a) mod b) + c"],
+    "vulnbox_ip": [127, [200, 256, 0], [1, 200, 0], 2],
+    "gateway_ip": [127, [200, 256, 0], [1, 200, 0], 1],
+    "__range_syntax": ["number", "or list", ["a", "b", "c"], "= ((team_id / a) mod b) + c", "/range"],
+    "team_range": [127, [200, 256, 0], [1, 200, 0], 0, 24],
+    "vpn_host": "10.13.0.1",
+    "vpn_peer_ips": [127, [200, 256, 52], [1, 200, 0], 1],
+    "gameserver_ip": "10.13.0.2"
+  }
+}

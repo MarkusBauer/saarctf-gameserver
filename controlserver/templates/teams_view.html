@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Team #{{ team.id }}: {{ team.name }}{% endblock %}
+
+{% block content %}
+	<h2>Team #{{ team.id }}: {{ team.name }} <small>({{ team.vulnbox_ip }})</small></h2>
+
+	<dl class="dl-horizontal">
+		<dt>VPN</dt>
+		<dd>
+			{% if team.vpn_connected %}
+				<span class="label label-success">up</span>
+			{% else %}
+				<span class="label label-danger">down</span>
+			{% endif %}
+			(last connected: {{ team.vpn_last_connect.strftime('%d.%m.%Y %H:%M:%S') if team.vpn_last_connect else '-' }},
+			last disconnected: {{ team.vpn_last_disconnect.strftime('%d.%m.%Y %H:%M:%S') if team.vpn_last_disconnect else '-' }})
+		</dd>
+	</dl>
+
+	<canvas id="graph1" width="1000" height="200"></canvas>
+	<br/><br/>
+	<canvas id="graph2" width="1000" height="200"></canvas>
+	<br/><br/>
+	<canvas id="graph3" width="1000" height="200"></canvas>
+{% endblock %}
+
+{% block footer %}
+	<script src="{{ url_for('static', filename='vendor/js/Chart.bundle.min.js') }}"></script>
+	<script src="{{ url_for('static', filename='vendor/js/jquery.js') }}"></script>
+	<script type="text/javascript">
+		$(function () {
+			var labels = {{ labels |tojson }};
+			for (var i = 0; i < labels.length; i++)
+				labels[i] = new Date(labels[i] * 1000);
+			var graph1 = {
+				type: 'line',
+				data: {datasets: {{ graph1 |tojson }}, labels: labels},
+				options: {
+					title: {
+						display: true,
+						text: 'VPN traffic stats (traffic per minute)'
+					},
+					legend: {
+						display: true,
+						position: 'bottom'
+					},
+					scales: {
+						xAxes: [{
+							type: 'time',
+							time: {
+								unit: 'minute',
+								displayFormats: {minute: 'HH:mm'}
+							}
+						}],
+						yAxes: [{
+							ticks: {
+								callback: function (value, index, values) {
+									return (Math.round(value / 1000) / 1000.0).toLocaleString('en-EN').replace(',', ' ') + ' MB';
+								}
+							}
+						}]
+					}
+				}
+			};
+			var graph2 = {
+				type: 'line',
+				data: {datasets: {{ graph2 |tojson }}, labels: labels},
+				options: graph1.options
+			};
+			var graph3 = {
+				type: 'line',
+				data: {datasets: {{ graph3 |tojson }}, labels: labels},
+				options: {
+					title: {
+						display: true,
+						text: 'VPN connections (SYNs)'
+					},
+					legend: {
+						display: true,
+						position: 'bottom'
+					},
+					scales: {
+						xAxes: [{
+							type: 'time',
+							time: {
+								unit: 'minute',
+								displayFormats: {minute: 'HH:mm'}
+							}
+						}]
+					}
+				}
+			};
+			graph1.data.datasets[0].borderColor = 'rgba(151, 187, 205, 1)';
+			graph1.data.datasets[0].backgroundColor = 'rgba(151, 187, 205, 0.2)';
+			graph2.data.datasets[0].borderColor = 'rgba(151, 187, 205, 1)';
+			graph2.data.datasets[0].backgroundColor = 'rgba(151, 187, 205, 0.2)';
+			graph3.data.datasets[0].borderColor = 'rgba(151, 187, 205, 1)';
+			graph3.data.datasets[0].backgroundColor = 'rgba(151, 187, 205, 0.2)';
+			new Chart(document.getElementById('graph1').getContext('2d'), graph1);
+			new Chart(document.getElementById('graph2').getContext('2d'), graph2);
+			new Chart(document.getElementById('graph3').getContext('2d'), graph3);
+		});
+	</script>
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% from 'pagination.html' import paginator, paginator_script, filter_checkbox_list, filter_options %}
+
+{% block title %}Flags{% endblock %}
+
+{% block content %}
+	<p>Flag format: <code>{{ flag_regex }}</code></p>
+	<form method="get" action="{{ url_for('flags.flags_index') }}">
+		<div class="form-group">
+			<div class="input-group">
+				<input type="text" placeholder="Paste Flag ..." name="flag" value="{{ flag or '' }}" class="form-control">
+				<span class="input-group-btn">
+					<button class="btn btn-primary" type="submit">Check!</button>
+				</span>
+			</div>
+		</div>
+	</form>
+
+	{% if flag %}
+		<br>
+		<hr>
+		<br>
+		<h4>
+			Flag: <code>{{ flag }}</code>
+			{% if valid %}
+				<span class="label label-success">valid</span>
+			{% else %}
+				<span class="label label-danger">invalid</span>
+			{% endif %}
+		</h4>
+		{% if err %}
+			<p class="alert alert-danger">Invalid format: {{ err }}</p>
+		{% else %}
+
+			<table class="table table-condensed table-striped">
+				<thead>
+				<tr>
+					<th>Stored in round</th>
+					<th>From Team</th>
+					<th>From Service</th>
+					<th>Payload / Num.</th>
+					<th>Mac</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr>
+					<td>{{ stored_round }}</td>
+					<td>#{{ teamid }}</td>
+					<td>#{{ serviceid }}</td>
+					<td>{{ payload }}</td>
+					<td><code>{{ mac }}</code></td>
+				</tr>
+				<tr>
+					<td>
+						{% if stored_round > current_round %}<span class="label label-danger">Invalid</span>{% endif %}&nbsp;
+					</td>
+					<td>
+						{% if team %}{{ team.name }}{% else %}<span class="label label-danger">Invalid</span>{% endif %}
+					</td>
+					<td>
+						{% if service %}{{ service.name }}{% else %}<span class="label label-danger">Invalid</span>{% endif %}
+					</td>
+					<td>&nbsp;</td>
+					<td>
+						{% if real_mac != mac %}
+							<code>{{ real_mac }}</code><span class="label label-danger">Invalid</span>
+						{% else %}
+							<span class="label label-success"><span class="glyphicon glyphicon-check"></span></span>
+						{% endif %}
+					</td>
+				</tr>
+				</tbody>
+			</table>
+
+			{% if repaired_flag %}
+				<p>Valid flag would be: <code>{{ repaired_flag }}</code></p>
+			{% endif %}
+
+			<br/><br/><br/>
+			<h3>Submissions <small>({{ submissions | length }})</small></h3>
+			{% if submissions %}
+				<table class="table table-striped">
+					<thead>
+					<tr>
+						<th>#</th>
+						<th>At</th>
+						<th>In</th>
+						<th>Submitted by</th>
+					</tr>
+					</thead>
+					<tbody>
+					{% for submission in submissions %}
+						<tr>
+							<td>{{ loop.index }}</td>
+							<td>{{ submission.ts.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+							<td>round {{ submission.round_submitted }}</td>
+							<td>#{{ submission.submitted_by }}: {{ submission.submitted_by_team.name }}</td>
+						</tr>
+					{% endfor %}
+					</tbody>
+				</table>
+			{% else %}
+				<p class="text-muted">Flag was never submitted.</p>
+			{% endif %}
+
+			<br/><br/><br/>
+			<h3>Checker results</h3>
+			{% if result_store %}
+				<p>
+					<strong>Store round {{ result_store.round }}:</strong>
+					{% if result_store.status == 'SUCCESS' %}
+						<span class="label label-success">ONLINE</span>
+					{% elif result_store.status == 'FLAGMISSING' or result_store.status == 'MUMBLE' or result_store.status == 'OFFLINE' %}
+						<span class="label label-warning">{{ result_store.status }}</span>
+					{% elif result_store.status == 'TIMEOUT' or result_store.status == 'REVOKED' %}
+						<span class="label label-info">{{ result_store.status }}</span>
+					{% elif result_store.status == 'PENDING' %}
+						<span class="label label-default">{{ result_store.status }}</span>
+					{% else %}
+						<span class="label label-danger">{{ result_store.status }}</span>
+					{% endif %}
+					<a href="{{ url_for('checker_results.checker_results_view', id=result_store.id) }}">Result #{{ result_store.id }}</a>
+					{% if result_store.finished %}
+						finished {{ result_store.finished.strftime('%d.%m.%Y %H:%M:%S') }}
+					{% endif %}
+				</p>
+			{% else %}
+				<p class="text-muted">Flag was never stored</p>
+			{% endif %}
+
+			{% if result_retrieve %}
+				<p>
+					<strong>Retrieve round {{ result_retrieve.round }}:</strong>
+					{% if result_retrieve.status == 'SUCCESS' %}
+						<span class="label label-success">ONLINE</span>
+					{% elif result_retrieve.status == 'FLAGMISSING' or result_retrieve.status == 'MUMBLE' or result_retrieve.status == 'OFFLINE' %}
+						<span class="label label-warning">{{ result_retrieve.status }}</span>
+					{% elif result_retrieve.status == 'TIMEOUT' or result_retrieve.status == 'REVOKED' %}
+						<span class="label label-info">{{ result_retrieve.status }}</span>
+					{% elif result_retrieve.status == 'PENDING' %}
+						<span class="label label-default">{{ result_retrieve.status }}</span>
+					{% else %}
+						<span class="label label-danger">{{ result_retrieve.status }}</span>
+					{% endif %}
+					<a href="{{ url_for('checker_results.checker_results_view', id=result_retrieve.id) }}">Result #{{ result_retrieve.id }}</a>
+					{% if result_retrieve.finished %}
+						finished {{ result_retrieve.finished.strftime('%d.%m.%Y %H:%M:%S') }}
+					{% endif %}
+				</p>
+			{% else %}
+				<p class="text-muted">Flag was never stored</p>
+			{% endif %}
+
+		{% endif %}
+	{% endif %}
+
+{% endblock %}
+
+{% block footer %}
+{% endblock %}

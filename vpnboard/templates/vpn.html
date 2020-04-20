@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+		  integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
+		  integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">-->
+	<link rel="stylesheet" href="index.css">
+	<link rel="icon" type="image/png" href="favicon.png">
+	<link rel="shortcut icon" type="image/png" href="favicon.png">
+
+	<title>Team VPN Status - saarCTF</title>
+	<meta http-equiv="refresh" content="60">
+</head>
+<body>
+<div class="bg-primary-theme">
+	<div class="container-fluid">
+		<h1 class="page-header">saarCTF Team VPN Status</h1>
+	</div>
+	<br/>
+</div>
+
+<br/>
+
+<div class="container">
+
+	<p>
+		<a href="all_teams.json">&rArr; all teams (as JSON)</a><br/>
+		<a href="available_teams.json">&rArr; teams that connected to the VPN once (as JSON)</a>
+	</p>
+
+	<p class="text-muted">Last update: {{ start.strftime('%d. %b %Y %H:%M:%S %Z') }}</p>
+
+	<table class="table table-bordered">
+		<thead>
+		<tr>
+			<th>#</th>
+			<th>Team</th>
+			<th>VPN Status</th>
+			<th>Last VPN Connection</th>
+			<th>Ping to Router</th>
+			<th>Ping to Testbox</th>
+			<th>Testbox Check</th>
+			{% if check_vulnboxes %}
+				<th>Ping to Vulnbox</th>
+			{% endif %}
+		</tr>
+		</thead>
+		<tbody>
+		{% for team in teams %}
+			<tr>
+				<th>{{ team.id }}</th>
+				<td>{{ team.name }} <br/><small>(vulnbox&nbsp;{{ team.vulnbox_ip }})</small></td>
+				<td>
+					{% if team.vpn_connected %}
+						<span class="label label-success">connected</span>
+					{% else %}
+						<span class="label label-default">disconnected</span>
+					{% endif %}
+				</td>
+				<td>
+					{% if team.vpn_last_connect %}
+						{{ team.vpn_last_connect.strftime('%d. %b %Y %H:%M:%S %Z') }}
+					{% else %}
+						<span class="text-danger">never connected</span>
+					{% endif %}
+				</td>
+				{% if team.id in results %}
+					<td>
+						{% if results[team.id].router_ping_ms != None %}
+							<span class="label label-success">ok</span>
+							{{ '%0.1f ms' | format(results[team.id].router_ping_ms) }}
+						{% else %}
+							<span class="label label-danger">unreachable</span>
+						{% endif %}
+					</td>
+					<td>
+						{% if results[team.id].testbox_ping_ms != None %}
+							<span class="label label-success">ok</span>
+							{{ '%0.1f ms' | format(results[team.id].testbox_ping_ms) }}
+						{% else %}
+							<span class="label label-danger">unreachable</span>
+						{% endif %}
+					</td>
+					<td>
+						{% if results[team.id].testbox_ok %}
+							<span class="label label-success">ok</span>
+						{% elif results[team.id].testbox_err == 'unreachable' %}
+							<span class="label label-danger">{{ results[team.id].testbox_err }}</span>
+						{% else %}
+							<span class="label label-warning">{{ results[team.id].testbox_err }}</span>
+						{% endif %}
+					</td>
+					{% if check_vulnboxes %}
+						<td>
+							{% if results[team.id].vulnbox_ping_ms != None %}
+								<span class="label label-success">ok</span>
+								{{ '%0.1f ms' | format(results[team.id].vulnbox_ping_ms) }}
+							{% else %}
+								<span class="label label-danger">unreachable</span>
+							{% endif %}
+						</td>
+					{% endif %}
+				{% else %}
+					<td><span class="label label-default">-</span></td>
+					<td><span class="label label-default">-</span></td>
+					<td><span class="label label-default">-</span></td>
+					{% if check_vulnboxes %}
+						<td><span class="label label-default">-</span></td>
+					{% endif %}
+				{% endif %}
+			</tr>
+		{% endfor %}
+
+		</tbody>
+	</table>
+
+</div>
+</body>
+</html>
