@@ -11,15 +11,15 @@
   },
   "author": "Saarsec",
   "dependencies": {
-    "angular": "^1.6.10",
+    "angular": "^1.8.0",
     "angular-chart.js": "^1.1.1",
-    "bootstrap": "^3.3.7",
-    "chart.js": "^2.8.0",
-    "copyfiles": "^2.0.0",
+    "bootstrap": "^3.4.1",
+    "chart.js": "^2.9.3",
+    "copyfiles": "^2.3.0",
     "eonasdan-bootstrap-datetimepicker": "^4.17.47",
-    "jquery": "^3.3.1",
-    "less": "^3.0.2",
-    "mkdirp": "^0.5.1",
-    "moment-duration-format": "^2.2.2"
+    "jquery": "^3.5.0",
+    "less": "^3.12.2",
+    "mkdirp": "^1.0.4",
+    "moment-duration-format": "^2.3.2"
   }
 }
