@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import {SessionStorage} from "ngx-store";
+import {SessionStorage} from "ngx-store-9";
 
 /**
  * Service storing user preferences (in session storage for persistence).

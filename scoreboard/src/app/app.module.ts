@@ -9,7 +9,7 @@ import {PopoverModule} from "ngx-bootstrap/popover";
 import {BsDropdownModule} from "ngx-bootstrap/dropdown";
 import {SettingsComponent} from './settings/settings.component';
 import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
-import {WebStorageModule} from "ngx-store";
+//import {WebStorageModule} from "ngx-store-9";
 import { NotificationOverlayComponent } from './notification-overlay/notification-overlay.component';
 
 @NgModule({
@@ -26,7 +26,7 @@ import { NotificationOverlayComponent } from './notification-overlay/notificatio
 		BrowserAnimationsModule,
 		PopoverModule.forRoot(),
 		BsDropdownModule.forRoot(),
-		WebStorageModule
+		//WebStorageModule
 	],
 	providers: [],
 	bootstrap: [AppComponent]
