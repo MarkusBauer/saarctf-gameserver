@@ -145,7 +145,8 @@ def check_log_messages(logs: t.List[t.Dict[str, t.Any]]) -> None:
 
     assert_title_in_logs("CTF starts")
     assert_title_in_logs("Network open")
-    assert_title_in_logs("Network closed")
+    # assert_title_in_logs("Network closed")
+    assert_title_in_logs("Network open within teams only")  # after the game teams should retain access to their vulnbox
     assert_title_in_logs("CTF stopped")
     for i in range(ROUND_COUNT):
         assert_title_in_logs(f"New round: {i+1}")

@@ -25,7 +25,7 @@ else()
 
 	include(FindPackageHandleStandardArgs)
 	find_package_handle_standard_args(
-			libev DEFAULT_MSG LIBEV_LIBRARY LIBEV_INCLUDE_DIR)
+			Libev DEFAULT_MSG LIBEV_LIBRARY LIBEV_INCLUDE_DIR)
 
 	mark_as_advanced(LIBEV_LIBRARY LIBEV_INCLUDE_DIR)
 endif()

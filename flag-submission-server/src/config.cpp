@@ -1,6 +1,6 @@
 #include <fstream>
 #include <iostream>
-#include "libraries/json.hpp"
+#include "nlohmann/json.hpp"
 #include "config.h"
 
 using namespace std;

@@ -16,7 +16,7 @@ apt-get -y install --no-install-recommends \
     libpq-dev \
     libssl-dev \
     nodejs \
-    postgresql-client-10 \
+    postgresql-client-11 \
     postgresql-server-dev-all \
     psmisc \
     python2.7 \

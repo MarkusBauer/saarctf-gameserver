@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 case "$1" in
     "open")
-        curl 'http://127.0.0.1:5000/overview/set_vpn' --silent --show-error --compressed -H 'Content-Type: application/json;charset=utf-8' --data '{"state":true}'
+        curl 'http://127.0.0.1:5000/overview/set_vpn' --silent --show-error --compressed -H 'Content-Type: application/json;charset=utf-8' --data '{"state":"on"}'
         ;;
     "close")
-        curl 'http://127.0.0.1:5000/overview/set_vpn' --silent --show-error --compressed -H 'Content-Type: application/json;charset=utf-8' --data '{"state":false}'
+        curl 'http://127.0.0.1:5000/overview/set_vpn' --silent --show-error --compressed -H 'Content-Type: application/json;charset=utf-8' --data '{"state":"off"}'
         ;;
     *)
         echo -e "Unkown argument.\nSpecify one of: open, close"

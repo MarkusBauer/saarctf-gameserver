@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.11)
 project(flag-submission-server)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -34,12 +34,26 @@ find_package(Threads REQUIRED)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 find_package(Libev REQUIRED)
 include_directories(${LIBEV_INCLUDE_DIRS})
-find_package(Hiredis REQUIRED)
+find_package(LibHiredis REQUIRED)
 include_directories(${LIBHIREDIS_INCLUDE_DIRS})
 find_package(OpenSSL 1.1 REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIRS})
 find_package(PostgreSQL REQUIRED)
 include_directories(${PostgreSQL_INCLUDE_DIRS})
+
+
+# Download JSON library
+include(FetchContent)
+#FetchContent_Declare(json GIT_REPOSITORY https://github.com/nlohmann/json.git GIT_TAG v3.7.3)
+FetchContent_Declare(json GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent.git GIT_TAG v3.9.1)
+FetchContent_GetProperties(json)
+if (NOT json_POPULATED)
+	FetchContent_Populate(json)
+	add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
+	message("Retrieved nlohmann::json to \"${json_SOURCE_DIR}\"")
+	include_directories("${json_SOURCE_DIR}/include")
+endif ()
+
 
 set(SOURCE_FILES
 		src/flagchecker.cpp

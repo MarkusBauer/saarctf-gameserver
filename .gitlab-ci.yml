@@ -1,4 +1,4 @@
-image: ubuntu:18.04
+image: debian:buster
 
 variables:
   # Initialize submodules
@@ -33,7 +33,7 @@ cache:
     - .cache
 
 services:
-  - name: postgres:10
+  - name: postgres:11
   - name: redis:5.0-alpine
   - name: rabbitmq:3.7-management-alpine
 
