@@ -60,21 +60,28 @@ def execute_checker(package: str, script: str, service_id: int, team_id: int, ro
 		# Check the service
 		gamelogger.GameLogger.reset()
 		checker: gamelib.ServiceInterface = cls(service_id)
-		gamelogger.GameLogger.log('----- check_integrity -----')
-		checker.check_integrity(team, round)
-		if result: result.integrity = True
-		gamelogger.GameLogger.log(f'----- store_flags({round}) -----')
-		checker.store_flags(team, round)
-		if result: result.stored = True
-		if round > 1:
-			gamelogger.GameLogger.log(f'----- retrieve_flags({round - 1}) -----')
-			checker.retrieve_flags(team, round - 1)
-			if result: result.retrieved = True
-		elif round == -1:
-			# Test run - retrieve the flag we just have set
-			gamelogger.GameLogger.log(f'----- retrieve_flags({round}) -----')
-			checker.retrieve_flags(team, round)
-			if result: result.retrieved = True
+		checker.initialize_team(team)
+		try:
+			gamelogger.GameLogger.log('----- check_integrity -----')
+			checker.check_integrity(team, round)
+			if result: result.integrity = True
+			gamelogger.GameLogger.log(f'----- store_flags({round}) -----')
+			checker.store_flags(team, round)
+			if result: result.stored = True
+			if round > 1:
+				gamelogger.GameLogger.log(f'----- retrieve_flags({round - 1}) -----')
+				checker.retrieve_flags(team, round - 1)
+				if result: result.retrieved = True
+			elif round == -1:
+				# Test run - retrieve the flag we just have set
+				gamelogger.GameLogger.log(f'----- retrieve_flags({round}) -----')
+				checker.retrieve_flags(team, round)
+				if result: result.retrieved = True
+		finally:
+			try:
+				checker.finalize_team(team)
+			except:
+				traceback.print_exc()
 
 		return 'SUCCESS', None
 

@@ -6,7 +6,7 @@ Flask-Migrate
 Flask-APScheduler
 psycopg2-binary
 redis
-celery
+celery<5
 celery[redis]
 flower
 setproctitle

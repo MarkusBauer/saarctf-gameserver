@@ -10,7 +10,7 @@ filelock
 
 # for the scripts
 requests
-git+https://github.com/Gallopsled/pwntools/@dev3
+pwntools
 numpy
 pycryptodome
 fuckpy3
