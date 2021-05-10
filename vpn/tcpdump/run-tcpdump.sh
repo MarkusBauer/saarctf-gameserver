@@ -20,7 +20,11 @@ fi
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # TODO configure?
-FOLDER="/tmp"
+if [ -d "/tmp/temptraffic/" ]; then
+  FOLDER="/tmp/temptraffic"
+else
+  FOLDER="/tmp"
+fi
 
 exec tcpdump -i "$interface" -s0 \
     -B 131072 \

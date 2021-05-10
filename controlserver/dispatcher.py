@@ -57,7 +57,7 @@ class Dispatcher:
 			redis.set('dispatcher:taskgroup:{}:id'.format(roundnumber), taskgroup.id)
 			self.create_flagid_json(teams, services, roundnumber)
 
-	def __prepare_checker_script(self, team, service, roundnumber, package=None):
+	def __prepare_checker_script(self, team: Team, service: Service, roundnumber, package=None):
 		if service.checker_subprocess:
 			run_func = run_checkerscript_external
 			timeout = service.checker_timeout + 5
@@ -73,7 +73,8 @@ class Dispatcher:
 				roundnumber
 			),
 			time_limit=timeout + 5, soft_time_limit=timeout,
-			countdown=150 if service.checker_script == 'pendingtest' else None
+			countdown=150 if service.checker_script == 'pendingtest' else None,
+			queue=service.checker_route or 'celery'
 		)
 
 	def dispatch_test_script(self, team: Team, service: Service, roundnumber: int, package: str = None) -> Tuple[AsyncResult, CheckerResult]:

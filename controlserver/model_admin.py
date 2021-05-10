@@ -6,8 +6,8 @@ from controlserver.models import db, Service, Team
 
 class ServiceAdmin(sqla.ModelView):
 	form_excluded_columns = ['package', 'setup_package']
-	column_editable_list = ['name', 'checker_timeout', 'checker_enabled', 'num_payloads', 'flag_ids', 'flags_per_round']
-	column_list = ['id', 'name', 'checker_script_dir', 'checker_script', 'checker_timeout', 'checker_enabled', 'checker_subprocess', 'num_payloads',
+	column_editable_list = ['name', 'checker_timeout', 'checker_enabled', 'checker_route', 'num_payloads', 'flag_ids', 'flags_per_round']
+	column_list = ['id', 'name', 'checker_script_dir', 'checker_script', 'checker_timeout', 'checker_enabled', 'checker_subprocess', 'checker_route', 'num_payloads',
 					'flag_ids', 'flags_per_round']
 	create_modal = True
 	edit_modal = True

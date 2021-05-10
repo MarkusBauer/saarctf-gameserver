@@ -22,6 +22,8 @@ def main():
 	team_id_str = sys.argv[1]
 	if team_id_str.startswith('team'):
 		team_id_str = team_id_str[4:]
+		if '-' in team_id_str:
+			team_id_str = team_id_str.split('-')[0]
 	team_id = int(team_id_str)
 	from controlserver.models import Team, db
 	changes = Team.query.filter(Team.id == team_id).filter(Team.vpn_connected == True) \

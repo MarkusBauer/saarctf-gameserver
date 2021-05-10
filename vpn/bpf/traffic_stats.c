@@ -23,7 +23,8 @@ struct stats_for_team {
 	// struct counters egress_with_teams;
 	// struct counters ingress_with_total;
 	// struct counters ingress_with_teams;
-	struct counters counters[4];
+	// struct counters forward_self;
+	struct counters counters[5];
 };
 
 
@@ -62,9 +63,12 @@ static inline void handle_packet(struct __sk_buff *skb, int is_ingress, const __
 	}
 
 	// Read data from IP packet
+	__u32 team_id;
+	__asm__("%0 = 0xdeadbeef" : "=r"(team_id)); // patched later with team id
 	struct iphdr *ip  = (void*) (__u64) (skb->data + packet_offset);
 	__u32 size = skb->len >= packet_offset ? skb->len - packet_offset : 0;
-	int is_other_team = !is_ingress && skb->mark != 0;
+	int is_other_team = !is_ingress && ((skb->mark & 0x1ffff) != 0);
+	int is_self_forward = !is_ingress && (skb->mark & 0x1ffff) && (team_id == (skb->mark & 0xffff));
 	
 	// TCP present?
 	int is_syn = 0;
@@ -76,11 +80,9 @@ static inline void handle_packet(struct __sk_buff *skb, int is_ingress, const __
 	}
 
 	// save results
-	__u32 team_id;
-	__asm__("%0 = 0xdeadbeef" : "=r"(team_id)); // patched later with team id
 	struct stats_for_team *stats = bpf_map_lookup_elem(&counting_map, &team_id);
 	if (stats) {
-		struct counters* counter = &stats->counters[2*is_ingress + is_other_team];
+		struct counters* counter = &stats->counters[is_self_forward ? 4 : 2*is_ingress + is_other_team];
 		__sync_fetch_and_add(&counter->packets, 1);
 		__sync_fetch_and_add(&counter->bytes, size);
 		if (is_syn) {
@@ -94,8 +96,8 @@ static inline void handle_packet(struct __sk_buff *skb, int is_ingress, const __
 
 	if (is_ingress) {
 		// On ingress, mark packages as "from team X"
-		skb->mark = 1<<16 | team_id;
-	} else if (skb->mark) {
+		skb->mark = (skb->mark & 0xfffe0000) | 1<<16 | team_id;
+	} else if (skb->mark & 0x1ffff && !is_self_forward) {
 		// On egress of a team-routed packet, count the traffic as "team routed" for that team
 		__u32 other_team_id = skb->mark & 0xffff;
 		struct stats_for_team *stats = bpf_map_lookup_elem(&counting_map, &other_team_id);

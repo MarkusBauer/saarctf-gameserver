@@ -12,6 +12,7 @@ from saarctf_commons import config
 
 config.EXTERNAL_TIMER = True
 
+from vpn.vpnlib import *
 from controlserver.models import Team
 
 """
@@ -19,39 +20,6 @@ ARGUMENTS: none
 """
 
 BASEPORT = 10000
-
-
-def read(fname: str) -> str:
-	with open(fname, 'r') as f:
-		return f.read()
-
-
-def write(fname: str, content: str):
-	with open(fname, 'w') as f:
-		f.write(content)
-
-
-def readb(fname: str) -> bytes:
-	with open(fname, 'rb') as f:
-		return f.read()
-
-
-def writeb(fname: str, content: bytes):
-	with open(fname, 'wb') as f:
-		f.write(content)
-
-
-def network_to_mask(network: str) -> str:
-	"""
-	"1.2.3.4/16" => "1.2.3.4 255.255.0.0"
-	:param network:
-	:return:
-	"""
-	ip, netrange = network.split('/')
-	mask_int = int('1' * int(netrange) + '0' * (32 - int(netrange)), 2)
-	mask = str(mask_int >> 24) + '.' + str((mask_int >> 16) & 0xff) + '.' + str((mask_int >> 8) & 0xff) + '.' + str(
-		mask_int & 0xff)
-	return ip + ' ' + mask
 
 
 def build_team_config(team: Team, client_root: str, secret_root: str):
@@ -142,8 +110,8 @@ def build_server_config(team: Team, server_root: str, secret_root: str):
 	status /var/log/vpn/openvpn-status-team{team.id}.log
 
 	script-security 2
-	up "{root}/on-connect.sh {team.id}"
-	down "{root}/on-disconnect.sh {team.id}"
+	up "{root}/on-connect.sh {team.id} teamhosted"
+	down "{root}/on-disconnect.sh {team.id} teamhosted"
 	
 	verb 3
 	explicit-exit-notify 1
@@ -153,27 +121,11 @@ def build_server_config(team: Team, server_root: str, secret_root: str):
 	</secret>
 	'''.replace('\n\t', '\n')
 	if team.id == 0:
-		serverconfig = serverconfig.replace('\nup ', '\n# up ')\
+		serverconfig = serverconfig.replace('\nup ', '\n# up ') \
 			.replace('\ndown ', '\n# down ').replace('\ndev ', '\ndev orga0  # not ')
 	write(join(server_root, f'team{team.id}.conf'), serverconfig)
 
 	print(f'[OK] Created team #{team.id} server config')
-
-
-def build_bpf(max_team_id: int):
-	root = os.path.dirname(os.path.abspath(__file__))
-	if max_team_id > 511:
-		raise Exception('You hit the limit in bpf/traffic_stats.c. Please update and recompile!')
-	bpfcode = readb(os.path.join(root, 'bpf', 'traffic_stats.o'))
-	old = struct.pack('<I', 0xdeadbeef)
-	if bpfcode.count(old) != 2:
-		print('contant found:', bpfcode.count(old))
-		assert bpfcode.count(old) == 2
-	for team_id in range(1, max_team_id + 11):
-		new = struct.pack('<I', team_id)
-		team_bpfcode = bpfcode.replace(old, new)
-		writeb(os.path.join(root, 'bpf', f'traffic_stats_team{team_id}.o'), team_bpfcode)
-	print('[OK] BPF files produced.')
 
 
 def build_systemd_file(teams: List[Team]):
@@ -216,7 +168,7 @@ def main():
 	if len(sys.argv) > 1:
 		prebuild_count = int(sys.argv[1])
 		max_id = max(team.id for team in teams)
-		for i in range(max_id+1, max_id+prebuild_count+1):
+		for i in range(max_id + 1, max_id + prebuild_count + 1):
 			teams.append(Team(id=i, name=f'unnamed team #{i}'))
 	for team in teams:
 		assert '\n' not in team.name

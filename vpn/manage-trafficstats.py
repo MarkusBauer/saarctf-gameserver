@@ -30,11 +30,12 @@ BPF_RETRY_COUNT = 100
 '''
 === Format of the map data ===
 Key: __u32 team_id
-Type: 4* 4* __u64
+Type: 5* 4* __u64
 - egress_with_game   = (packets, bytes, syns, syn_acks)
 - egress_with_teams  = (packets, bytes, syns, syn_acks)
 - ingress_with_total = (packets, bytes, syns, syn_acks)
 - ingress_with_teams = (packets, bytes, syns, syn_acks)
+- egress_within_team = (packets, bytes, syns, syn_acks)
 
 egress:  team's download, vpn -> team
 ingress: team's upload,   team -> vpn
@@ -67,7 +68,7 @@ def read_team_infos(fd: int, team_ids: Iterable[int]) -> Dict[int, List[int]]:
 	:return: Dict [team_id => value_list] where value_list = [down_game, down_team, up_game, up_teams]
 	"""
 	key = (ctypes.c_int32 * 1)(1)
-	value = (ctypes.c_int64 * 16)()
+	value = (ctypes.c_int64 * 20)()
 	result = {}
 	for team_id in team_ids:
 		key[0] = team_id
@@ -75,10 +76,10 @@ def read_team_infos(fd: int, team_ids: Iterable[int]) -> Dict[int, List[int]]:
 			raise Exception(f"Key {team_id} not found")
 		stats = list(value)
 		# correct "total" entry
-		stats[8] -= stats[12]
-		stats[9] -= stats[13]
-		stats[10] -= stats[14]
-		stats[11] -= stats[15]
+		stats[8] -= stats[12] + stats[16]
+		stats[9] -= stats[13] + stats[17]
+		stats[10] -= stats[14] + stats[18]
+		stats[11] -= stats[15] + stats[19]
 		result[team_id] = stats
 	# print(f'{team_id}: {result[team_id]}')
 	return result

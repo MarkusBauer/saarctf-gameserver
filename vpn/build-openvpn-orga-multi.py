@@ -5,35 +5,16 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from vpn.vpnlib import generate_vpn_keys, format_vpn_keys
 from saarctf_commons import config
-
-EASYRSA_BINARY = '/usr/share/easy-rsa/easyrsa'
 
 server_config_file = os.path.join(config.VPN_BASE_DIR, 'config-server', 'orga-multi.conf')
 client_config_file = os.path.join(config.VPN_BASE_DIR, 'config-client', 'orga-multi.conf')
 orga_secrets_dir = os.path.join(config.VPN_BASE_DIR, 'orga-secrets')
 
 
-def generate_vpn_keys():
-	path = os.path.join(orga_secrets_dir, 'pki')
-	if os.path.exists(os.path.join(path, 'ta.key')):
-		print('[.] VPN keys already present')
-		return
-	env = dict(os.environ.items())
-	env['EASYRSA_BATCH'] = '1'
-	subprocess.check_call([EASYRSA_BINARY, 'init-pki'], env=env, cwd=orga_secrets_dir)
-	subprocess.check_call([EASYRSA_BINARY, 'build-ca', 'nopass'], env=env, cwd=orga_secrets_dir)
-	subprocess.check_call([EASYRSA_BINARY, 'gen-req', 'server', 'nopass'], env=env, cwd=orga_secrets_dir)
-	subprocess.check_call([EASYRSA_BINARY, 'gen-req', 'TeamMember', 'nopass'], env=env, cwd=orga_secrets_dir)
-	subprocess.check_call([EASYRSA_BINARY, 'sign-req', 'server', 'server'], env=env, cwd=orga_secrets_dir)
-	subprocess.check_call([EASYRSA_BINARY, 'sign-req', 'client', 'TeamMember'], env=env, cwd=orga_secrets_dir)
-	subprocess.check_call([EASYRSA_BINARY, 'gen-dh'], env=env, cwd=orga_secrets_dir)
-	subprocess.check_call(['openvpn', '--genkey', '--secret', 'ta.key'], cwd=path)
-	print('[*] VPN keys have been generated.')
-
-
 def configure_vpnserver():
-	generate_vpn_keys()
+	generate_vpn_keys(orga_secrets_dir)
 	server_config = f'''
 	port 1194
 	proto udp
@@ -80,17 +61,7 @@ def configure_vpnserver():
 	persist-key
 	persist-tun
 	'''.replace('\n\t', '\n')
-	included_files = {
-		'ca': orga_secrets_dir + '/pki/ca.crt',
-		'cert': orga_secrets_dir + '/pki/issued/TeamMember.crt',
-		'key': orga_secrets_dir + '/pki/private/TeamMember.key',
-		'tls-auth': orga_secrets_dir + '/pki/ta.key'
-	}
-	for name, fname in included_files.items():
-		client_config += f'\n<{name}>\n'
-		with open(fname, 'r') as f:
-			client_config += f.read()
-		client_config += f'\n</{name}>\n'
+	client_config += format_vpn_keys(orga_secrets_dir)
 	with open(client_config_file, 'w') as f:
 		f.write(client_config)
 

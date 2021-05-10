@@ -65,3 +65,48 @@
 a.href {
 	cursor: pointer;
 }
+
+
+table.hideHistory {
+	.delta > small {
+		display: none;
+	}
+
+	.history-3, .history-2, .history-1 {
+		display: none !important;
+	}
+}
+
+.sum-mode-only {
+	display: none;
+}
+
+table.onlySums {
+	.sum-mode-only {
+		display: inherit;
+	}
+
+	.not-in-sum-mode {
+		display: none;
+	}
+
+	.result-container {
+		grid-template-columns: @line-height-computed max-content max-content 1fr; // calc(@line-height-computed + @result-grid-gap-large) max-content max-content;
+		> .offset-left {
+			margin-left: 0;
+		}
+
+		> .sla-col {
+			grid-column: 1 / span 4 !important;
+			text-align: center !important;
+
+			.info-link {
+				float: none;
+			}
+		}
+
+		> i {
+			grid-column: 1;
+		}
+	}
+}

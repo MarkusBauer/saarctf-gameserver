@@ -8,9 +8,11 @@
 					saarCTF Scoreboard
 					<app-current-tick class="pull-right"></app-current-tick>
 				</h1>
+				<a routerLink="/" routerLinkActive="hidden" [routerLinkActiveOptions]="{exact: true}" class="backlink"><i class="fas fa-chevron-left"></i> back to scoreboard</a>
 			</div>
 			<br/>
 		</div>
 	</div>
-	<app-scoretable class="container-fluid flexible-container"></app-scoretable>
+	<div class="container-fluid flexible-container"><router-outlet></router-outlet></div>
+	<br/>
 </div>

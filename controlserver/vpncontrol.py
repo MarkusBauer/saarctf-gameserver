@@ -1,4 +1,5 @@
 import time
+from enum import Enum
 from typing import List, Tuple, Optional
 
 from controlserver.logger import log
@@ -6,21 +7,34 @@ from controlserver.models import Team, LogMessage
 from saarctf_commons.config import get_redis_connection
 
 
+class VpnStatus(Enum):
+	OFF = 'off'
+	ON = 'on'
+	TEAMS_ONLY = 'team'
+
+
 class VPNControl:
 	def __init__(self):
 		self.redis = get_redis_connection()
 
-	def get_state(self) -> bool:
-		return self.redis.get('network:state') == b'on'
+	def get_state(self) -> VpnStatus:
+		b = self.redis.get('network:state')
+		if b == b'on':
+			return VpnStatus.ON
+		if b == b'team':
+			return VpnStatus.TEAMS_ONLY
+		return VpnStatus.OFF
 
-	def set_state(self, state: bool):
+	def set_state(self, state: VpnStatus):
 		old_state = self.get_state()
-		onoff = 'on' if state else 'off'
+		onoff = state.value
 		self.redis.set('network:state', onoff)
 		self.redis.publish('network:state', onoff)
 		if old_state != state:
-			if state:
+			if state == VpnStatus.ON:
 				log('vpn', 'Network open', level=LogMessage.IMPORTANT)
+			elif state == VpnStatus.TEAMS_ONLY:
+				log('vpn', 'Network open within teams only', level=LogMessage.IMPORTANT)
 			else:
 				log('vpn', 'Network closed', level=LogMessage.IMPORTANT)
 			time.sleep(0.5)  # delay further CTF events (e.g. checker script dispatcher) until the firewall is really open

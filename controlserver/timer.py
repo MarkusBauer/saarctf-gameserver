@@ -235,9 +235,10 @@ class CTFTimer(CTFTimerBase):
 			self._currentRound += 1
 			self._roundStart = int(time.time())
 			self._roundEnd = self._roundStart + self._roundTime
-			if self.state == CTFState.STOPPED:
-				self.onStartCtf()
+			old_state = self.state
 			self.state = CTFState.RUNNING
+			if old_state == CTFState.STOPPED:
+				self.onStartCtf()
 			self.onStartRound(self._currentRound)
 			self.onUpdateTimes()
 

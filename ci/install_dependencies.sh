@@ -23,7 +23,8 @@ apt-get -y install --no-install-recommends \
     python3-dev \
     python3-pip \
     python3-setuptools \
-    python3-wheel
+    python3-wheel \
+    python3-cryptography
 
 # Install pip dependencies
 python3 -m pip install -r requirements.txt

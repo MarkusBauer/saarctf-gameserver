@@ -32,6 +32,7 @@ if 'SAARCTF_CONFIG' in os.environ:
 	possible_config_files = [os.environ['SAARCTF_CONFIG']] + possible_config_files
 
 VPN_BASE_DIR = os.path.join(basedir, 'vpn')
+CLOUDCONFIG_FILE = os.path.join(basedir, 'cloud-status.json')
 
 # Load configuration file
 CONFIG: Dict[str, Any] = {}

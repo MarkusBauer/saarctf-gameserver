@@ -1,0 +1,68 @@
+<ng-template #template>
+	<td>
+		<div class="sum-container">
+			<i class="fas fa-crosshairs"></i>
+			<span title="Offensive points" class="text-nowrap points">{{rank.o.toFixed(1)}}</span>
+			<i class="fas fa-shield-alt"></i>
+			<span title="Defensive points" class="text-nowrap points">{{rank.d.toFixed(1)}}</span>
+			<i class="fas fa-tachometer-alt"></i>
+			<span title="SLA points" class="text-nowrap points">{{rank.s.toFixed(1)}}</span>
+		</div>
+	</td>
+	<td *ngFor="let service_rank of rank.services; trackBy indexTrack">
+		<div class="result-container">
+			<!-- Team/Service cell -->
+			<i class="fas fa-chart-line sum-mode-only"></i>
+			<div title="Points" class="text-nowrap points sum-mode-only">
+				{{(service_rank.o + service_rank.d + service_rank.s).toFixed(1)}}
+			</div>
+			<span class="delta sum-mode-only"><small title="New points this tick">
+						({{floatToString(service_rank.do + service_rank.dd + service_rank.ds)}})
+			</small></span>
+			<i class="fas fa-flag sum-mode-only" title="Captured / stolen flags"></i>
+			<div title="Captured / stolen flags" class="text-nowrap sum-mode-only">{{service_rank.cap}} / -{{service_rank.st}}</div>
+			<span class="delta sum-mode-only"><small title="Captured flags last tick">
+				(+{{service_rank.dcap}}/-{{service_rank.dst}})
+			</small></span>
+
+			<i class="fas fa-crosshairs not-in-sum-mode"></i>
+			<div title="Offensive points" class="text-nowrap points not-in-sum-mode">{{service_rank.o.toFixed(1)}}</div>
+			<span class="delta not-in-sum-mode"><small title="New offensive points this tick">({{floatToString(service_rank.do)}})</small></span>
+			<i class="fas fa-flag offset-left not-in-sum-mode" title="Captured flags"></i>
+			<div title="Captured flags" class="text-nowrap not-in-sum-mode">{{service_rank.cap}}</div>
+			<span class="delta not-in-sum-mode"><small title="Captured flags last tick">(+{{service_rank.dcap}})</small></span>
+
+			<i class="fas fa-shield-alt not-in-sum-mode"></i>
+			<div title="Defensive points" class="text-nowrap points not-in-sum-mode">{{service_rank.d.toFixed(1)}}</div>
+			<span class="delta not-in-sum-mode"><small title="Lost defensive points this tick">
+				({{floatToString(service_rank.dd, true)}})
+			</small></span>
+			<i class="fas fa-flag-checkered offset-left not-in-sum-mode" title="Lost flags"></i>
+			<div title="Lost flags" class="text-nowrap not-in-sum-mode">-{{service_rank.st}}</div>
+			<span class="delta not-in-sum-mode"><small title="Lost flags last tick">(-{{service_rank.dst}})</small></span>
+
+			<i class="fas fa-tachometer-alt not-in-sum-mode"></i>
+			<div title="SLA points" class="text-nowrap points not-in-sum-mode">{{service_rank.s.toFixed(1)}}</div>
+			<span class="delta not-in-sum-mode"><small title="New SLA points this tick">({{floatToString(service_rank.ds)}})</small></span>
+			<div class="sla-col offset-left">
+				<span class="label history-3" *ngIf="service_rank.dc.length > 2"
+					  [ngClass]="statusToClass(service_rank.dc[2])"
+					  [title]="'Tick '+(tick-3)+': '+statusToTooltip(service_rank.dc[2])"></span>
+				<span class="label history-2" *ngIf="service_rank.dc.length > 1"
+					  [ngClass]="statusToClass(service_rank.dc[1])"
+					  [title]="'Tick '+(tick-2)+': '+statusToTooltip(service_rank.dc[1])"></span>
+				<span class="label history-1" *ngIf="service_rank.dc.length > 0"
+					  [ngClass]="statusToClass(service_rank.dc[0])"
+					  [title]="'Tick '+(tick-1)+': '+statusToTooltip(service_rank.dc[0])"></span>
+
+				<span class="status label" [ngClass]="statusToClass(service_rank.c)"
+					  [title]="statusToTooltip(service_rank.c)">{{statusToText(service_rank.c)}}</span>
+
+				<button type="button" class="btn btn-xs btn-link info-link" *ngIf="service_rank.m"
+						[popover]="service_rank.m" triggers="focus" [popoverTitle]="'Tick '+tick+': '+service_rank.c">
+					<span class="fas fa-info"></span>
+				</button>
+			</div>
+		</div>
+	</td>
+</ng-template>

@@ -117,14 +117,17 @@ export class BackendService {
 			} else if (wait_time > 10) {
 				wait_time = 10;
 			}
-			setTimeout(() => this.updateCurrentState(), wait_time * 1000);
 
 			// Trigger events
-			if (this.currentState.scoreboard_tick != old_state.scoreboard_tick)
-				this.newestScoreboardTick.next(this.currentState.scoreboard_tick);
 			if (this.currentState.state == GameStates.STOPPED && old_state.state == GameStates.RUNNING) {
-				this.finalScoreboardTick = this.currentState.scoreboard_tick;
+				this.finalScoreboardTick = this.currentState.current_tick;
+				wait_time = 2;
 			}
+			if (this.currentState.scoreboard_tick != old_state.scoreboard_tick) {
+				this.newestScoreboardTick.next(this.currentState.scoreboard_tick);
+			}
+
+			setTimeout(() => this.updateCurrentState(), wait_time * 1000);
 
 		}, err => {
 			console.error(err);

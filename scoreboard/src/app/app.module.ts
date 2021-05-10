@@ -1,6 +1,6 @@
 import {BrowserModule} from '@angular/platform-browser';
 import {NgModule} from '@angular/core';
-
+import {AppRoutingModule} from './app-routing.module';
 import {AppComponent} from './app.component';
 import {ScoretableComponent} from './scoretable/scoretable.component';
 import {HttpClientModule} from "@angular/common/http";
@@ -11,6 +11,11 @@ import {SettingsComponent} from './settings/settings.component';
 import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
 //import {WebStorageModule} from "ngx-store-9";
 import { NotificationOverlayComponent } from './notification-overlay/notification-overlay.component';
+import { PageIndexComponent } from './page-index/page-index.component';
+import { PageTeamComponent } from './page-team/page-team.component';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+import { TableLineCellsComponent } from './table-line-cells/table-line-cells.component';
+import { TableServiceHeaderCellComponent } from './table-service-header-cell/table-service-header-cell.component';
 
 @NgModule({
 	declarations: [
@@ -18,12 +23,18 @@ import { NotificationOverlayComponent } from './notification-overlay/notificatio
 		ScoretableComponent,
 		CurrentTickComponent,
 		SettingsComponent,
-		NotificationOverlayComponent
+		NotificationOverlayComponent,
+		PageIndexComponent,
+		PageTeamComponent,
+		PageNotFoundComponent,
+		TableLineCellsComponent,
+		TableServiceHeaderCellComponent
 	],
 	imports: [
 		BrowserModule,
 		HttpClientModule,
 		BrowserAnimationsModule,
+		AppRoutingModule,
 		PopoverModule.forRoot(),
 		BsDropdownModule.forRoot(),
 		//WebStorageModule

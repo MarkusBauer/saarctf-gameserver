@@ -6,13 +6,26 @@
 		VPN Control
 	</div>
 	<div class="panel-body">
-		<p ng-if="state">
+		<p ng-if="state == 'on'">
 			<span class="label label-success">Network open</span>
-			<button class="btn btn-default pull-right" ng-click="setState(false)" ng-if="!hideControls">Close network</button>
+			<span class="pull-right">
+			<button class="btn btn-default" ng-click="setState('team')" ng-if="!hideControls">Close public network</button>
+			<button class="btn btn-default" ng-click="setState('off')" ng-if="!hideControls">Close network</button>
+		</span>
 		</p>
-		<p ng-if="!state">
+		<p ng-if="state == 'team'">
+			<span class="label label-warning" title="Access to vulnbox is possible, but not to other teams">Network open within teams</span>
+			<span class="pull-right">
+			<button class="btn btn-default" ng-click="setState('on')" ng-if="!hideControls">Open network</button>
+			<button class="btn btn-default" ng-click="setState('off')" ng-if="!hideControls">Close network</button>
+		</span>
+		</p>
+		<p ng-if="state == 'off'">
 			<span class="label label-danger">Network closed</span>
-			<button class="btn btn-default pull-right" ng-click="setState(true)" ng-if="!hideControls">Open network</button>
+			<span class="pull-right">
+			<button class="btn btn-default" ng-click="setState('team')" ng-if="!hideControls">Open network within teams</button>
+			<button class="btn btn-default" ng-click="setState('on')" ng-if="!hideControls">Open network</button>
+		</span>
 		</p>
 
 		<br ng-if="!hideControls"/>

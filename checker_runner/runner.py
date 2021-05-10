@@ -67,7 +67,9 @@ def set_limits():
 	"""
 	Set resource limits on the checker process
 	"""
-	resource.setrlimit(resource.RLIMIT_AS, (1500000000, 2048000000))  # 1GB soft / 2GB hard
+	if 'SAARCTF_NO_RLIMIT' not in os.environ:
+		resource.setrlimit(resource.RLIMIT_AS, (1024*1000000, 2048*1000000))  # 1GB soft / 2GB hard
+	pass
 
 
 @celeryapp.task(bind=True)

@@ -15,7 +15,7 @@ if __name__ == '__main__':
 	sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gamelib import gamelib, gamelogger
-from saarctf_commons.config import team_id_to_vulnbox_ip
+from saarctf_commons.config import team_id_to_vulnbox_ip, set_redis_clientname
 
 SEPARATOR = "\n\n" + '-' * 72
 
@@ -156,6 +156,7 @@ if __name__ == '__main__':
 	# execute checker script
 	if len(sys.argv) <= 5:
 		raise Exception('Not enough arguments!')
+	set_redis_clientname('worker-process')
 	status, message = execute_checker(sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]))
 	print(SEPARATOR)
 	print(status + '|' + (message or ''))

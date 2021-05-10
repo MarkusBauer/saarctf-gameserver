@@ -35,7 +35,7 @@ echo "yes" | python3 ./scripts/reset_ctf.py
 pushd flag-submission-server/build
 ./testsuite
 ./flag-submission-server > /tmp/submission.stdout 2>/tmp/submission.stderr &
-SUBMISSION_SERVER_PID=$!
+# SUBMISSION_SERVER_PID=$!
 sleep 1
 ./benchmark-newflags
 ./benchmark-oldflags

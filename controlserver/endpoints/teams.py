@@ -62,6 +62,8 @@ def teams_index(page=1):
 		query = query.filter(or_(*conditions))
 
 	current_stats_timestamp = db.session.query(func.max(TeamTrafficStats.time)).scalar()
+	if current_stats_timestamp is None:
+		current_stats_timestamp = datetime.datetime.now()
 	query = query.outerjoin(TeamTrafficStats, and_(Team.id == TeamTrafficStats.team_id, TeamTrafficStats.time == current_stats_timestamp))
 	query = query.add_entity(TeamTrafficStats)
 	print(str(query))

@@ -16,7 +16,7 @@ from sqlalchemy import distinct, Integer
 
 from controlserver.db_filesystem import DBFilesystem
 from controlserver.models import *
-from controlserver.vpncontrol import VPNControl
+from controlserver.vpncontrol import VPNControl, VpnStatus
 from saarctf_commons.config import get_redis_connection, REDIS, SCOREBOARD_PATH, team_id_to_network_range, FLOWER_AJAX_URL
 from controlserver.logger import logResultOfExecution
 
@@ -134,7 +134,7 @@ def overview_vpn():
 		trafficstats.append(list(map(int, line[1:])))
 
 	return jsonify({
-		'state': vpn.get_state(), 'banned': teams,
+		'state': vpn.get_state().value, 'banned': teams,
 		'teams_online': teams_online, 'teams_online_once': teams_online_once, 'teams_offline': teams_offline,
 		'traffic_stats': trafficstats[::-1],
 		'traffic_stats_keys': trafficstats_keys[::-1]
@@ -145,7 +145,7 @@ def overview_vpn():
 def overview_set_vpn():
 	vpn = VPNControl()
 	if 'state' in request.json:
-		vpn.set_state(request.json['state'])
+		vpn.set_state(VpnStatus(request.json['state']))
 	if 'ban' in request.json:
 		vpn.ban_team(request.json['ban']['team_id'], request.json['ban']['tick'])
 	if 'unban' in request.json:
@@ -403,8 +403,8 @@ def checker_status_overview():
 	for i in range(first_round, Timer.currentRound + 1):
 		rounds[i] = {
 			'number': i,
-			'start': datetime.datetime.fromtimestamp(int(redis.get('round:{}:start'.format(i)))),
-			'end': datetime.datetime.fromtimestamp(int(redis.get('round:{}:end'.format(i)))),
+			'start': datetime.datetime.fromtimestamp(int(redis.get('round:{}:start'.format(i))), datetime.timezone.utc),
+			'end': datetime.datetime.fromtimestamp(int(redis.get('round:{}:end'.format(i))), datetime.timezone.utc),
 			'time': int(redis.get('round:{}:time'.format(i))),
 			'dispatched': len(Dispatcher.default.get_round_combinations(i) or []),
 			'tasks_ok': 0,

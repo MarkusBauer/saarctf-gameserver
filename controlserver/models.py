@@ -45,6 +45,7 @@ class Team(Model):
 	vpn_connected = db.Column(db.Boolean, nullable=False, server_default=text('FALSE'))
 	vpn_last_connect = db.Column(db.TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
 	vpn_last_disconnect = db.Column(db.TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
+	vpn_connection_count = db.Column(db.Integer, nullable=False, server_default=text('0'))  # "cloud"-style VPN connections
 
 	@property
 	def vulnbox_ip(self):
@@ -72,12 +73,21 @@ class TeamLogo(Model):
 		:return: md5-hash that identifies this image later.
 		"""
 		with open(fname, 'rb') as f:
-			imghash = hashlib.md5(f.read()).hexdigest()
+			return cls.store_logo_bytes(f.read())
+
+	@classmethod
+	def store_logo_bytes(cls, data: bytes) -> str:
+		"""
+		Store a logo image (given in memory) into database (if not already there).
+		:param data:
+		:return: md5-hash that identifies this image later.
+		"""
+		imghash = hashlib.md5(data).hexdigest()
 		if cls.query.filter(cls.hash == imghash).count() > 0:
 			return imghash
 		# load, resize and pad logo image
 		from PIL import Image
-		img = Image.open(fname)
+		img = Image.open(io.BytesIO(data))
 		w = round(img.width * cls.target_size / max(img.width, img.height))
 		h = round(img.height * cls.target_size / max(img.width, img.height))
 		img = img.resize((w, h), Image.BICUBIC)
@@ -114,6 +124,7 @@ class Service(Model):
 	checker_timeout = db.Column(db.Integer, nullable=False, server_default=text('30'))
 	checker_enabled = db.Column(db.Boolean, nullable=False, server_default=text('TRUE'))
 	checker_subprocess = db.Column(db.Boolean, nullable=False, server_default=text('FALSE'))
+	checker_route = db.Column(db.String(64), nullable=True, server_default=text('NULL'))
 	package = db.Column(db.String(32), nullable=True)  # package the checker files have been moved to
 	setup_package = db.Column(db.String(32), nullable=True, server_default=text('NULL'))  # package containing an init script
 	num_payloads = db.Column(db.Integer, nullable=False, server_default=text('0'))  # number of possible payloads. 0 = unlimited
@@ -255,6 +266,10 @@ class TeamTrafficStats(Model):
 	up_game_bytes = db.Column(db.BigInteger, nullable=False)
 	up_game_syns = db.Column(db.BigInteger, nullable=False)
 	up_game_syn_acks = db.Column(db.BigInteger, nullable=False)
+	forward_self_packets = db.Column(db.BigInteger, nullable=False)
+	forward_self_bytes = db.Column(db.BigInteger, nullable=False)
+	forward_self_syns = db.Column(db.BigInteger, nullable=False)
+	forward_self_syn_acks = db.Column(db.BigInteger, nullable=False)
 
 	@classmethod
 	def efficient_insert(cls, timestamp: int, items: Dict[int, List[int]]):
@@ -264,16 +279,18 @@ class TeamTrafficStats(Model):
 			  'down_game_packets, down_game_bytes, down_game_syns, down_game_syn_acks, ' \
 			  'down_teams_packets, down_teams_bytes, down_teams_syns, down_teams_syn_acks, ' \
 			  'up_game_packets, up_game_bytes, up_game_syns, up_game_syn_acks, ' + \
-			  'up_teams_packets, up_teams_bytes, up_teams_syns, up_teams_syn_acks) ' \
+			  'up_teams_packets, up_teams_bytes, up_teams_syns, up_teams_syn_acks, ' \
+			  'forward_self_packets, forward_self_bytes, forward_self_syns, forward_self_syn_acks) ' \
 			  f'SELECT to_timestamp({timestamp}), unnest(%(teams)s), ' \
 			  'unnest(%(v0)s), unnest(%(v1)s), unnest(%(v2)s), unnest(%(v3)s), ' \
 			  'unnest(%(v4)s), unnest(%(v5)s), unnest(%(v6)s), unnest(%(v7)s), ' \
 			  'unnest(%(v8)s), unnest(%(v9)s), unnest(%(v10)s), unnest(%(v11)s), ' \
-			  'unnest(%(v12)s), unnest(%(v13)s), unnest(%(v14)s), unnest(%(v15)s)'
+			  'unnest(%(v12)s), unnest(%(v13)s), unnest(%(v14)s), unnest(%(v15)s), ' \
+			  'unnest(%(v16)s), unnest(%(v17)s), unnest(%(v18)s), unnest(%(v19)s)'
 		data: Dict[str, List[int]] = {
 			'teams': []
 		}
-		for i in range(16):
+		for i in range(20):
 			data[f'v{i}'] = []
 		for team_id, values in items.items():
 			data['teams'].append(team_id)
@@ -299,7 +316,11 @@ class TeamTrafficStats(Model):
 			func.sum(cls.up_game_packets),
 			func.sum(cls.up_game_bytes),
 			func.sum(cls.up_game_syns),
-			func.sum(cls.up_game_syn_acks)
+			func.sum(cls.up_game_syn_acks),
+			func.sum(cls.forward_self_packets),
+			func.sum(cls.forward_self_bytes),
+			func.sum(cls.forward_self_syns),
+			func.sum(cls.forward_self_syn_acks)
 		)
 
 	@classmethod

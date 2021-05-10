@@ -27,10 +27,11 @@ iptables -t mangle -F FORWARD
 iptables -N vpn-ok || true
 iptables -F vpn-ok
 iptables -A vpn-ok
-# "Log" forwarded connections (make accessible for tcpdump)
+# "Log" forwarded connections (make accessible for tcpdump) / excluding SSH (TCP 22) from team2team traffic
 iptables -A vpn-ok   -i tun+ ! -o tun+ -j NFLOG --nflog-group 5 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->game traffic (1/2)"
 iptables -A vpn-ok ! -i tun+   -o tun+ -j NFLOG --nflog-group 5 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->game traffic (2/2)"
-iptables -A vpn-ok   -i tun+   -o tun+ -j NFLOG --nflog-group 6 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic"
+iptables -A vpn-ok   -i tun+   -o tun+ -p tcp -m tcp ! --dport 22 -j NFLOG --nflog-group 6 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic"
+iptables -A vpn-ok   -i tun+   -o tun+ ! -p tcp -j NFLOG --nflog-group 6 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic"
 # finally pass traffic
 iptables -A vpn-ok -j ACCEPT
 
@@ -41,6 +42,9 @@ iptables -A vpn-ok -j ACCEPT
 iptables -N vpn-blocking || true
 iptables -F vpn-blocking
 iptables -A vpn-blocking -j REJECT  # block by default, until iptables management script has been started / restarted
+iptables -N vpn-allow-teams || true
+iptables -F vpn-allow-teams
+iptables -A vpn-allow-teams -j REJECT
 
 
 
@@ -63,14 +67,22 @@ iptables -A FORWARD -i tun+ -d $GAMESERVER_IP -p tcp --dport 31337 -j vpn-ok -m 
 iptables -A FORWARD -i tun+ -o tun+ -j vpn-ok -m comment --comment "Team to Team"
 iptables -A FORWARD -i tun+ ! -o tun+ -j DROP -m comment --comment "VPN => internal network"
 
+# RATE LIMIT
+# (actual limit is enforced by tc, we just mark packets accordingly)
+NEW_CONN_MARK=0x100000/0x300000
+REPLY_MARK=0x200000/0x300000
+iptables -t mangle -A FORWARD -i tun+ -o tun+ -m conntrack --ctdir ORIGINAL -j MARK --set-mark ${NEW_CONN_MARK} -m comment --comment "Mark team to team attack traffic as ${NEW_CONN_MARK}"
+iptables -t mangle -A FORWARD -i tun+ -o tun+ -m conntrack --ctdir REPLY -j MARK --set-mark ${REPLY_MARK} -m comment --comment "Mark team to team response traffic as ${REPLY_MARK}"
 
 
 # INPUT CHAIN - Filter connections from VPN to this machine
 iptables -A INPUT -i ens10 -j ACCEPT
+iptables -A INPUT -i enp7s0 -j ACCEPT
 iptables -A INPUT -i lo -j ACCEPT
 iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 iptables -A INPUT -i tun+ -p icmp -j ACCEPT -m comment --comment "Ping to VPN gateway"
 iptables -A INPUT -i tun+ -p udp --dport 123 -j ACCEPT -m comment --comment "NTP on VPN gateway"
+iptables -A INPUT -i tun+ -p tcp --dport 62015 -j ACCEPT -m comment --comment "Port for some service-related backends"
 iptables -A INPUT -i tun+ -j DROP
 iptables -A INPUT -p tcp --dport 22 -j ACCEPT -m comment --comment "SSH"
 iptables -A INPUT -p tcp --dport 80 -j ACCEPT -m comment --comment "HTTP / VPN-Board"

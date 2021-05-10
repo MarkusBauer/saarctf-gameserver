@@ -1,0 +1,46 @@
+<table class="table table-bordered" [class.hideHistory]="!ui.showHistory" [class.onlySums]="ui.showOnlySums">
+	<thead>
+	<tr>
+		<th colspan="3" class="headercell">
+			<div class="media-left team-logo-media" *ngIf="ui.showImages && backend.teams[teamId]">
+				<img class="media-object" [src]="'logos/'+backend.teams[teamId].logo" alt="" loading="lazy">
+			</div>
+			<div class="media-body">
+				<h4 class="team-name" *ngIf="backend.teams[teamId]">
+					{{backend.teams[teamId].name}}
+					<button type="button" *ngIf="backend.teams[teamId].aff || backend.teams[teamId].web"
+							class="btn btn-xs btn-link info-link" triggers="focus"
+							[popover]="'Affiliation: '+(backend.teams[teamId].aff||'-')+'; Website: '+(backend.teams[teamId].web || '-')">
+						<span class="fas fa-info"></span>
+					</button>
+				</h4>
+				<span class="team-vulnbox" *ngIf="backend.teams[teamId]">{{backend.teams[teamId].vulnbox}}</span><br>
+				<span *ngIf="currentTick === null || currentRoundInfo === null || loading > 0" class="fas fa-spinner fa-spin"></span>
+			</div>
+		</th>
+		<!-- service cell -->
+		<app-table-service-header-cell [services]="currentRoundInfo.services" *ngIf="currentRoundInfo !== null"></app-table-service-header-cell>
+	</tr>
+	</thead>
+	<tbody>
+	<ng-container *ngFor="let item of tickInfos | keyvalue: keyDescOrder; trackBy keyTrackBy">
+		<tr>
+			<td class="rankcell"><h4>{{item.value.rank}}</h4></td>
+			<td class="teamcell">
+				<h4 class="team-name">Tick {{item.key}}</h4>
+				<span class="team-vulnbox"></span><br/>
+				<span class="team-total-points">
+					<i class="fas fa-chart-line"></i>&nbsp;{{item.value.points.toFixed(1)}}
+					<span class="delta"><small title="New points this tick">({{floatToString(item.value.do + item.value.dd + item.value.ds)}})</small></span>
+				</span>
+			</td>
+			<tablelinecells [rank]="item.value" [tick]="item.key"></tablelinecells>
+		</tr>
+	</ng-container>
+	</tbody>
+</table>
+
+<div class="text-center">
+	<a (click)="loadMore()" class="href btn btn-default" *ngIf="loading == 0 && tickInfosLength < currentTick">load more</a>
+</div>
+<br />

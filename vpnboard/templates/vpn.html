@@ -31,6 +31,7 @@
 	<p>
 		<a href="all_teams.json">&rArr; all teams (as JSON)</a><br/>
 		<a href="available_teams.json">&rArr; teams that connected to the VPN once (as JSON)</a>
+		<span class="text-muted"> &mdash; Cloud-hosting teams will not be included until the competition starts.</span>
 	</p>
 
 	<p class="text-muted">Last update: {{ start.strftime('%d. %b %Y %H:%M:%S %Z') }}</p>
@@ -60,6 +61,10 @@
 						<span class="label label-success">connected</span>
 					{% else %}
 						<span class="label label-default">disconnected</span>
+					{% endif %}
+					{% if team.vpn_connection_count > 0 %}
+						<br/>
+						<span class="label label-success" title="Connected team members">{{ team.vpn_connection_count }} connected</span>
 					{% endif %}
 				</td>
 				<td>

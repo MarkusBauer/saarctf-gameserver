@@ -7,6 +7,7 @@ import traceback
 from typing import Dict, Optional, List, Iterable
 
 import htmlmin
+import sqlalchemy
 from celery import group
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -183,6 +184,10 @@ def main():
 			start = time.time()
 			try:
 				board.build_vpn_board(check_vulnboxes)
+			except sqlalchemy.exc.SQLAlchemyError:
+				traceback.print_exc()
+				eprint(f'{datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")}: Could not create VPN board.')
+				sys.exit(1)
 			except:
 				traceback.print_exc()
 				eprint(f'{datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")}: Could not create VPN board.')

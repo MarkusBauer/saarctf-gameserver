@@ -45,6 +45,7 @@ import controlserver.endpoints.checker_results
 import controlserver.endpoints.log_messages
 import controlserver.endpoints.teams
 import controlserver.endpoints.flags
+import controlserver.endpoints.influx
 import controlserver.endpoints.services
 from controlserver.models import init_models
 from controlserver.model_admin import register_admin
@@ -54,6 +55,7 @@ app.register_blueprint(controlserver.endpoints.checker_results.app)
 app.register_blueprint(controlserver.endpoints.log_messages.app)
 app.register_blueprint(controlserver.endpoints.teams.app)
 app.register_blueprint(controlserver.endpoints.flags.app)
+app.register_blueprint(controlserver.endpoints.influx.app)
 app.register_blueprint(controlserver.endpoints.services.app)
 app.register_blueprint(controlserver.endpoints.api.app)
 init_models(app)

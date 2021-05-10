@@ -12,7 +12,7 @@ from controlserver.models import LogMessage
 from controlserver.scoring.scoreboard import Scoreboard
 from controlserver.scoring.scoring import ScoringCalculation
 from controlserver.events import CTFEvents
-from controlserver.vpncontrol import VPNControl
+from controlserver.vpncontrol import VPNControl, VpnStatus
 
 
 class LogCTFEvents(CTFEvents):
@@ -76,6 +76,11 @@ class DeferredCTFEvents(CTFEvents):
 							 self.scoreboard.create_scoreboard, args=(roundnumber, True, True),
 							 success='Scoreboard generated, took {:.1f} sec',
 							 error='Scoreboard failed: {} {}')
+		if roundnumber > 0 and not self.scoreboard.exists(roundnumber - 1, True):
+			logResultOfExecution('scoring',
+								 self.scoreboard.create_scoreboard, args=(roundnumber - 1, True, False),
+								 success='Scoreboard generated, took {:.1f} sec',
+								 error='Scoreboard failed: {} {}')
 
 	def onStartCtf(self):
 		logResultOfExecution('scoring',
@@ -96,7 +101,7 @@ class VPNCTFEvents(CTFEvents):
 		self.vpn.unban_for_tick(roundnumber)
 
 	def onStartCtf(self):
-		self.vpn.set_state(True)
+		self.vpn.set_state(VpnStatus.ON)
 
 	def onEndCtf(self):
-		self.vpn.set_state(False)
+		self.vpn.set_state(VpnStatus.TEAMS_ONLY)

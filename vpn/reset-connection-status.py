@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from saarctf_commons import config
-from controlserver.models import Team
+from controlserver.models import Team, db
 
 config.EXTERNAL_TIMER = True
 
@@ -27,6 +27,15 @@ def main():
 	team_count = Team.query.filter(Team.vpn_connected == True, Team.vpn_last_connect < last_boot) \
 		.update({'vpn_connected': False, 'vpn_last_disconnect': last_boot})
 	print(f'{team_count} teams were disconnected due to last reboot (and have not reconnected yet).')
+	db.session.commit()
+
+	if '--all' in sys.argv:
+		team_count = Team.query.filter(Team.vpn_connection_count > 0) \
+			.update({'vpn_connection_count': 0})
+		print(f'{team_count} cloud connections were disconnected.')
+	else:
+		print('Use --all to reset the cloud-style connection counter')
+	db.session.commit()
 
 	print('[DONE]')
 

@@ -16,19 +16,6 @@ table {
 	}
 }
 
-.servicecell {
-	text-align: center;
-	.attacker-victim-count {
-		display: inline-block;
-		text-align: left;
-
-		.fa-tint {
-			padding-left: 1px;
-			padding-right: 1px;
-		}
-	}
-}
-
 .rankcell {
 	padding-right: 0;
 	border-right: none;
@@ -41,7 +28,7 @@ table {
 .team-logo-media {
 	padding-right: 15px;
 
-	> img {
+	> img, > a > img {
 		width: 64px;
 		max-width: 64px;
 		max-height: 64px;
@@ -51,6 +38,10 @@ table {
 .team-name {
 	margin-top: 3px;
 	margin-bottom: 1px;
+
+	a {
+		color: @text-color;
+	}
 }
 
 .team-vulnbox {
@@ -61,127 +52,6 @@ table {
 	font-size: 16px;
 }
 
-@result-grid-gap: 3px;
-@result-grid-gap-large: 12px;
-
-.sum-container, .result-container {
-	display: grid;
-	grid-template-columns: 33% 33% 33%;
-	grid-column-gap: @result-grid-gap;
-
-	// Icon color
-	> i.fas {
-		color: #222;
-		align-self: center;
-	}
-
-	> .points, > .delta {
-		justify-self: end;
-	}
-}
-
-.sum-container {
-	grid-template-columns: @line-height-computed max-content;
-}
-
-.result-container {
-	grid-template-columns: @line-height-computed max-content max-content calc(@line-height-computed + @result-grid-gap-large) max-content max-content;
-
-	> .offset-left {
-		margin-left: @result-grid-gap-large;
-	}
-
-	> .delta {
-		align-self: end;
-	}
-
-	> .sla-col {
-		grid-column: 4 / span 3;
-		vertical-align: middle;
-		white-space: nowrap;
-
-		.status.label {
-			padding: 0.3em 0.6em;
-			border-radius: 0.35em;
-			display: inline-block;
-			vertical-align: middle;
-			user-select: none;
-		}
-
-		.info-link {
-			margin-left: 5px;
-			float: right;
-		}
-
-		.history-3, .history-2, .history-1 {
-			display: inline-block;
-			border-radius: 50%;
-			margin-right: 4px;
-			padding: 0;
-			vertical-align: middle;
-
-			&.history-3 {
-				width: 8px;
-				height: 8px;
-				opacity: 0.7;
-			}
-
-			&.history-2 {
-				width: 10px;
-				height: 10px;
-				opacity: 0.8;
-			}
-
-			&.history-1 {
-				width: 12px;
-				height: 12px;
-				opacity: 0.9;
-				margin-right: 6px;
-			}
-		}
-	}
-}
-
-.hideHistory {
-	.delta > small {
-		display: none;
-	}
-
-	.history-3, .history-2, .history-1 {
-		display: none !important;
-	}
-}
-
-.sum-mode-only {
+tablelinecells, app-table-service-header-cell {
 	display: none;
-}
-
-.onlySums {
-	.sum-mode-only {
-		display: inherit;
-	}
-
-	.not-in-sum-mode {
-		display: none;
-	}
-
-	.result-container {
-		grid-template-columns: @line-height-computed max-content max-content 1fr; // calc(@line-height-computed + @result-grid-gap-large) max-content max-content;
-		> .offset-left {
-			margin-left: 0;
-		}
-
-		> .sla-col {
-			grid-column: 1 / span 4;
-			text-align: center;
-
-			.info-link {
-				float: none;
-			}
-		}
-
-		> i {
-			grid-column: 1;
-		}
-	}
 }

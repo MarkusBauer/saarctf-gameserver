@@ -72,4 +72,5 @@ JSON keys starting with `__` are stripped.
 To deploy, you can use environment variables:
 - `SAARCTF_CONFIG` path to config.json file
 - `SAARCTF_CONFIG_DIR` folder where config.json is located, and additional files will be stored (VPN config, VPN secrets etc). Default: root of this repository.
+- Set `SAARCTF_NO_RLIMIT` if you have to run checkers without limit (e.g. Chromium)
 

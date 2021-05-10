@@ -1,7 +1,6 @@
 import os
 import sys
 import hashlib
-from PIL import Image
 from typing import Optional
 
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey
@@ -11,12 +10,14 @@ from sqlalchemy.orm import sessionmaker, relationship
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from saarctf_commons import config
-from controlserver.models import Team, TeamLogo
+from controlserver.models import Team
+from scripts.sync_teams_http import import_logo
 
 config.EXTERNAL_TIMER = True
 
 """
 NO ARGUMENTS
+Sync teams with a provided SQLite database from the website
 """
 
 webdb = create_engine(config.CONFIG['databases']['website'])
@@ -32,6 +33,14 @@ class WebsiteTeamProfile(base):
 	is_team = Column(Boolean)
 	team_id = Column(Integer)
 	website = Column(String)
+	logo = Column(String)
+
+	def find_logo_image(self) -> Optional[str]:
+		if self.logo:
+			logo_path = config.CONFIG['logo_input_path']
+			if os.path.exists(os.path.join(logo_path, self.logo)):
+				return os.path.join(logo_path, self.logo)
+		return None
 
 
 class WebsiteTeam(base):
@@ -42,30 +51,13 @@ class WebsiteTeam(base):
 	is_active = Column(Boolean)
 	team_profile = relationship(WebsiteTeamProfile, uselist=False, back_populates="user")
 
-	def find_logo_image(self) -> Optional[str]:
-		h = hashlib.md5(self.username.encode("utf-8")).hexdigest()
-		logo_path = config.CONFIG['logo_input_path']
-		if os.path.exists(os.path.join(logo_path, h + '.jpg')):
-			return os.path.join(logo_path, h + '.jpg')
-		if os.path.exists(os.path.join(logo_path, h + '.png')):
-			return os.path.join(logo_path, h + '.png')
-		return None
-
-
-def import_logo(team: Team, logo: Optional[str]):
-	os.makedirs(os.path.join(config.SCOREBOARD_PATH, 'logos'), exist_ok=True)
-	root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-	logo_in = logo or os.path.join(root, 'controlserver', 'static', 'img', 'profile_dummy.png')
-	imghash = TeamLogo.store_logo_file(logo_in)
-	team.logo = imghash
-
 
 def add_team(wsteam: WebsiteTeam):
 	import controlserver
 	team = Team(id=wsteam.team_profile.team_id, name=wsteam.username, affiliation=wsteam.last_name, website=wsteam.team_profile.website)
 	controlserver.models.db.session.add(team)
 	controlserver.models.db.session.commit()
-	import_logo(team, wsteam.find_logo_image())
+	import_logo(team, wsteam.team_profile.find_logo_image())
 	print(f'Added  team "{wsteam.username}".')
 
 
@@ -75,7 +67,7 @@ def update_team(team: Team, wsteam: WebsiteTeam):
 	team.affiliation = wsteam.last_name
 	team.website = wsteam.team_profile.website
 	controlserver.models.db.session.add(team)
-	import_logo(team, wsteam.find_logo_image())
+	import_logo(team, wsteam.team_profile.find_logo_image())
 	print(f'Update team "{team.name}".')
 
 

@@ -1,0 +1,19 @@
+<ng-template #template>
+	<td *ngFor="let service of services; trackBy indexTrack" class="servicecell">
+		<p><strong>{{service.name}}</strong></p>
+		<p class="attacker-victim-count">
+			<i class="fas fa-crosshairs"></i> {{service.attackers + (service.attackers != 1 ? '  attackers' : '  attacker')}}<br>
+			<i class="fas fa-shield-alt"></i> {{service.victims + (service.victims != 1 ? '  victims' : '  victim')}}
+			<span *ngIf="service.first_blood.length" title="First Blood"><br/><i
+					class="fas fa-tint"></i> {{service.first_blood.join(', ')}}</span>
+			<small *ngIf="service.flag_stores_exploited > 0 && service.flag_stores_exploited < service.flag_stores"
+				   [title]="'This services stores flags in '+service.flag_stores+' different locations or flags of '+service.flag_stores+' different types. Only '+service.flag_stores_exploited+' flag stores / types have been exploited so far.'">
+				<br/>
+				{{ service.flag_stores - service.flag_stores_exploited }}
+				flag store
+				<ng-container *ngIf="service.flag_stores - service.flag_stores_exploited != 1">s</ng-container>
+				unexploited
+			</small>
+		</p>
+	</td>
+</ng-template>

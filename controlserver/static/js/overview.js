@@ -206,7 +206,7 @@ app.controller('ComponentsController', function ($scope, $http) {
 			}
 			let disconnectedThings = new Set();
 			for (let client of $scope.redis) {
-				if (!ids[client.id] && client.name && !client.name.startsWith('script-')) {
+				if (!ids[client.id] && client.name && !client.name.startsWith('script-') && client.name !== 'worker-process') {
 					//TODO remove from this list after some time
 					$scope.redis_offline.push(client);
 					disconnectedThings.add(client.name || '(unnamed)');
@@ -234,7 +234,7 @@ app.controller('ComponentsController', function ($scope, $http) {
 
 
 app.controller('VPNController', function ($scope, $http) {
-	$scope.state = false;
+	$scope.state = 'off';
 	$scope.banned = [];
 	$scope.bantick = null;
 	$scope.banteam = null;
@@ -268,7 +268,7 @@ app.controller('VPNController', function ($scope, $http) {
 
 	$scope.updateComponents = function () {
 		$http.get('/overview/vpn', {params: {last: $scope.traffic_last}}).then(function (xhr) {
-			$scope.state = xhr.data.state;
+			$scope.state = xhr.data.state || 'off';
 			$scope.banned = xhr.data.banned;
 			$scope.teams_online = xhr.data.teams_online;
 			$scope.teams_online_once = xhr.data.teams_online_once;
