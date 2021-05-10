@@ -22,15 +22,15 @@ Default port: 31337, default threads: 1.
 
 Flag format
 -----------
-`SAAR{56-base64-bytes}` (example: `SAAR{3ERBWSQABgC+aohde+7coQ4txRcA5+ziFmUZoiZDfwJp71myDQw3jcTc}`, regex `SAAR\{[A-Za-z0-9\+\/]{56}\}`)
+`SAAR{32-websafe-base64-bytes}` (example: `SAAR{vQA2AAYAAACXlPecBGL77CAqZOuU4BTa}`, regex `SAAR\{[A-Za-z0-9-_]{32}\}`)
 
 Binary data consists of (all numbers are little-endian): 
 
-- 4 bytes expires timestamp
+- 2 bytes tick (this flag was stored)
 - 2 bytes team id
 - 2 bytes service id
 - 2 payload bytes
-- 32 bytes SHA256-HMAC (over the other parts of the flag)
+- 16 bytes SHA256-HMAC (over the other parts of the flag)
 
 Configure in [`flagchecker.h`](src/flagchecker.h) and [`flagchecker.cpp`](src/flagchecker.cpp). 
 
