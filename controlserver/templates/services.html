@@ -38,7 +38,7 @@
 					{% endif %}
 				</td>
 				<td>
-					{{ service.flags_per_round }} flag{% if service.flags_per_round != 1 %}s{% endif %}/round<br/>
+					{{ '{:.3g}'.format(service.flags_per_round) }}&nbsp;flag{% if service.flags_per_round != 1 %}s{% endif %}/round<br/>
 					{{ '' if service.flag_ids else 'no ' }} flag ids
 				</td>
 				<td>

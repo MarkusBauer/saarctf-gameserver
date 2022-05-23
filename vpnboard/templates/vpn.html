@@ -57,14 +57,26 @@
 				<th>{{ team.id }}</th>
 				<td>{{ team.name }} <br/><small>(vulnbox&nbsp;{{ team.vulnbox_ip }})</small></td>
 				<td>
-					{% if team.vpn_connected %}
+					{% if team.vpn_connected or team.vpn2_connected %}
 						<span class="label label-success">connected</span>
 					{% else %}
 						<span class="label label-default">disconnected</span>
 					{% endif %}
 					{% if team.vpn_connection_count > 0 %}
 						<br/>
-						<span class="label label-success" title="Connected team members">{{ team.vpn_connection_count }} connected</span>
+						<span class="label label-success" title="Connected team members">{{ team.vpn_connection_count }} players</span>
+					{% endif %}
+					{% if team.vpn_connected and team.vpn2_connected %}
+						<br />
+						<span class="label label-danger" title="Team-hosted VPN must not be active while the cloud-hosted vulnbox is used. Use the other provided VPN config instead.">Multiple VPN</span>
+					{% endif %}
+					{% if team.vpn_connected and team.vpn_connection_count > 0 %}
+						<br />
+						<span class="label label-danger" title="Team-hosted VPN and cloud-hosted VPN must not be used at the same time.">Multiple VPN</span>
+					{% endif %}
+					{% if team.id in banned_teams %}
+						<br/>
+						<span class="label label-danger" title="Network traffic is currently blocked. Please contact the organizers in IRC!">! blocked !</span>
 					{% endif %}
 				</td>
 				<td>

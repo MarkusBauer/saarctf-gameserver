@@ -1,4 +1,4 @@
-CC=clang-7
+CC=clang-11
 CFLAGS=-O2 -I/usr/include/x86_64-linux-gnu
 
 all:

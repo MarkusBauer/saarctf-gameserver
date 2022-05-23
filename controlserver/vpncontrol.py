@@ -78,3 +78,23 @@ class VPNControl:
 			until = self.redis.get(f'network:bannedteam:{id}')
 			if until and int(until) == tick:
 				self.unban_team(id)
+
+	def get_open_teams(self) -> List[Team]:
+		ids = map(int, self.redis.smembers('network:permissions'))
+		result = []
+		for id in sorted(ids):
+			team = Team.query.filter(Team.id == id).first()
+			result.append(team)
+		return result
+
+	def add_permission_team(self, team_id: int):
+		if not team_id:
+			return
+		self.redis.sadd('network:permissions', team_id)
+		self.redis.publish('network:add_permission', team_id)
+		log('vpn', f'Open network for team #{team_id}')
+
+	def remove_permission_team(self, team_id: int):
+		self.redis.srem('network:permissions', team_id)
+		self.redis.publish('network:remove_permission', team_id)
+		log('vpn', f'Close network for team #{team_id}')

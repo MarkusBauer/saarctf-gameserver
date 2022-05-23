@@ -30,10 +30,12 @@ def teams_index(page=1):
 	direction = request.args.get('dir', 'asc')
 	query: BaseQuery = Team.query
 	if '.' not in order:
-		order_column = getattr(Team, order)
+		order_columns = [getattr(Team, order)]
+		if order == 'vpn_connected':
+			order_columns.append(Team.vpn2_connected)
 		if direction == 'desc':
-			order_column = order_column.desc()
-		query = query.order_by(order_column)
+			order_columns = [col.desc() for col in order_columns]
+		query = query.order_by(*order_columns)
 	elif order.startswith('traffic.'):
 		order = order[8:]
 		if order.startswith('sum.'):
@@ -56,9 +58,9 @@ def teams_index(page=1):
 	filter_online = request.args['filter_level'].split('|') if 'filter_level' in request.args else None
 	if filter_online is not None:
 		conditions = []
-		if 'online' in filter_online: conditions.append(Team.vpn_connected == True)
+		if 'online' in filter_online: conditions.append((Team.vpn_connected == True) | (Team.vpn2_connected == True))
 		if 'ever online' in filter_online: conditions.append(Team.vpn_last_connect != None)
-		if 'offline' in filter_online: conditions.append(Team.vpn_connected == False)
+		if 'offline' in filter_online: conditions.append((Team.vpn_connected == False) & (Team.vpn2_connected == False))
 		query = query.filter(or_(*conditions))
 
 	current_stats_timestamp = db.session.query(func.max(TeamTrafficStats.time)).scalar()

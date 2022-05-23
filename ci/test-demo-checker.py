@@ -109,6 +109,9 @@ def spawn_gamseserver_components() -> t.List[process]:
             "--hostname=ident@%h",
         ],
         stderr=stderr,
+        # stdout must be a pipe, not a pty. but stderr must also be captured. pwntools can't do this, so we work around:
+        stdout=subprocess.PIPE,
+        preexec_fn=lambda: os.dup2(1, 2)
     )
 
     # Ensure all processes are started

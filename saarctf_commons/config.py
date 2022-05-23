@@ -65,12 +65,15 @@ RABBITMQ: Dict = CONFIG['databases']['rabbitmq'] if 'rabbitmq' in CONFIG['databa
 SCOREBOARD_PATH: str = CONFIG['scoreboard_path']
 CHECKER_PACKAGES_PATH: str = CONFIG['checker_packages_path'].rstrip('/')
 CHECKER_PACKAGES_LFS: Optional[str] = CHECKER_PACKAGES_PATH + '/lfs' if os.name != 'nt' else None
+PATCHES_PATH: str = CONFIG.get('patches_path', CHECKER_PACKAGES_PATH + '/patches').rstrip('/')
+PATCHES_PUBLIC_PATH: str = CONFIG.get('patches_public_path', SCOREBOARD_PATH + '/patches').rstrip('/')
 FLOWER_URL: str = CONFIG['flower_url']
 FLOWER_INTERNAL_URL: str = CONFIG.get('flower_internal_url', FLOWER_URL)
 FLOWER_AJAX_URL: str = CONFIG.get('flower_ajax_url', FLOWER_URL)
 CODER_URL: Optional[str] = CONFIG.get('coder_url', False) or None
 SCOREBOARD_URL: Optional[str] = CONFIG.get('scoreboard_url', False) or None
 GRAFANA_URL: Optional[str] = CONFIG.get('grafana_url', False) or None
+PATCHES_URL: Optional[str] = CONFIG.get('patches_url', False) or (SCOREBOARD_URL.rstrip('/') + '/patches' if SCOREBOARD_URL else None)
 
 SECRET_FLAG_KEY: bytes = binascii.unhexlify(CONFIG['secret_flags'])
 FLAG_ROUNDS_VALID: int = CONFIG['flags_rounds_valid']

@@ -3,27 +3,27 @@ Network architecture
 
 General architecture
 --------------------
-`python3 build-openvpn-config-oneperteam.py` creates all necessary config files (in `$SAARCTF_CONFIG_DIR/vpn`):
-- `config-server/*.conf` : OpenVPN server configurations
+`python3 build-openvpn-config-oneperteam.py` and `python3 build-openvpn-config-cloud.py` create all necessary config files (in `$SAARCTF_CONFIG_DIR/vpn`):
+- `config-server/*.conf` : OpenVPN server configurations (including cloudhosting config: `-cloud` and `-vulnbox`)
 - `config-client/*.conf` : OpenVPN client configurations to be sent to the teams
 - `secrets/...` : Secrets shared with the teams. Should be cached to not invalidate team's config.
 
 ### Network structure
 All IP ranges are subject to change. 
 
-- Game network: `10.37.0.0/16` (might be extended to `10.38.0.0` etc)
-- VPN gateway: `10.37.0.1`
-- Internal machines: `10.37.0.0/24`
-- Teams: `10.37.X.0/24`
+- Game network: `10.32.0.0/15`
+- VPN gateway: `10.32.250.1`
+- Internal machines: `10.32.250.0/24`
+- Teams: `10.32.X.0/24`
 
 The VPN gateway is the central routing server. All teams connect via OpenVPN P2P connection. 
-The team's VPN has `10.80.X.1/30`, which is not publicly routable.
+The team's VPN has `10.48.X.1/30`, which is not publicly routable.
 
-`10.37.0.1 = 10.80.X.1   <--- (vpn) --->   10.80.X.2 = 10.37.X.1 (team's gateway)`
+`10.32.0.1 = 10.48.X.1   <--- (vpn) --->   10.48.X.2 = 10.32.X.1 (team's gateway)`
 
 On the VPN server, every team with ID `X` is connected by a dedicated OpenVPN instance with interface `tunX`. 
 
-- IPTables cares about forwarding traffic and NAT (masquerade). Origin (viewed from teams) is their VPN partner: `10.80.X.1`
+- IPTables cares about forwarding traffic and NAT (masquerade). Origin (viewed from teams) is their VPN partner: `10.48.X.1`
 - We attach a BPF traffic anonymizer to the egress of each `tunX` interface
 - We attack a BPF traffic counter to each `tunX` interface
 - Separation between team / game traffic is based entirely on interfaces.
@@ -32,23 +32,22 @@ On the VPN server, every team with ID `X` is connected by a dedicated OpenVPN in
 
 
 ### Routes
-- Servers => VPN-Host: `10.37.0.0/16`
-- Teams => VPN-Host: `10.37.0.0/16`
-- Teams => intern: `10.37.X.0/24`
-- VPN-Host => Servers: `10.37.0.0/24`
-- VPN-Host => Teams: `10.37.X.0/24`
-- VPN-Host => blackhole: `10.37.0.0/16` (offline teams)
+- Servers => VPN-Host: `10.32.0.0/16`
+- Teams => VPN-Host: `10.32.0.0/16`
+- Teams => intern: `10.32.X.0/24`
+- VPN-Host => Servers: `10.32.0.0/24`
+- VPN-Host => Teams: `10.32.X.0/24`
+- VPN-Host => blackhole: `10.32.0.0/16` (offline teams)
 
-VPN-internal traffic `10.80.0.0/16` is publicly not routable. 
+VPN-internal traffic `10.48.0.0/16` is publicly not routable. 
 
 
-`TODO think about moving internal machines. Shouldn't matter at all. As long as teams do not have to connect back to them.`
 
 
 Features
 --------
 - NAT with additional anonymity (TTL)
-- VPN connection state is logged to database (table `teams` column `vpn_connected`)
+- VPN connection state is logged to database (table `teams` columns `vpn_connected` for selfhosted and `vpn2_connected` for cloudhosted-vulnbox)
 - VPN status board available with the scoreboard
 - Firewall can be controlled over Dashboard / Redis (open/close/ban/unban)
 - Generates pcaps of the game / team traffic

@@ -1,4 +1,4 @@
-<div class="btn-group" dropdown placement="bottom right" [autoClose]="true">
+<div class="btn-group" dropdown placement="bottom right" container="body" [autoClose]="true">
 	<button id="settings-button" type="button" dropdownToggle class="btn btn-link dropdown-toggle" aria-controls="dropdown-settings">
 		<i class="fas fa-cog"></i><span class="caret"></span>
 	</button>
@@ -29,6 +29,13 @@
 		</li>
 		<li role="menuitem" *ngIf="ui.showNotifications">
 			<a class="dropdown-item href" (click)="ui.showNotifications = false">Hide notifications</a>
+		</li>
+
+		<li role="menuitem" *ngIf="!ui.darkmode">
+			<a class="dropdown-item href" (click)="ui.setDarkmode(true)">Dark mode</a>
+		</li>
+		<li role="menuitem" *ngIf="ui.darkmode">
+			<a class="dropdown-item href" (click)="ui.setDarkmode(false)">Light mode</a>
 		</li>
 	</ul>
 </div>

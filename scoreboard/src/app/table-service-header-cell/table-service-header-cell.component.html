@@ -10,8 +10,7 @@
 				   [title]="'This services stores flags in '+service.flag_stores+' different locations or flags of '+service.flag_stores+' different types. Only '+service.flag_stores_exploited+' flag stores / types have been exploited so far.'">
 				<br/>
 				{{ service.flag_stores - service.flag_stores_exploited }}
-				flag store
-				<ng-container *ngIf="service.flag_stores - service.flag_stores_exploited != 1">s</ng-container>
+				flag store<ng-container *ngIf="service.flag_stores - service.flag_stores_exploited != 1">s</ng-container>
 				unexploited
 			</small>
 		</p>

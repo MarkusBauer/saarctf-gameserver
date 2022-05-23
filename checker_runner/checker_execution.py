@@ -45,6 +45,7 @@ def execute_checker(package: str, script: str, service_id: int, team_id: int, ro
 	:return: (db-status, message) The (db) status of this execution, and an error message (if applicable)
 	"""
 	import pwnlib
+	import pwnlib.exception
 
 	team = gamelib.Team(team_id, '#' + str(team_id), team_id_to_vulnbox_ip(team_id))
 	try:
@@ -72,7 +73,7 @@ def execute_checker(package: str, script: str, service_id: int, team_id: int, ro
 				gamelogger.GameLogger.log(f'----- retrieve_flags({round - 1}) -----')
 				checker.retrieve_flags(team, round - 1)
 				if result: result.retrieved = True
-			elif round == -1:
+			elif round <= -1:
 				# Test run - retrieve the flag we just have set
 				gamelogger.GameLogger.log(f'----- retrieve_flags({round}) -----')
 				checker.retrieve_flags(team, round)
@@ -97,6 +98,9 @@ def execute_checker(package: str, script: str, service_id: int, team_id: int, ro
 			return 'MUMBLE', e.args[0]
 		return 'MUMBLE', repr(e.args)
 	except requests.ConnectionError as e:
+		traceback.print_exc()
+		return 'OFFLINE', 'Connection timeout'
+	except requests.exceptions.Timeout as e:
 		traceback.print_exc()
 		return 'OFFLINE', 'Connection timeout'
 	except pwnlib.exception.PwnlibException as e:

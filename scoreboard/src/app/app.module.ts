@@ -9,13 +9,14 @@ import {PopoverModule} from "ngx-bootstrap/popover";
 import {BsDropdownModule} from "ngx-bootstrap/dropdown";
 import {SettingsComponent} from './settings/settings.component';
 import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
-//import {WebStorageModule} from "ngx-store-9";
+import {WebStorageModule} from "ngx-store";
 import { NotificationOverlayComponent } from './notification-overlay/notification-overlay.component';
 import { PageIndexComponent } from './page-index/page-index.component';
 import { PageTeamComponent } from './page-team/page-team.component';
 import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
 import { TableLineCellsComponent } from './table-line-cells/table-line-cells.component';
 import { TableServiceHeaderCellComponent } from './table-service-header-cell/table-service-header-cell.component';
+import {NgChartsModule} from "ng2-charts";
 
 @NgModule({
 	declarations: [
@@ -37,7 +38,8 @@ import { TableServiceHeaderCellComponent } from './table-service-header-cell/tab
 		AppRoutingModule,
 		PopoverModule.forRoot(),
 		BsDropdownModule.forRoot(),
-		//WebStorageModule
+		WebStorageModule.forRoot(),
+		NgChartsModule.forRoot()
 	],
 	providers: [],
 	bootstrap: [AppComponent]

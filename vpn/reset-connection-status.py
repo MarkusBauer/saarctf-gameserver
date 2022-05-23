@@ -24,8 +24,8 @@ def main():
 	last_boot = datetime.datetime.strptime(uptime.decode().strip(), '%Y-%m-%d %H:%M:%S')
 	print('Last boot: ' + last_boot.strftime('%d.%m.%Y %H:%M:%S'))
 
-	team_count = Team.query.filter(Team.vpn_connected == True, Team.vpn_last_connect < last_boot) \
-		.update({'vpn_connected': False, 'vpn_last_disconnect': last_boot})
+	team_count = Team.query.filter((Team.vpn_connected == True) | (Team.vpn2_connected == True), Team.vpn_last_connect < last_boot) \
+		.update({'vpn_connected': False, 'vpn2_connected': False, 'vpn_last_disconnect': last_boot})
 	print(f'{team_count} teams were disconnected due to last reboot (and have not reconnected yet).')
 	db.session.commit()
 

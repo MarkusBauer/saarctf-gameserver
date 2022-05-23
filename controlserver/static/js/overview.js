@@ -238,6 +238,7 @@ app.controller('VPNController', function ($scope, $http) {
 	$scope.banned = [];
 	$scope.bantick = null;
 	$scope.banteam = null;
+	$scope.permteam = null;
 	$scope.teams_online = 0;
 	$scope.teams_online_once = 0;
 	$scope.teams_offline = 0;
@@ -270,6 +271,7 @@ app.controller('VPNController', function ($scope, $http) {
 		$http.get('/overview/vpn', {params: {last: $scope.traffic_last}}).then(function (xhr) {
 			$scope.state = xhr.data.state || 'off';
 			$scope.banned = xhr.data.banned;
+			$scope.permissions = xhr.data.permissions;
 			$scope.teams_online = xhr.data.teams_online;
 			$scope.teams_online_once = xhr.data.teams_online_once;
 			$scope.teams_offline = xhr.data.teams_offline;
@@ -330,6 +332,17 @@ app.controller('VPNController', function ($scope, $http) {
 
 	$scope.unban = function (id) {
 		$http.post('/overview/set_vpn', {unban: id}).then($scope.updateComponents);
+	};
+
+	$scope.add_permission = function (id) {
+		if (!id) return;
+		if (confirm('Really open network for team #' + id + '?')) {
+			$http.post('/overview/set_vpn', {add_permission: id}).then($scope.updateComponents);
+		}
+	};
+
+	$scope.remove_permission = function (id) {
+		$http.post('/overview/set_vpn', {remove_permission: id}).then($scope.updateComponents);
 	};
 
 	setInterval($scope.updateComponents, 28 * 1000);

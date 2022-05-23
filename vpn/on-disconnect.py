@@ -25,9 +25,14 @@ def main():
 		if '-' in team_id_str:
 			team_id_str = team_id_str.split('-')[0]
 	team_id = int(team_id_str)
+	is_vpn_2 = sys.argv[2] == 'cloudhosted' if len(sys.argv) > 2 else False
 	from controlserver.models import Team, db
-	changes = Team.query.filter(Team.id == team_id).filter(Team.vpn_connected == True) \
-		.update(dict(vpn_connected=False, vpn_last_disconnect=func.now()), synchronize_session=False)
+	if is_vpn_2:
+		changes = Team.query.filter(Team.id == team_id).filter(Team.vpn2_connected == True) \
+			.update(dict(vpn2_connected=False, vpn_last_disconnect=func.now()), synchronize_session=False)
+	else:
+		changes = Team.query.filter(Team.id == team_id).filter(Team.vpn_connected == True) \
+			.update(dict(vpn_connected=False, vpn_last_disconnect=func.now()), synchronize_session=False)
 	db.session.commit()
 	if changes > 0:
 		print(f'Updated connection status (disconnected) of team #{team_id}.')

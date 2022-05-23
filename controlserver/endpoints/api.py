@@ -16,6 +16,23 @@ def api_grafana_warning():
 		return 'Invalid', 500
 	if data['state'] != 'alerting':
 		return 'We only want alerts', 500
-	text = data['message'] + '\nRule: ' + data['ruleName'] + '\n' + data['ruleUrl']
-	log('Grafana', data['title'], text, LogMessage.WARNING)
+	if 'ruleName' in data:
+		text = data['message'] + '\nRule: ' + data['ruleName'] + '\n' + data['ruleUrl']
+		log('Grafana', data['title'], text, LogMessage.WARNING)
+	elif 'alerts' in data:
+		for alert in data['alerts']:
+			if alert['status'] != 'firing':
+				continue
+			title = '[Grafana] ' + alert['labels']['alertname']
+			if 'rulename' in alert['labels']:
+				title += ' / ' + alert['labels']['rulename']
+			text = []
+			if 'dashboardURL' in alert and alert['dashboardURL']:
+				text.append('Dashboard: ' + alert['dashboardURL'])
+			if 'panelURL' in alert and alert['panelURL']:
+				text.append('Panel: ' + alert['panelURL'])
+			log('Grafana', title, '\n'.join(text), LogMessage.WARNING)
+	else:
+		text = data['title'] + '\n' + data['message']
+		log('Grafana', data['title'], text, LogMessage.WARNING)
 	return 'OK'

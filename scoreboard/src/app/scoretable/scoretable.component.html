@@ -1,4 +1,4 @@
-<table class="table table-bordered" [class.hideHistory]="!ui.showHistory" [class.onlySums]="ui.showOnlySums">
+<table class="table table-bordered table-stickyhead" [class.hideHistory]="!ui.showHistory" [class.onlySums]="ui.showOnlySums">
 	<thead>
 	<tr>
 		<th colspan="3" class="headercell">
@@ -31,8 +31,8 @@
 					</a>
 				</div>
 				<div class="media-body">
-					<h4 class="team-name">
-						<a [routerLink]="['team', rank.team_id]">{{backend.teams[rank.team_id].name}}</a>
+					<h4 class="team-name" [class.blocked]="backend.bannedTeams[rank.team_id]">
+						<a [routerLink]="['team', rank.team_id]" [title]="backend.bannedTeams[rank.team_id] ? 'Network access is currently blocked. Please contact the organizers in IRC!' : 'See team\'s details'">{{backend.teams[rank.team_id].name}}</a>
 						<button type="button" *ngIf="backend.teams[rank.team_id].aff || backend.teams[rank.team_id].web"
 								class="btn btn-xs btn-link info-link" triggers="focus"
 								[popover]="'Affiliation: '+(backend.teams[rank.team_id].aff||'-')+'; Website: '+(backend.teams[rank.team_id].web || '-')">

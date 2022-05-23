@@ -1,0 +1,10 @@
+@import "../../variables";
+
+:host-context(html.dark) #settings-button {
+	color: desaturate(lighten(@brand-primary, 20%), 20%);
+
+	&:hover,
+	&:focus {
+		color: lighten(desaturate(lighten(@brand-primary, 20%), 20%), 15%);
+	}
+}

@@ -4,7 +4,7 @@ from gamelib import gamelib, usernames
 
 class DummyService(gamelib.ServiceInterface):
 	name = 'dummy'
-	flag_id_types = ['hex8', 'alphanum5', 'username']
+	flag_id_types = ['hex8', 'alphanum5', 'username', 'email', 'pattern:${username}/abc/${alphanum12}']
 
 	def __init__(self, service_id):
 		super(DummyService, self).__init__(service_id)
@@ -46,7 +46,7 @@ class GamelibTestCase(unittest.TestCase):
 			seen_flag_ids = set()
 			for team in TEST_TEAMS:
 				for round in (1, 2, 0, -1, 1338):
-					for index in range(3):
+					for index in range(len(DummyService.flag_id_types)):
 						flag_id = service.get_flag_id(team, round, index)
 						self.assertNotIn(flag_id, seen_flag_ids, f'Flag ID {flag_id} repeated')
 						seen_flag_ids.add(flag_id)

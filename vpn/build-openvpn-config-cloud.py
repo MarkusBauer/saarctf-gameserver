@@ -155,8 +155,8 @@ def build_vulnbox_server_config(team: Team, server_root: str, secret_root: str):
 	status /var/log/vpn/openvpn-status-team{team.id}.log
 
 	script-security 2
-	up "{root}/on-connect.sh {team.id}"
-	down "{root}/on-disconnect.sh {team.id}"
+	up "{root}/on-connect.sh {team.id} cloudhosted"
+	down "{root}/on-disconnect.sh {team.id} cloudhosted"
 
 	verb 3
 	explicit-exit-notify 1

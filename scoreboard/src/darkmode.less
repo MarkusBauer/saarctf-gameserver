@@ -1,0 +1,125 @@
+@import "variables.less";
+@import "~bootstrap/less/mixins/buttons";
+@import "~bootstrap/less/mixins/background-variant";
+@import "~bootstrap/less/mixins/gradients";
+
+html.dark {
+	body {
+		color: @dm-text-color;
+		background-color: @dm-body-bg;
+	}
+
+	// from table-line-cells, not possible there because of template magic
+	.sum-container, .result-container {
+		> i.fas {
+			color: @dm-icon-color !important;
+		}
+	}
+
+	// table
+	.table-bordered {
+		border-color: @dm-table-border-color;
+
+		> thead,
+		> tbody,
+		> tfoot {
+			> tr {
+				> th,
+				> td {
+					border-color: @dm-table-border-color;
+				}
+			}
+		}
+	}
+
+	// links
+	.btn-link {
+		color: @dm-link-color;
+
+		&:hover,
+		&:focus {
+			color: lighten(@dm-link-color, 15%);
+		}
+	}
+
+	// popovers
+	.popover {
+		background-color: @dm-popover-bg;
+		border-color: @dm-popover-border-color;
+
+		&.bottom > .arrow {
+			border-bottom-color: @dm-popover-arrow-outer-color;
+
+			&:after {
+				border-bottom-color: @dm-popover-arrow-color;
+			}
+		}
+	}
+
+	.popover-title {
+		background-color: @dm-popover-title-bg;
+		border-bottom-color: lighten(@dm-popover-title-bg, 10%);
+	}
+
+	// load more button
+	.btn-default {
+		// .button-variant(@btn-default-color; @btn-default-bg; @btn-default-border);
+		.button-variant(@dm-text-color; @dm-btn-default-bg; @gray-light);
+		background-image: none;
+		text-shadow: none;
+	}
+
+	// labels
+	.label-success {
+		background-color: saturate(darken(@brand-success, 10%), 10%);
+	}
+
+	.label-danger {
+		background-color: saturate(darken(@brand-danger, 10%), 10%);
+	}
+
+	.label-warning {
+		// background-color: #FF9F1C; // saturate(darken(@brand-warning, 15%), 20%);
+		background-color: darken(@dm-warning-color, 10%);
+	}
+
+	// Dropdown
+	.dropdown-menu {
+		background-color: @dm-popover-bg;
+		border-color: @dm-popover-border-color;
+
+		> li > a {
+			color: lighten(@dm-text-color, 5%);
+
+			&:hover,
+			&:focus {
+				color: lighten(@dm-text-color, 15%) !important;
+				background-color: lighten(@dm-popover-bg, 10%) !important; // @dropdown-link-hover-bg;
+				background-image: none;
+			}
+		}
+	}
+
+	// Primary header
+	.bg-primary-theme {
+		color: #fff;
+		.bg-variant(darken(@brand-primary, 10%));
+		#gradient > .vertical(@start-color: darken(@navbar-inverse-bg, 5%); @end-color: darken(@navbar-inverse-bg, 15%));
+	}
+
+	// Dark sticky headers
+	table.table-bordered.table-stickyhead thead {
+		box-shadow: 0px 2px 1px -1px rgba(255, 255, 255, 0.2),
+		0px 1px 1px 0px rgba(255, 255, 255, 0.14),
+		0px 1px 3px 0px rgba(255, 255, 255, .12);
+
+		tr {
+			background-color: @dm-table-border-color;
+		}
+
+		th, td {
+			background-color: @dm-table-head-bg-color;
+			border-bottom: 1px solid @dm-table-border-color;
+		}
+	}
+}

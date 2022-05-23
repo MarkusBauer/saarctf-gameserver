@@ -1,0 +1,52 @@
+# Patch all configs:   sed -i 's|remote vpn.ctf.saarland|remote 192.168.178.93|' config-client/*.conf
+# SHELL IN CONTAINER:  docker exec -it test_vpn-team1-self_1 bash
+# CONNECT VPN:         openvpn /vpn.conf
+# Bind router's IP:    ifconfig lo:1 10.32.1.1 netmask 255.255.255.255 up
+
+version: "2.4"
+services:
+  vpn-generic:
+    build: .
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    volumes:
+      - "/:/mnt"
+
+  vpn-team1-self:
+    extends:
+      service: vpn-generic
+    volumes:
+      - "../config-client/client-team1.conf:/vpn.conf"
+  vpn-team1-vuln:
+    extends:
+      service: vpn-generic
+    volumes:
+      - "../config-client/client-team1-vulnbox.conf:/vpn.conf"
+  vpn-team1-cloud:
+    extends:
+      service: vpn-generic
+    volumes:
+      - "../config-client/client-cloud-team1.conf:/vpn.conf"
+  vpn-team1-cloud2:
+    extends:
+      service: vpn-generic
+    volumes:
+      - "../config-client/client-cloud-team1.conf:/vpn.conf"
+
+  vpn-team2-self:
+    extends:
+      service: vpn-generic
+    volumes:
+      - "../config-client/client-team2.conf:/vpn.conf"
+  vpn-team2-vuln:
+    extends:
+      service: vpn-generic
+    volumes:
+      - "../config-client/client-team2-vulnbox.conf:/vpn.conf"
+  vpn-team2-cloud:
+    extends:
+      service: vpn-generic
+    volumes:
+      - "../config-client/client-cloud-team2.conf:/vpn.conf"

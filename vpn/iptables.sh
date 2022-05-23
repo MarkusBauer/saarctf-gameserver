@@ -30,7 +30,7 @@ iptables -A vpn-ok
 # "Log" forwarded connections (make accessible for tcpdump) / excluding SSH (TCP 22) from team2team traffic
 iptables -A vpn-ok   -i tun+ ! -o tun+ -j NFLOG --nflog-group 5 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->game traffic (1/2)"
 iptables -A vpn-ok ! -i tun+   -o tun+ -j NFLOG --nflog-group 5 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->game traffic (2/2)"
-iptables -A vpn-ok   -i tun+   -o tun+ -p tcp -m tcp ! --dport 22 -j NFLOG --nflog-group 6 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic"
+iptables -A vpn-ok   -i tun+   -o tun+ -p tcp -m tcp ! --dport 22 ! --sport 22 -j NFLOG --nflog-group 6 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic"
 iptables -A vpn-ok   -i tun+   -o tun+ ! -p tcp -j NFLOG --nflog-group 6 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic"
 # finally pass traffic
 iptables -A vpn-ok -j ACCEPT
@@ -91,7 +91,7 @@ iptables -A INPUT -p udp -j ACCEPT -m comment --comment "OpenVPN servers"
 iptables -P INPUT DROP
 
 # Filter connections from outside world to VPN - TODO IPs
-iptables -A FORWARD -o tun+ -s 10.32.250.0/24 -j ACCEPT -m comment --comment "Gameserver to VPN"
+iptables -A FORWARD -o tun+ -s 10.32.250.0/24 -j vpn-ok -m comment --comment "Gameserver to VPN"
 iptables -N outside-to-vpn || iptables -F outside-to-vpn
 iptables -A FORWARD -o tun+ ! -i tun+ -j outside-to-vpn -m comment --comment "Outside world -> VPN (1)"
 iptables -A outside-to-vpn -o tun+ ! -i orga+ -j DROP -m comment --comment "Outside world -> VPN (2)"

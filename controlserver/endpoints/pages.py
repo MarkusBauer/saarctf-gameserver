@@ -117,10 +117,11 @@ def overview_components():
 @app.route('/overview/vpn')
 def overview_vpn():
 	vpn = VPNControl()
-	teams = [{'id': team.id, 'name': team.name, 'network': team_id_to_network_range(team.id), 'tick': tick} for team, tick in vpn.get_banned_teams()]
-	teams_online = Team.query.filter(Team.vpn_connected == True).count()
-	teams_online_once = Team.query.filter(Team.vpn_connected == False, Team.vpn_last_connect != None).count()
-	teams_offline = Team.query.filter(Team.vpn_connected == False, Team.vpn_last_connect == None).count()
+	banned_teams = [{'id': team.id, 'name': team.name, 'network': team_id_to_network_range(team.id), 'tick': tick} for team, tick in vpn.get_banned_teams()]
+	open_teams = [{'id': team.id, 'name': team.name, 'network': team_id_to_network_range(team.id)} for team in vpn.get_open_teams()]
+	teams_online = Team.query.filter((Team.vpn_connected == True) | (Team.vpn2_connected == True)).count()
+	teams_online_once = Team.query.filter((Team.vpn_connected == False) & (Team.vpn2_connected == False), Team.vpn_last_connect != None).count()
+	teams_offline = Team.query.filter((Team.vpn_connected == False) & (Team.vpn2_connected == False), Team.vpn_last_connect == None).count()
 
 	# format: dt_bytes, dt_syns, dg_bytes, dg_syns, ut_bytes, ut_syns, ug_bytes, ug_syns
 	# list of last X time points, ascending
@@ -134,7 +135,7 @@ def overview_vpn():
 		trafficstats.append(list(map(int, line[1:])))
 
 	return jsonify({
-		'state': vpn.get_state().value, 'banned': teams,
+		'state': vpn.get_state().value, 'banned': banned_teams, 'permissions': open_teams,
 		'teams_online': teams_online, 'teams_online_once': teams_online_once, 'teams_offline': teams_offline,
 		'traffic_stats': trafficstats[::-1],
 		'traffic_stats_keys': trafficstats_keys[::-1]
@@ -150,6 +151,10 @@ def overview_set_vpn():
 		vpn.ban_team(request.json['ban']['team_id'], request.json['ban']['tick'])
 	if 'unban' in request.json:
 		vpn.unban_team(request.json['unban'])
+	if 'add_permission' in request.json:
+		vpn.add_permission_team(request.json['add_permission'])
+	if 'remove_permission' in request.json:
+		vpn.remove_permission_team(request.json['remove_permission'])
 	return 'OK'
 
 

@@ -40,7 +40,7 @@ class Dispatcher:
 	def dispatch_checker_scripts(self, roundnumber: int):
 		redis = get_redis_connection()
 		if CONFIG.get('dispatcher_check_vpn_status', False):
-			teams = Team.query.filter(Team.vpn_connected == True).all()
+			teams = Team.query.filter((Team.vpn_connected == True) | (Team.vpn2_connected == True)).all()
 		else:
 			teams = Team.query.all()
 		services = Service.query.order_by(Service.id).filter(Service.checker_enabled == True).all()
@@ -209,7 +209,7 @@ class Dispatcher:
 				'id': team.id,
 				'name': team.name,
 				'ip': team.vulnbox_ip,
-				'online': team.vpn_connected
+				'online': team.vpn_connected or team.vpn2_connected
 			} for team in teams]
 		}
 		for service in services:

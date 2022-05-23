@@ -2,3 +2,20 @@
 @import "../../controlserver/static/less/color.less";
 
 @font-size-base: 13px;
+
+@table-head-bg-color: #fff;
+
+@dm-text-color: darken(#fff, 15%);
+@dm-icon-color: darken(#fff, 40%);
+@dm-body-bg: #121212;
+@dm-link-color: lighten(#1E91D6, 10%); // desaturate(lighten(@brand-primary, 30%), 10%);
+@dm-warning-color: #FF9F1C;
+@dm-danger-color: saturate(lighten(@brand-danger, 10%), 30%);
+@dm-table-border-color: @gray;
+@dm-table-head-bg-color: lighten(@dm-body-bg, 5%);
+@dm-popover-bg: lighten(@dm-body-bg, 5%);
+@dm-popover-title-bg: lighten(@dm-body-bg, 10%);
+@dm-popover-border-color: @gray;
+@dm-popover-arrow-outer-color: fadein(@dm-popover-border-color, 5%);
+@dm-popover-arrow-color: @dm-popover-border-color;
+@dm-btn-default-bg: lighten(@gray-base, 20%); // original "@gray-dark"

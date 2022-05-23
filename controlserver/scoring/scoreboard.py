@@ -7,7 +7,7 @@ from typing import List, Tuple, Dict, Optional, Any, Set
 import os
 import htmlmin
 from jinja2 import Environment, select_autoescape, FileSystemLoader
-from controlserver.models import TeamRanking, Team, TeamLogo, Service, CheckerResultLite, TeamPointsLite, SubmittedFlag
+from controlserver.models import TeamRanking, Team, TeamLogo, Service, CheckerResultLite, TeamPoints, TeamPointsLite, SubmittedFlag, db
 from controlserver.scoring.scoring import ScoringCalculation
 from saarctf_commons.config import SCOREBOARD_PATH, get_redis_connection
 from saarctf_commons import config
@@ -42,8 +42,7 @@ class Scoreboard:
 		self.teams: List[Team] = []
 		self.services: List[Service] = []
 		self.__should_publish = publish
-		if self.__should_publish:
-			self.conn = get_redis_connection()
+		self.conn = get_redis_connection()
 
 	def __publish(self, scoreboard_tick: int):
 		self.conn.set('timing:scoreboard_tick', str(scoreboard_tick))
@@ -96,6 +95,7 @@ class Scoreboard:
 		self.__create_team_json()
 		# self.__create_main_html(info)
 		self.__create_json_for_round(info, previous_info, last_checker_results)
+		self.__create_json_for_teams(info)
 		if is_live:
 			self.__create_round_info_json(info.roundnumber)
 
@@ -132,7 +132,8 @@ class Scoreboard:
 			'current_tick': Timer.currentRound,
 			'state': Timer.state,
 			'current_tick_until': Timer.roundEnd,
-			'scoreboard_tick': scoreboard_tick
+			'scoreboard_tick': scoreboard_tick,
+			'banned_teams': [int(b.decode()) for b in self.conn.smembers('network:banned')]
 		}
 		self._write_json('api/scoreboard_current.json', data)
 		return scoreboard_tick
@@ -208,6 +209,34 @@ class Scoreboard:
 				1 if first_blood_info[service.id][1] else 0)
 		} for service in self.services]
 		self._write_json(f'api/scoreboard_round_{info.roundnumber}.json', data)
+
+	def __create_json_for_teams(self, info: RoundInformation):
+		"""
+		Create files "scoreboard_team_<teamid>.json" containing the per-service points of each team.
+		:param info:
+		:return:
+		"""
+		servicenames: List[str] = [service.name if info.roundnumber >= 0 else '???' for service in self.services]
+
+		for team in self.teams:
+			filename = f'api/scoreboard_team_{team.id}.json'
+			data = self._read_json(filename, {'services': servicenames, 'points': [[] for _ in range(len(self.services))]})
+			if len(data['points']) == 0:
+				data['services'] = servicenames
+			# update existing files if possible
+			if data['services'] == servicenames and len(data['points']) == len(self.services) and all(len(row) == max(0, info.roundnumber) for row in data['points']):
+				for i, service in enumerate(self.services):
+					pts = info.team_points[(team.id, service.id)]
+					data['points'][i].append(pts.off_points + pts.def_points + pts.sla_points)
+			else:
+				rows = [[0] * (info.roundnumber + 1) for _ in self.services]
+				points = db.session.query(TeamPoints.round, TeamPoints.service_id, TeamPoints.off_points, TeamPoints.def_points, TeamPoints.sla_points)\
+					.filter(TeamPoints.team_id == team.id, 0 <= TeamPoints.round, TeamPoints.round <= info.roundnumber).all()
+				service_id_to_index = {service.id: i for i, service in enumerate(self.services)}
+				for tick, service_id, p1, p2, p3 in points:
+					rows[service_id_to_index[service_id]][tick] = p1 + p2 + p3
+				data['points'] = rows
+			self._write_json(filename, data)
 
 	def __create_team_json(self):
 		data = {team.id: {
@@ -341,9 +370,11 @@ class Scoreboard:
 
 	def _read_json(self, filename: str, default=None):
 		try:
-			with open(os.path.join(SCOREBOARD_PATH, filename), 'rb') as f:
+			with open(os.path.join(SCOREBOARD_PATH, filename), 'r') as f:
 				return json.loads(f.read())
 		except IOError:
+			return default or {}
+		except ValueError:
 			return default or {}
 
 	def _write_json(self, filename: str, data):

@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import {RoundInformation, Team} from "./models";
+import {RoundInformation, Team, TeamHistoryInformation} from "./models";
 import {HttpClient} from "@angular/common/http";
 import {map} from "rxjs/operators";
 import {BehaviorSubject, Observable, of, Subject} from "rxjs";
@@ -17,6 +17,7 @@ interface CurrentStateJson {
 	state: GameStates;
 	current_tick_until: number;
 	scoreboard_tick: number;
+	banned_teams?: number[];
 }
 
 
@@ -74,8 +75,57 @@ export class BackendService {
 							location.reload();
 						}, Math.random() * 50000 + 5000);
 					}
+					// evict caches if services have changed
+					if (JSON.stringify(this.round_ranking[tick - 1].services.map(s => s.name)) != JSON.stringify(json.services.map(s => s.name))) {
+						this.teamPointHistoryCache = {};
+					}
+					// append to cache if necessary
+					for (let teamId of Object.keys(this.teamPointHistoryCache)) {
+						if (this.teamPointHistoryCache[teamId][0].length == tick) {
+							for (let rank of json.scoreboard) {
+								if (rank.team_id.toString() == teamId) {
+									for (let i = 0; i < rank.services.length; i++) {
+										this.teamPointHistoryCache[teamId][i].push(rank.services[i].o + rank.services[i].d + rank.services[i].s);
+									}
+									break;
+								}
+							}
+						}
+					}
 				}
 				return json;
+			})
+		);
+	}
+
+	private teamPointHistoryCache = {};
+
+	getTeamPointHistory(team_id: number): Observable<number[][]> {
+		if (this.teamPointHistoryCache.hasOwnProperty(team_id) && this.teamPointHistoryCache[team_id][0].length >= this.currentState.current_tick + 1) {
+			console.log('Serving from cache: ', team_id);
+			return of(this.teamPointHistoryCache[team_id]);
+		}
+		return this.http.get<TeamHistoryInformation>(this.url_base + 'scoreboard_team_' + team_id + '.json').pipe(
+			retryWithBackoff(1500, 3),
+			map(json => {
+				if (json.points.length > 0)
+					this.teamPointHistoryCache[team_id] = json.points;
+				return json.points;
+			})
+		);
+	}
+
+	getTeamPointHistorySimple(team_id: number): Observable<number[]> {
+		return this.getTeamPointHistory(team_id).pipe(
+			map(points => {
+				if (points.length == 0) return [];
+				let result = new Array(points[0].length).fill(0);
+				for (let i = 0; i < points[0].length; i++) {
+					for (let p of points) {
+						result[i] += p[i];
+					}
+				}
+				return result;
 			})
 		);
 	}
@@ -86,12 +136,16 @@ export class BackendService {
 		current_tick_until: 0,
 		scoreboard_tick: -1
 	};
+	bannedTeams = {};
 
 	newestScoreboardTick = new BehaviorSubject<number>(-1);
 	deltaClientToServer: number = 0; // (time on client) - (time on server)
 	private lastDateHeader: string = null;
 	private finalScoreboardTick: number = null; // the tick to show the final greeting
 
+	/**
+	 * Events are: (firstblood, servicename, teamname) and (final, '', '')
+	 */
 	eventNotifications = new Subject<[string, string, string]>();
 
 	private updateCurrentState() {
@@ -99,6 +153,12 @@ export class BackendService {
 			// Save current state
 			let old_state = this.currentState;
 			this.currentState = response.body;
+			this.bannedTeams = {};
+			if (this.currentState.banned_teams) {
+				for (let id of this.currentState.banned_teams) {
+					this.bannedTeams[id] = true;
+				}
+			}
 
 			// Read "Date" header from server and calculate how much this client's clock is off
 			let dateHeader = response.headers.get('Date');
@@ -140,6 +200,9 @@ export class BackendService {
 		this.updateCurrentState();
 		window['triggerFinalNotification'] = () => {
 			this.eventNotifications.next(['final', '', '']);
+		};
+		window['triggerFirstblood'] = () => {
+			this.eventNotifications.next(['firstblood', this.round_ranking[Object.keys(this.round_ranking)[0]].services[0].name, this.teams[2].name]);
 		};
 	}
 }

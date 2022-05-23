@@ -49,3 +49,8 @@ export interface RoundInformation {
 	services: Array<Service>;
 	scoreboard: Array<Rank>;
 }
+
+export interface TeamHistoryInformation {
+	services: Array<Service>;
+	points: number[][];
+}

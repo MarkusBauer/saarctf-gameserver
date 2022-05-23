@@ -8,7 +8,9 @@
 		<dt>VPN</dt>
 		<dd>
 			{% if team.vpn_connected %}
-				<span class="label label-success">up</span>
+				<span class="label label-success">up (team-hosted)</span>
+			{% elif team.vpn2_connected %}
+				<span class="label label-success">up (cloud-hosted)</span>
 			{% else %}
 				<span class="label label-danger">down</span>
 			{% endif %}

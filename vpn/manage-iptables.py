@@ -63,17 +63,19 @@ def fill_netteamonly_chain():
 		iptables_insert(CHAIN_ALLOW_TEAMS, ['-s', net, '-d', net, '-j', 'RETURN'])
 
 
-def init_firewall(state: str, banned: Iterable[str]):
+def init_firewall(state: str, banned: Iterable[str], allowed: Iterable[str]):
 	subprocess.check_call(['iptables', '-F', CHAIN])
 	update_state(state)
 	for team in banned:
 		ban_team(team)
+	for team in allowed:
+		add_network_team(team)
 	print('[OK]   Updated firewall')
 
 
 def update_state(state: str):
 	"""
-	:param state: "on" or "off"
+	:param state: "on" or "team" or "off"
 	:return:
 	"""
 	if state == 'on':
@@ -131,6 +133,31 @@ def unban_team(team: str):
 	print(f'[-B]   Remove ban from team {team} ({iprange})')
 
 
+def add_network_team(team: str):
+	"""
+	Open the network for this team only (and for communication with gameserver only)
+	:param team:
+	:return:
+	"""
+	iprange1 = config.team_id_to_network_range(int(team))
+	iprange2 = config.CONFIG['network']['gameserver_range']
+	rule1 = ['--src', iprange1, '--dst', iprange2, '-j', 'RETURN', '-m', 'comment', '--comment', f'Open network for team {team}']
+	rule2 = ['--src', iprange2, '--dst', iprange1, '-j', 'RETURN', '-m', 'comment', '--comment', f'Open network for team {team}']
+	iptables_insert(CHAIN, rule2)
+	iptables_insert(CHAIN, rule1)
+	print(f'[+B]   Add network for team {team} ({iprange1} <-> {iprange2})')
+
+
+def remove_network_team(team: str):
+	iprange1 = config.team_id_to_network_range(int(team))
+	iprange2 = config.CONFIG['network']['gameserver_range']
+	rule1 = ['--src', iprange1, '--dst', iprange2, '-j', 'RETURN', '-m', 'comment', '--comment', f'Open network for team {team}']
+	rule2 = ['--src', iprange2, '--dst', iprange1, '-j', 'RETURN', '-m', 'comment', '--comment', f'Open network for team {team}']
+	iptables_remove(CHAIN, rule1)
+	iptables_remove(CHAIN, rule2)
+	print(f'[+B]   Remove network for team {team} ({iprange1} <-> {iprange2})')
+
+
 def main():
 	print('       Connecting...')
 	redis = config.get_redis_connection()
@@ -140,10 +167,11 @@ def main():
 		redis.set('network:state', 'off')
 		state = 'off'
 	banned = redis.smembers('network:banned')
-	init_firewall(state, [team.decode() for team in banned])
+	allowed = redis.smembers('network:permissions')
+	init_firewall(state, [team.decode() for team in banned], [team.decode() for team in allowed])
 
 	pubsub = redis.pubsub()
-	pubsub.subscribe('network:state', 'network:ban', 'network:unban')
+	pubsub.subscribe('network:state', 'network:ban', 'network:unban', 'network:add_permission', 'network:remove_permission')
 	for item in pubsub.listen():
 		if item['type'] == 'message':
 			print(f'[debug] message {repr(item["channel"])}, data {repr(item["data"])}')
@@ -153,6 +181,11 @@ def main():
 				ban_team(item['data'].decode())
 			elif item['channel'] == b'network:unban':
 				unban_team(item['data'].decode())
+			elif item['channel'] == b'network:add_permission':
+				add_network_team(item['data'].decode())
+			elif item['channel'] == b'network:remove_permission':
+				remove_network_team(item['data'].decode())
+
 
 
 if __name__ == '__main__':

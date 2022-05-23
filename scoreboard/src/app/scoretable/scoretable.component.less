@@ -42,6 +42,20 @@ table {
 	a {
 		color: @text-color;
 	}
+
+	&.blocked {
+		a {
+			color: @state-danger-text;
+			text-decoration: line-through;
+		}
+	}
+}
+:host-context(html.dark) .team-name a {
+	color: @dm-text-color;
+}
+
+:host-context(html.dark) .team-name.blocked a {
+	color: @dm-danger-color;
 }
 
 .team-vulnbox {

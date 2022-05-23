@@ -42,7 +42,8 @@ class Team(Model):
 	website = db.Column(db.String(128), nullable=True, server_default=text('NULL'))
 	logo = db.Column(db.String(64), nullable=True, server_default=text('NULL'))  # reference to TeamLogo.hash
 	points = relationship("TeamPoints", back_populates="team")
-	vpn_connected = db.Column(db.Boolean, nullable=False, server_default=text('FALSE'))
+	vpn_connected = db.Column(db.Boolean, nullable=False, server_default=text('FALSE'))  # team-hosted VPN
+	vpn2_connected = db.Column(db.Boolean, nullable=False, server_default=text('FALSE'))  # cloud-hosted vulnbox VPN
 	vpn_last_connect = db.Column(db.TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
 	vpn_last_disconnect = db.Column(db.TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
 	vpn_connection_count = db.Column(db.Integer, nullable=False, server_default=text('0'))  # "cloud"-style VPN connections
@@ -129,7 +130,7 @@ class Service(Model):
 	setup_package = db.Column(db.String(32), nullable=True, server_default=text('NULL'))  # package containing an init script
 	num_payloads = db.Column(db.Integer, nullable=False, server_default=text('0'))  # number of possible payloads. 0 = unlimited
 	flag_ids = db.Column(db.String(128), nullable=True, server_default=text('NULL'))  # flag id types, comma-separated
-	flags_per_round = db.Column(db.Integer, nullable=False, server_default=text('1'))  # number of issued flags per round, used for scoring
+	flags_per_round = db.Column(db.Float, nullable=False, server_default=text('1'))  # number of issued flags per round, used for scoring
 
 
 class TeamPoints(Model):

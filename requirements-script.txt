@@ -4,8 +4,8 @@ flask_sqlalchemy
 psycopg2
 psycopg2-binary
 redis
-celery
-celery[redis]
+celery==4.4.6
+celery[redis]==4.4.6
 filelock
 
 # for the scripts

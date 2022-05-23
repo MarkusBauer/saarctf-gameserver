@@ -10,9 +10,12 @@ source /etc/profile.d/env.sh 2>/dev/null || true
 
 cd "$( dirname "${BASH_SOURCE[0]}" )"
 # Mark in database as disconnected
-./on-disconnect.py "$1"
+./on-disconnect.py "$1" "$2"
 
 TEAMID=$(echo "$1" | sed 's/[^0-9]*//g')
-#if [ "$2" = "teamhosted" ]; then
-systemctl start "vpn2@team$TEAMID-cloud"
-#fi
+if [ "$2" = "teamhosted" ]; then
+  systemctl start "vpn2@team$TEAMID-cloud" || true
+fi
+if [ "$2" = "cloudhosted" ]; then
+  systemctl start "vpn@team$TEAMID" || true
+fi

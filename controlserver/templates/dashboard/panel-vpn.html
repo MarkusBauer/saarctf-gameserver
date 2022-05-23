@@ -80,6 +80,36 @@
 				</div>
 			</div>
 		</form>
+
+		<form class="form-horizontal" ng-submit="add_permission(permteam)" ng-if="!hideControls">
+			<p><strong>Allow network for team</strong></p>
+			<div class="form-group">
+				<div class="col-sm-7">
+					<select class="form-control" ng-model="permteam" required>
+						{% endraw %}
+						{% for team in teams %}
+							<option value="{{ team.id }}">#{{ team.id }} {{ team.name }}</option>
+						{% endfor %}
+						{% raw %}
+					</select>
+				</div>
+				<div class="col-sm-3"></div>
+				<div class="col-sm-2">
+					<button class="btn btn-default" type="submit">Open</button>
+				</div>
+			</div>
+		</form>
+
+		<p ng-if="permissions.length > 0"><strong>Teams with open network:</strong></p>
+		<ul ng-if="permissions.length > 0">
+			<li ng-repeat="team in permissions">
+				#{{ team.id }} {{ team.name }}
+				<small>({{ team.network }})</small>
+				&nbsp;&nbsp;
+				<button class="btn btn-xs btn-default" title="Close network again" ng-click="remove_permission(team.id)">&times;</button>
+			</li>
+		</ul>
+		<br ng-if="banned.length > 0">
 	</div>
 </div>
 {% endraw %}

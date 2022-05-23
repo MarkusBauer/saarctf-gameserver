@@ -26,6 +26,8 @@
     "scoreboard_path": "/dev/shm/scoreboard",
     "checker_packages_path": "/dev/shm/packages",
     "logo_input_path": "...",
+    "patches_path": "/dev/shm/patches",
+    "patches_public_path": "/dev/shm/patches-webroot",
     "flower_url": "http://localhost:5555/",
     "coder_url": "",
     "scoreboard_url": "",
@@ -45,6 +47,7 @@
         "team_range": [127, [200, 256, 0], [1, 200, 0], 0, 24],
         "vpn_host": "10.32.250.1",
         "vpn_peer_ips": [10, [200, 256, 48], [1, 200, 0], 1],
-        "gameserver_ip": "10.32.250.2"
+        "gameserver_ip": "10.32.250.2",
+        "gameserver_range": "10.32.250.0/24"
     }
 }

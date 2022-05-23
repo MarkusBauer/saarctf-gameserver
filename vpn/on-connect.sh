@@ -14,8 +14,14 @@ bpf/install.sh "$1"
 # Install rate-limiting queue on interface
 ratelimit/install.sh "$1"
 # Mark in database as connected
-./on-connect.py "$1"
+./on-connect.py "$1" "$2"
 
 if [ "$2" = "teamhosted" ]; then
   systemctl stop "vpn2@team$1-cloud"
+fi
+
+# Possibly prevent some bugs. When people start a cloud VM, we get a connection to vulnbox-VPN, which should enable cloud-vpn and disable team-hosted vpn
+if [ "$2" = "cloudhosted" ]; then
+  systemctl stop "vpn@team$1"
+  systemctl start "vpn2@team$1-cloud" || true
 fi

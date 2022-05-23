@@ -1,4 +1,13 @@
-<table class="table table-bordered" [class.hideHistory]="!ui.showHistory" [class.onlySums]="ui.showOnlySums">
+<div class="chart-container">
+	<canvas baseChart
+			[data]="chartData"
+			[options]="chartOptions"
+			[type]="'line'">
+	</canvas>
+</div>
+
+
+<table class="table table-bordered table-stickyhead" [class.hideHistory]="!ui.showHistory" [class.onlySums]="ui.showOnlySums">
 	<thead>
 	<tr>
 		<th colspan="3" class="headercell">
@@ -16,6 +25,10 @@
 				</h4>
 				<span class="team-vulnbox" *ngIf="backend.teams[teamId]">{{backend.teams[teamId].vulnbox}}</span><br>
 				<span *ngIf="currentTick === null || currentRoundInfo === null || loading > 0" class="fas fa-spinner fa-spin"></span>
+				<a *ngIf="backend.bannedTeams[teamId]" class="label label-danger"
+				   title="Network access is currently blocked. Please contact the organizers in IRC!"
+				   popover="Network access is currently blocked. Please contact the organizers in IRC!"
+				>! network blocked !</a>
 			</div>
 		</th>
 		<!-- service cell -->
@@ -43,4 +56,11 @@
 <div class="text-center">
 	<a (click)="loadMore()" class="href btn btn-default" *ngIf="loading == 0 && tickInfosLength < currentTick">load more</a>
 </div>
-<br />
+<br/>
+
+<!--
+<div *ngFor="let item of ColorSchemes|keyvalue">
+	<h3>{{item.key}}</h3>
+	<div style="height: 35px; width: 80px; display: inline-block" [style.background-color]="color" *ngFor="let color of item.value">{{color}}</div>
+</div>
+-->

@@ -65,6 +65,8 @@ class PackageLoader:
 		# Import module
 		cls.ensure_package_exists(package)
 		spec = importlib.util.spec_from_file_location(modulename, CHECKER_PACKAGES_PATH + '/' + package + '/' + filename)
+		if spec is None:
+			raise Exception('Spec/Loader is not present')
 		module = importlib.util.module_from_spec(spec)
 		if spec.loader is None:
 			raise Exception('Loader is not present')

@@ -43,7 +43,7 @@
 				<th>{{ team.id }}</th>
 				<td>{{ team.name }}</td>
 				<td>
-					{% if team.vpn_connected %}
+					{% if team.vpn_connected or team.vpn2_connected %}
 						<span class="label label-success">connected</span>
 					{% else %}
 						<span class="label label-default">disconnected</span>

@@ -20,13 +20,20 @@ ARGUMENTS: Team-ID
 def main():
 	import controlserver.app
 	team_id = int(sys.argv[1])
+	is_vpn_2 = sys.argv[2] == 'cloudhosted' if len(sys.argv) > 2 else False
 	from controlserver.models import Team, db
-	changes = Team.query.filter(Team.id == team_id).update(dict(vpn_connected=True, vpn_last_connect=func.now()), synchronize_session=False)
+	if is_vpn_2:
+		changes = Team.query.filter(Team.id == team_id).update(dict(vpn2_connected=True, vpn_last_connect=func.now()), synchronize_session=False)
+	else:
+		changes = Team.query.filter(Team.id == team_id).update(dict(vpn_connected=True, vpn_last_connect=func.now()), synchronize_session=False)
 	db.session.commit()
 	if changes > 0:
 		print(f'Updated connection status (connected) of team #{team_id}.')
 	elif team_id > 0:
-		db.session.add(Team(id=team_id, name=f'unnamed team #{team_id}', vpn_connected=True, vpn_last_connect=func.now()))
+		if is_vpn_2:
+			db.session.add(Team(id=team_id, name=f'unnamed team #{team_id}', vpn2_connected=True, vpn_last_connect=func.now()))
+		else:
+			db.session.add(Team(id=team_id, name=f'unnamed team #{team_id}', vpn_connected=True, vpn_last_connect=func.now()))
 		db.session.commit()
 		print(f'Updated connection status (connected) of team #{team_id}. Created new dummy team entry for that.')
 	else:

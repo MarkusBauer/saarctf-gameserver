@@ -55,6 +55,8 @@
 // @import "~@fortawesome/fontawesome-free/less/regular.less";
 @import "~@fortawesome/fontawesome-free/less/solid.less";
 
+@import "darkmode.less";
+
 
 .bg-primary-theme {
 	color: #fff;
@@ -108,5 +110,28 @@ table.onlySums {
 		> i {
 			grid-column: 1;
 		}
+	}
+}
+
+table.table-bordered.table-stickyhead {
+	thead {
+		position: sticky;
+		top: 0;
+		z-index: 20;
+
+		tr {
+			background-color: @table-border-color;
+			border-bottom: 0;
+		}
+
+		th, td {
+			background-color: @table-head-bg-color;
+			background-clip: padding-box;
+			border-bottom: 0;
+		}
+
+		box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.2),
+		0px 1px 1px 0px rgba(0, 0, 0, 0.14),
+		0px 1px 3px 0px rgba(0, 0, 0, .12);
 	}
 }

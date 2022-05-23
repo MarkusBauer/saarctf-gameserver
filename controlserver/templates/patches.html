@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Patches{% endblock %}
+
+{% block content %}
+		<div class="row">
+			{% if output %}
+			<div class="col-md-12">
+				<div class="panel panel-default">
+					<div class="panel-heading">Deployment Results</div>
+					<div class="panel-body">
+						{% if success %}
+							<div class="alert alert-success">Deployment succeeded (in {{ runtime }} seconds)</div>
+						{% else %}
+							<div class="alert alert-danger">Deployment failed (in {{ runtime }} seconds)</div>
+						{% endif %}
+						<pre>{{ output }}</pre>
+					</div>
+				</div>
+			</div>
+			{% endif %}
+
+			<div class="col-md-12">
+				<div class="panel panel-default">
+					<div class="panel-heading">Local Patch Development (optional)</div>
+					<div class="panel-body">
+						<p>
+							Download: <a href="{{ url_for('patches.patches_ansible_files', fname='ansible_template.yaml') }}">Ansible Template</a><br/>
+							Download: <a href="{{ url_for('patches.patches_ansible_files', fname='hosts.yaml') }}">Ansible Inventory (all vulnboxes)</a><br />
+							Download: <a href="{{ url_for('patches.patches_ansible_files', fname='hosts_nop.yaml') }}">Ansible Test Inventory (NOP team only)</a>
+						</p>
+						<ol>
+							<li>Write a patch script (bash, python, whatever)</li>
+							<li>Update the ansible template to deploy & run your patch script</li>
+							<li>Test: <code>ansible-playbook {os.path.basename(p.ansible_filename())} -i hosts_nop.yaml</code></li>
+							<li>Deploy: <code>ansible-playbook {os.path.basename(p.ansible_filename())} -i hosts.yaml</code></li>
+							<li>Upload patch files to <code>{{ patches_public_path }}</code> for manual download</li>
+						</ol>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-md-12">
+				<div class="panel panel-default">
+					<div class="panel-heading">Create Online Patches</div>
+					<div class="panel-body">
+						<form class="form-inline" style="margin-top: 10px; margin-bottom: 10px" method="POST" action="{{ url_for('patches.patches_create') }}">
+							<div class="form-group">
+								<label>Filename</label>
+								<input type="text" name="filename" placeholder="patch-service1.sh" class="form-control">
+							</div>
+							<div class="form-group">
+								<select class="form-control" name="type">
+									<option value="bash">Bash</option>
+									<option value="python">Python</option>
+								</select>
+							</div>
+							<button type="submit" class="btn btn-default">Create new Patch</button>
+						</form>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-md-12">
+				<div class="panel panel-default">
+					<div class="panel-heading">Existing Online Patches</div>
+					<div class="panel-body">
+						<p>Use the code editor to create the patches. Then publish files and run ansible playbooks.</p>
+						<ul class="list-group">
+							{% for file, url in files %}
+								<li class="list-group-item">
+									{{ file }}
+									{% if url %}
+										<a href="{{ url }}" target="_blank">(public link)</a>
+									{% endif %}
+									<div class="pull-right">
+										{% if file.startswith('ansible-') and file.endswith('.yaml') %}
+											<form class="form-inline" style="display: inline-block" method="POST" action="{{ url_for('patches.patches_index') }}">
+												<input type="hidden" name="filename" value="{{ file }}">
+												<input type="hidden" name="target" value="test">
+												<button type="submit" class="btn btn-default btn-xs" title="Run playbook against NOP team">
+													<span class="glyphicon glyphicon-play"></span> test
+												</button>
+											</form>
+											<form class="form-inline" style="display: inline-block" method="POST" action="{{ url_for('patches.patches_index') }}">
+												<input type="hidden" name="filename" value="{{ file }}">
+												<input type="hidden" name="target" value="run">
+												<button type="submit" class="btn btn-default btn-xs" title="Run playbook against all teams">
+													<span class="glyphicon glyphicon-forward"></span> deploy
+												</button>
+											</form>
+										{% else %}
+											<form class="form-inline" method="POST" action="{{ url_for('patches.patches_publish') }}">
+												<input type="hidden" name="filename" value="{{ file }}">
+												<button type="submit" class="btn btn-default btn-xs" title="Create public download for file">publish</button>
+											</form>
+										{% endif %}
+									</div>
+								</li>
+							{% endfor %}
+						</ul>
+
+						<form class="form-inline" style="margin-top: 10px; margin-bottom: 10px" method="POST" action="{{ url_for('patches.patches_upload') }}" enctype="multipart/form-data">
+							<div class="form-group">
+								<label>Upload File</label>
+								<input type="file" name="file" class="form-control">
+							</div>
+							<button type="submit" class="btn btn-default">Upload</button>
+						</form>
+
+						<br/>
+						<p>To deploy manually, use <code>ansible-playbook</code> in <code>{{ patches_path }}</code></p>
+						<form class="form-inline" method="POST" action="{{ url_for('patches.patches_hosts') }}">
+							<button type="submit" class="btn btn-default">Refresh hosts.yaml</button>
+						</form>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-md-12">
+				<div class="panel panel-default">
+					<div class="panel-heading">Public Downloads</div>
+					<div class="panel-body">
+						<pre>{% for _, url in files %}{% if url %}{{ url + '\n' }}{% endif %}{% endfor %}</pre>
+					</div>
+				</div>
+			</div>
+		</div>
+
+{% endblock %}
+
+{% block footer %}
+{% endblock %}
