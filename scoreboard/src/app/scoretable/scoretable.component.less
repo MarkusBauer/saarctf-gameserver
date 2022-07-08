@@ -38,9 +38,14 @@ table {
 .team-name {
 	margin-top: 3px;
 	margin-bottom: 1px;
+	display: flex;
+	max-width: 200px;
 
 	a {
 		color: @text-color;
+		flex: 1 1 auto;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	&.blocked {

@@ -32,7 +32,7 @@
 				</div>
 				<div class="media-body">
 					<h4 class="team-name" [class.blocked]="backend.bannedTeams[rank.team_id]">
-						<a [routerLink]="['team', rank.team_id]" [title]="backend.bannedTeams[rank.team_id] ? 'Network access is currently blocked. Please contact the organizers in IRC!' : 'See team\'s details'">{{backend.teams[rank.team_id].name}}</a>
+						<a [routerLink]="['team', rank.team_id]" [title]="backend.bannedTeams[rank.team_id] ? 'Network access is currently blocked. Please contact the organizers in IRC!' : backend.teams[rank.team_id].name + ' - See team\'s details'">{{backend.teams[rank.team_id].name}}</a>
 						<button type="button" *ngIf="backend.teams[rank.team_id].aff || backend.teams[rank.team_id].web"
 								class="btn btn-xs btn-link info-link" triggers="focus"
 								[popover]="'Affiliation: '+(backend.teams[rank.team_id].aff||'-')+'; Website: '+(backend.teams[rank.team_id].web || '-')">
