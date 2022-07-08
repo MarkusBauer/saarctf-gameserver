@@ -54,7 +54,7 @@
 </table>
 
 <div class="text-center">
-	<a (click)="loadMore()" class="href btn btn-default" *ngIf="loading == 0 && tickInfosLength < currentTick">load more</a>
+	<span #loadMoreSpinner [hidden]="tickInfosLength >= currentTick" class="fas fa-spinner fa-spin"></span>
 </div>
 <br/>
 

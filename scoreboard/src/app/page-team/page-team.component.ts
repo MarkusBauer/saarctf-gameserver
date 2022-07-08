@@ -1,6 +1,6 @@
-import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
+import {Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {ActivatedRoute} from "@angular/router";
-import {Subscription} from "rxjs";
+import {interval, combineLatest, Subject, Subscription} from "rxjs";
 import {BackendService} from "../backend.service";
 import {Rank, RoundInformation} from "../models";
 import {UiService} from "../ui.service";
@@ -78,8 +78,11 @@ export class PageTeamComponent implements OnInit, OnDestroy {
 	};
 	@ViewChild(BaseChartDirective) chart?: BaseChartDirective;
 
+	@ViewChild('loadMoreSpinner', { static: true }) loadMoreSpinner:ElementRef;
+
 	private newestScoreboardTickSubscription: Subscription;
 	private darkmodeSubscription: Subscription;
+	private loadMoreSpinnerSubscription: Subscription;
 
 	constructor(public backend: BackendService, public ui: UiService, private route: ActivatedRoute) {
 		if (ui.darkmode)
@@ -100,11 +103,33 @@ export class PageTeamComponent implements OnInit, OnDestroy {
 			this.setCurrentTick(tick);
 		});
 		this.darkmodeSubscription = this.ui.darkmodeChanges.subscribe(darkmode => this.setGraphDarkMode(darkmode));
+		
+		let isSpinnerShowing = new Subject();
+		let observer = new IntersectionObserver(entries => {
+			entries.forEach(entry => {
+				isSpinnerShowing.next(entry.isIntersecting);
+			});
+		});
+		observer.observe(this.loadMoreSpinner.nativeElement);
+		
+		this.loadMoreSpinnerSubscription =
+			combineLatest([interval(500), isSpinnerShowing]).subscribe(([_, isShowing]) => {
+				if (isShowing && this.loading == 0) {
+					this.loadMore();
+					if (document.scrollingElement.clientHeight + document.scrollingElement.scrollTop 
+						== document.scrollingElement.scrollHeight) {
+						// prevent staying completely scrolled down
+						document.scrollingElement.scrollBy(0, -1);
+					}
+				}
+			});
+		this.loadMoreSpinnerSubscription.add(() => observer.disconnect());
 	}
 
 	ngOnDestroy() {
 		this.newestScoreboardTickSubscription.unsubscribe();
 		this.darkmodeSubscription.unsubscribe();
+		this.loadMoreSpinnerSubscription.unsubscribe();
 	}
 
 	setCurrentTick(tick: number) {
