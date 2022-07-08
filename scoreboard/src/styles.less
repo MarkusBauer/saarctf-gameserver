@@ -114,6 +114,13 @@ table.onlySums {
 }
 
 table.table-bordered.table-stickyhead {
+	border-collapse: separate;
+
+	td {
+		border-top: 0;
+		border-left: 0;
+	}
+
 	thead {
 		position: sticky;
 		top: 0;
@@ -129,9 +136,33 @@ table.table-bordered.table-stickyhead {
 			background-clip: padding-box;
 			border-bottom: 0;
 		}
+		
+		box-shadow: 0px 3px 1px -2px rgba(0, 0, 0, 0.2),
+		0px 2px 2px 0px rgba(0, 0, 0, 0.14),
+		0px 1px 5px 0px rgba(0, 0, 0, 0.12);
+	}
+}
 
-		box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.2),
-		0px 1px 1px 0px rgba(0, 0, 0, 0.14),
-		0px 1px 3px 0px rgba(0, 0, 0, .12);
+app-scoretable > table.table-bordered.table-stickyhead {
+	.teamcell, .rankcell {
+		border-right: 0;
+		position: sticky;
+		z-index: 10;
+		background-color: @table-head-bg-color;
+		background-clip: padding-box;
+	}
+
+	.rankcell {
+		left: 0px;
+		min-width: 35px;
+	}
+
+	.teamcell {
+		left: 35px;
+		
+		clip-path: inset(0px -4px -1px 0px); // clip the shadow to right only, -1px for bottom border
+		box-shadow: 2px 0px 1px -1px rgba(0, 0, 0, 0.2),
+		1px 0px 1px 0px rgba(0, 0, 0, 0.14),
+		1px 0px 3px 0px rgba(0, 0, 0, 0.12);
 	}
 }

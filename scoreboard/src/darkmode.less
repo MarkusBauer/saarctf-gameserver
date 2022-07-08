@@ -109,9 +109,9 @@ html.dark {
 
 	// Dark sticky headers
 	table.table-bordered.table-stickyhead thead {
-		box-shadow: 0px 2px 1px -1px rgba(255, 255, 255, 0.2),
-		0px 1px 1px 0px rgba(255, 255, 255, 0.14),
-		0px 1px 3px 0px rgba(255, 255, 255, .12);
+		box-shadow: 0px 3px 1px -2px rgba(255, 255, 255, 0.2),
+		0px 2px 2px 0px rgba(255, 255, 255, 0.14),
+		0px 1px 5px 0px rgba(255, 255, 255, 0.12);
 
 		tr {
 			background-color: @dm-table-border-color;
@@ -120,6 +120,18 @@ html.dark {
 		th, td {
 			background-color: @dm-table-head-bg-color;
 			border-bottom: 1px solid @dm-table-border-color;
+		}
+	}
+
+	app-scoretable > table.table-bordered.table-stickyhead {
+		.teamcell, .rankcell {
+			background-color: @dm-table-head-bg-color;
+		}
+	
+		.teamcell {
+			box-shadow: 2px 0px 1px -1px rgba(255, 255, 255, 0.2),
+			1px 0px 1px 0px rgba(255, 255, 255, 0.14),
+			1px 0px 3px 0px rgba(255, 255, 255, 0.12);
 		}
 	}
 }

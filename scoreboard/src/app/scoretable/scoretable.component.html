@@ -35,6 +35,7 @@
 						<a [routerLink]="['team', rank.team_id]" [title]="backend.bannedTeams[rank.team_id] ? 'Network access is currently blocked. Please contact the organizers in IRC!' : backend.teams[rank.team_id].name + ' - See team\'s details'">{{backend.teams[rank.team_id].name}}</a>
 						<button type="button" *ngIf="backend.teams[rank.team_id].aff || backend.teams[rank.team_id].web"
 								class="btn btn-xs btn-link info-link" triggers="focus"
+								container="div.container-fluid.flexible-container"
 								[popover]="'Affiliation: '+(backend.teams[rank.team_id].aff||'-')+'; Website: '+(backend.teams[rank.team_id].web || '-')">
 							<span class="fas fa-info"></span>
 						</button>
