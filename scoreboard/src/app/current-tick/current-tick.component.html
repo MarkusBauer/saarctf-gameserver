@@ -1,10 +1,12 @@
-<div class="current-tick" *ngIf="backend.currentState.current_tick > 0">
+<div class="current-tick">
 	<p class="tick">Tick {{backend.currentState.current_tick}}</p>
 	<p class="time">
 		&nbsp;
-		<span *ngIf="backend.currentState.state == GameStates.RUNNING && currentTime > 0">{{formatRemainingTime(currentTime)}}</span>
+		<span *ngIf="currentTime > 0 && (backend.currentState.state == GameStates.RUNNING || backend.currentState.current_tick <= 0)">
+			{{formatRemainingTime(currentTime)}}
+		</span>
 		<span *ngIf="backend.currentState.state == GameStates.SUSPENDED" class="label label-warning">game suspended</span>
-		<span *ngIf="backend.currentState.state == GameStates.STOPPED && backend.currentState.current_tick > 0" class="label label-success">game is over</span>
-		<span *ngIf="backend.currentState.state == GameStates.STOPPED && backend.currentState.current_tick <= 0" class="label label-danger">not started</span>
+		<span *ngIf="backend.currentState.state == GameStates.STOPPED && backend.currentState.current_tick >= 0" class="label label-success">game is over</span>
+		<span *ngIf="backend.currentState.state == GameStates.STOPPED && backend.currentState.current_tick < 0" class="label label-danger">not started</span>
 	</p>
 </div>
