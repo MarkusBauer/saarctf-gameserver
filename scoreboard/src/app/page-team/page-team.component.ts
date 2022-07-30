@@ -103,7 +103,7 @@ export class PageTeamComponent implements OnInit, OnDestroy {
 			this.setCurrentTick(tick);
 		});
 		this.darkmodeSubscription = this.ui.darkmodeChanges.subscribe(darkmode => this.setGraphDarkMode(darkmode));
-		
+
 		let isSpinnerShowing = new Subject();
 		let observer = new IntersectionObserver(entries => {
 			entries.forEach(entry => {
@@ -111,12 +111,12 @@ export class PageTeamComponent implements OnInit, OnDestroy {
 			});
 		});
 		observer.observe(this.loadMoreSpinner.nativeElement);
-		
+
 		this.loadMoreSpinnerSubscription =
 			combineLatest([interval(500), isSpinnerShowing]).subscribe(([_, isShowing]) => {
 				if (isShowing && this.loading == 0) {
 					this.loadMore();
-					if (document.scrollingElement.clientHeight + document.scrollingElement.scrollTop 
+					if (document.scrollingElement.clientHeight + document.scrollingElement.scrollTop
 						== document.scrollingElement.scrollHeight) {
 						// prevent staying completely scrolled down
 						document.scrollingElement.scrollBy(0, -1);

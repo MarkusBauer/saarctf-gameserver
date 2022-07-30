@@ -1,4 +1,4 @@
-<div class="chart-container">
+<div class="chart-container" *ngIf="currentTick >= 0">
 	<canvas baseChart
 			[data]="chartData"
 			[options]="chartOptions"

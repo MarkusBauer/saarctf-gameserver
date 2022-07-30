@@ -1,8 +1,8 @@
 <div class="current-tick">
-	<p class="tick">Tick {{backend.currentState.current_tick}}</p>
+	<p class="tick" *ngIf="backend.currentState.current_tick >= 0">Tick {{backend.currentState.current_tick}}</p>
 	<p class="time">
 		&nbsp;
-		<span *ngIf="currentTime > 0 && (backend.currentState.state == GameStates.RUNNING || backend.currentState.current_tick <= 0)">
+		<span *ngIf="currentTime > 0 && (backend.currentState.state == GameStates.RUNNING || backend.currentState.current_tick < 0)">
 			{{formatRemainingTime(currentTime)}}
 		</span>
 		<span *ngIf="backend.currentState.state == GameStates.SUSPENDED" class="label label-warning">game suspended</span>
