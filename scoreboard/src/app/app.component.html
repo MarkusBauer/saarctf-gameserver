@@ -1,21 +1,29 @@
 <app-notification-overlay></app-notification-overlay>
 <div class="flexible-container">
-	<div class="bg-primary-theme">
-		<div class="header-inner">
-			<app-settings class="pull-right"></app-settings>
-			<div class="container-fluid">
-				<h1 class="page-header">
-					saarCTF Scoreboard
-					<app-current-tick class="pull-right"></app-current-tick>
-				</h1>
-				<a routerLink="/" routerLinkActive="hidden" [routerLinkActiveOptions]="{exact: true}" class="backlink"><i class="fas fa-chevron-left"></i> back to scoreboard</a>
-			</div>
-			<br/>
-		</div>
-	</div>
-	<div class="container-fluid flexible-container"><router-outlet></router-outlet></div>
-	<br/>
-	<div class="credits">
-		<small><a target="_blank" href="https://github.com/MarkusBauer/saarctf-gameserver">scoreboard developed by saarsec</a></small>
-	</div>
+    <div class="bg-primary-theme">
+        <div class="header-inner">
+            <app-settings class="pull-right"></app-settings>
+            <div class="container-fluid">
+                <h1 class="page-header">
+                    saarCTF Scoreboard
+                    <small>
+                        <a routerLink="/graphs" title="Graphs"><span class="fas fa-chart-line"></span></a>
+                    </small>
+                    <app-current-tick class="pull-right"></app-current-tick>
+                </h1>
+                <a routerLink="/" routerLinkActive="hidden" [routerLinkActiveOptions]="{exact: true}"
+                   class="backlink"><i class="fas fa-chevron-left"></i> back to scoreboard</a>
+            </div>
+            <br/>
+        </div>
+    </div>
+    <div class="container-fluid flexible-container">
+        <router-outlet></router-outlet>
+    </div>
+    <br/>
+    <div class="credits">
+        <small><a target="_blank" href="https://github.com/MarkusBauer/saarctf-gameserver">
+            scoreboard developed by saarsec
+        </a></small>
+    </div>
 </div>

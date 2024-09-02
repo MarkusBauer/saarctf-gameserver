@@ -1,11 +1,8 @@
 # for the task runner
-flask
-flask_sqlalchemy
-psycopg2
+flask<3
 psycopg2-binary
 redis
-celery==4.4.6
-celery[redis]==4.4.6
+celery[ampq,redis]>=5.3, <6
 filelock
 
 # for the scripts

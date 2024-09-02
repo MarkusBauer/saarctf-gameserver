@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
+# shellcheck source=/dev/null
+. venv/bin/activate
+
 # Configure database credentials for container setup
 cp ./config.containers.json ./config.json
 export FLASK_APP=controlserver/app.py
-flask db upgrade
+alembic upgrade head
 flask run --host=0.0.0.0 &
 # Ensure flask is fully started by building something in the mean time
 
 # Build flag submission server
 mkdir flag-submission-server/build
 pushd flag-submission-server/build
-cmake -DCMAKE_BUILD_TYPE=Release -DPostgreSQL_ADDITIONAL_VERSIONS=13 ..
+cmake -DCMAKE_BUILD_TYPE=Release -DPostgreSQL_ADDITIONAL_VERSIONS=15 ..
 make
 popd
 

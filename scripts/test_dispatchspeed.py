@@ -1,11 +1,5 @@
-import os
-import saarctf_commons.config
-
-saarctf_commons.config.set_redis_clientname('script-' + os.path.basename(__file__))
-
 from checker_runner.runner import *
-from controlserver.app import *
-from sample_files.debug_sql_timing import timing, print_query_stats
+from saarctf_commons.debug_sql_timing import timing, print_query_stats
 
 
 def main():

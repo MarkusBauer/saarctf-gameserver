@@ -19,7 +19,7 @@ public:
 
 	static std::string getRedisPassword();
 
-	static char hmac_secret_key[32];
+	static unsigned char hmac_secret_key[32];
 
 	static int flagRoundsValid;
 

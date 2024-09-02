@@ -9,13 +9,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from saarctf_commons import config
 
 config.EXTERNAL_TIMER = True
-from controlserver.scoring.scoreboard import Scoreboard
-from controlserver.scoring.scoring import ScoringCalculation
-from sample_files.debug_sql_timing import timing, print_query_stats
+from saarctf_commons.debug_sql_timing import timing
 
 
 def submit_random_flags(endround: int, chance=0.33):
-	import controlserver.app
 	teams = Team.query.filter(Team.id != 1).all()
 	services = Service.query.all()
 	team_exploit_ready = {}

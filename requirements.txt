@@ -1,14 +1,11 @@
-flask
-flask_sqlalchemy
+flask<3
 flask_admin
-sqlalchemy
-Flask-Migrate
-Flask-APScheduler
+sqlalchemy<2
+alembic
 psycopg2-binary
 redis
-celery==4.4.6
-celery[redis]==4.4.6
-flower<1.0.0
+celery[ampq,redis]>=5.3, <6
+flower>=2, <3
 setproctitle
 filelock
 ujson

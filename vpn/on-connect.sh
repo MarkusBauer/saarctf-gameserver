@@ -6,15 +6,13 @@
 
 set -e
 
-source /etc/profile.d/env.sh 2>/dev/null || true
-
 cd "$( dirname "${BASH_SOURCE[0]}" )"
 # Load bpf program on interface
 bpf/install.sh "$1"
 # Install rate-limiting queue on interface
 ratelimit/install.sh "$1"
 # Mark in database as connected
-./on-connect.py "$1" "$2"
+gspython $(pwd)/on-connect.py "$1" "$2"
 
 if [ "$2" = "teamhosted" ]; then
   systemctl stop "vpn2@team$1-cloud"

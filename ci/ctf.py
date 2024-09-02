@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import sys
-import typing as t
 
 import requests
 
@@ -9,23 +8,23 @@ URL = "http://127.0.0.1:5000/overview/set_timing"
 
 
 def start_ctf() -> None:
-    requests.post(URL, json={"state": 3}).raise_for_status()
+    requests.post(URL, json={"state": 3}, timeout=10).raise_for_status()
 
 
 def pause_ctf() -> None:
-    requests.post(URL, json={"state": 2}).raise_for_status()
+    requests.post(URL, json={"state": 2}, timeout=10).raise_for_status()
 
 
 def stop_ctf() -> None:
-    requests.post(URL, json={"state": 1}).raise_for_status()
+    requests.post(URL, json={"state": 1}, timeout=10).raise_for_status()
 
 
 def set_roundtime(roundtime: int) -> None:
-    requests.post(URL, json={"roundtime": roundtime}).raise_for_status()
+    requests.post(URL, json={"roundtime": roundtime}, timeout=10).raise_for_status()
 
 
 def set_lastround(lastround: int) -> None:
-    requests.post(URL, json={"lastround": lastround}).raise_for_status()
+    requests.post(URL, json={"lastround": lastround}, timeout=10).raise_for_status()
 
 
 def main() -> None:

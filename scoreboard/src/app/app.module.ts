@@ -17,6 +17,7 @@ import { PageNotFoundComponent } from './page-not-found/page-not-found.component
 import { TableLineCellsComponent } from './table-line-cells/table-line-cells.component';
 import { TableServiceHeaderCellComponent } from './table-service-header-cell/table-service-header-cell.component';
 import {NgChartsModule} from "ng2-charts";
+import { PageGraphsComponent } from './page-graphs/page-graphs.component';
 
 @NgModule({
 	declarations: [
@@ -29,7 +30,8 @@ import {NgChartsModule} from "ng2-charts";
 		PageTeamComponent,
 		PageNotFoundComponent,
 		TableLineCellsComponent,
-		TableServiceHeaderCellComponent
+		TableServiceHeaderCellComponent,
+  PageGraphsComponent
 	],
 	imports: [
 		BrowserModule,

@@ -13,398 +13,436 @@ You can listen to all events emitted by this timer using:
 
 """
 import threading
-from enum import IntEnum
 import time
-from typing import List, Union, Optional
+from abc import ABC, abstractmethod
+from enum import IntEnum
+from typing import List, Optional
 
-from redis import StrictRedis, client
+from redis import StrictRedis, client, Redis
 
+from checker_runner.runner import celery_worker
+from controlserver.models import init_database
 from controlserver.events import *
-from saarctf_commons.config import get_redis_connection, set_redis_clientname, EXTERNAL_TIMER
 from controlserver.logger import logException
-
-if __name__ == '__main__':
-	set_redis_clientname('timer', True)
+from saarctf_commons.config import config, load_default_config
+from saarctf_commons.redis import NamedRedisConnection, get_redis_connection
 
 
 class CTFState(IntEnum):
-	STOPPED = 1
-	SUSPENDED = 2
-	RUNNING = 3
+    STOPPED = 1
+    SUSPENDED = 2
+    RUNNING = 3
 
 
-def to_int(x: Union[str, bytes]) -> Optional[int]:
-	if not x or x == b'None':
-		return None
-	return int(x)
+def to_int(x: int | str | bytes | None) -> Optional[int]:
+    if not x or x == b'None':
+        return None
+    return int(x)
 
 
-def redis_set_and_publish(key: str, value, redis: StrictRedis = None):
-	if value is None:
-		value = b'None'
-	redis = redis or get_redis_connection()
-	redis.set(key, value)
-	redis.publish(key, value)
+def redis_set_and_publish(key: str, value: str | bytes | int | None, redis: StrictRedis | None = None) -> None:
+    if value is None:
+        value = b'None'
+    elif isinstance(value, int):
+        value = str(value)
+    redis = redis or get_redis_connection()
+    redis.set(key, value)
+    redis.publish(key, value)
 
 
-class CTFTimerBase:
-	def __init__(self):
-		self.initialized = False
-		self.state: CTFState = CTFState.STOPPED
-		self.desiredState: CTFState = CTFState.STOPPED
-		self._currentRound: int = 0
-		self._roundStart: Optional[int] = None
-		self._roundEnd: Optional[int] = None
-		self._roundTime: int = 120
-		self._stopAfterRound: Optional[int] = None
-		self._startAt: Optional[int] = None  # timestamp in SECONDS after epoch
-		self.redis_pubsub: Optional[client.PubSub] = None
-		self.listener: List[CTFEvents] = []
+class CTFTimerBase(ABC):
+    def __init__(self) -> None:
+        self.initialized = False
+        self.state: CTFState = CTFState.STOPPED
+        self.desiredState: CTFState = CTFState.STOPPED
+        self._currentRound: int = 0
+        self._roundStart: Optional[int] = None
+        self._roundEnd: Optional[int] = None
+        self._roundTime: int = 120
+        self._stopAfterRound: Optional[int] = None
+        self._startAt: Optional[int] = None  # timestamp in SECONDS after epoch
+        self.redis_pubsub: Optional[client.PubSub] = None
+        self.listener: List[CTFEvents] = []
 
-	@property
-	def currentRound(self) -> int:
-		return self._currentRound
+    @property
+    def currentRound(self) -> int:
+        return self._currentRound
 
-	@property
-	def roundStart(self) -> Optional[int]:
-		return self._roundStart
+    @property
+    def roundStart(self) -> Optional[int]:
+        return self._roundStart
 
-	@property
-	def roundEnd(self) -> Optional[int]:
-		return self._roundEnd
+    @property
+    def roundEnd(self) -> Optional[int]:
+        return self._roundEnd
 
-	@property
-	def roundTime(self) -> int:
-		return self._roundTime
+    @property
+    def roundTime(self) -> int:
+        return self._roundTime
 
-	@property
-	def stopAfterRound(self) -> Optional[int]:
-		return self._stopAfterRound
+    @roundTime.setter
+    def roundTime(self, roundTime: int) -> None:
+        if self._roundTime != roundTime:
+            self._roundTime = roundTime
+            if self.roundStart:
+                self._roundEnd = self.roundStart + self._roundTime
+            self.onUpdateTimes()
 
-	@property
-	def startAt(self) -> Optional[int]:
-		return self._startAt
+    @property
+    def stopAfterRound(self) -> Optional[int]:
+        return self._stopAfterRound
 
-	def init(self, state: bytes, desiredState: bytes, currentRound, roundStart, roundEnd, roundTime, stopAfterRound=None, startAt=None):
-		if state is None:
-			return
-		self.state = CTFState[state.decode('utf-8')]
-		self.desiredState = CTFState[desiredState.decode('utf-8')]
-		self._currentRound = int(currentRound)
-		self._roundStart = to_int(roundStart)
-		self._roundEnd = to_int(roundEnd)
-		self._roundTime = int(roundTime)
-		self._stopAfterRound = to_int(stopAfterRound)
-		self._startAt = to_int(startAt)
+    @stopAfterRound.setter
+    def stopAfterRound(self, lastRound: Optional[int]) -> None:
+        if self._stopAfterRound != lastRound:
+            self._stopAfterRound = lastRound
+            self.onUpdateTimes()
 
-	def init_from_redis(self):
-		redis = get_redis_connection()
-		self.init(
-			redis.get('timing:state'),
-			redis.get('timing:desiredState'),
-			redis.get('timing:currentRound'),
-			redis.get('timing:roundStart'),
-			redis.get('timing:roundEnd'),
-			redis.get('timing:roundTime'),
-			redis.get('timing:stopAfterRound'),
-			redis.get('timing:startAt')
-		)
+    @property
+    def startAt(self) -> Optional[int]:
+        return self._startAt
 
-	def __listen_for_redis_events(self):
-		for item in self.redis_pubsub.listen():
-			if item['type'] == 'message':
-				# print('Redis message:', item)
-				if item['channel'] == b'timing:state':
-					self.state = CTFState[item['data'].decode('utf-8')]
-				elif item['channel'] == b'timing:desiredState':
-					self.desiredState = CTFState[item['data'].decode('utf-8')]
-				elif item['channel'] == b'timing:currentRound':
-					self._currentRound = to_int(item['data'])
-				elif item['channel'] == b'timing:roundStart':
-					self._roundStart = to_int(item['data'])
-				elif item['channel'] == b'timing:roundEnd':
-					self._roundEnd = to_int(item['data'])
-				elif item['channel'] == b'timing:roundTime':
-					self._roundTime = int(item['data'])
-				elif item['channel'] == b'timing:stopAfterRound':
-					self._stopAfterRound = to_int(item['data'])
-				elif item['channel'] == b'timing:startAt':
-					self._startAt = to_int(item['data'])
+    @startAt.setter
+    def startAt(self, timestamp: Optional[int]) -> None:
+        if self._startAt != timestamp:
+            self._startAt = timestamp
+            self.onUpdateTimes()
 
-	def bind_to_redis(self):
-		redis: StrictRedis = get_redis_connection()
-		self.redis_pubsub = redis.pubsub()
-		self.redis_pubsub.subscribe(
-			'timing:state', 'timing:desiredState', 'timing:currentRound', 'timing:roundStart', 'timing:roundEnd', 'timing:roundTime',
-			'timing:stopAfterRound', 'timing:startAt')
-		thread = threading.Thread(target=self.__listen_for_redis_events, name='Timer-Redis-Listener', daemon=True)
-		thread.start()
+    @abstractmethod
+    def onUpdateTimes(self) -> None:
+        raise NotImplementedError
 
-	def countMasterTimer(self) -> int:
-		return get_redis_connection().pubsub_numsub('timing:master')[0][1]
+    def init(self,
+             state: str | bytes,
+             desiredState: str | bytes,
+             currentRound: int | str | bytes | None,
+             roundStart: int | str | bytes | None,
+             roundEnd: int | str | bytes | None,
+             roundTime: int | str | bytes | None,
+             stopAfterRound: int | str | bytes | None = None,
+             startAt: int | str | bytes | None = None
+             ) -> None:
+        if state is None:
+            return
+        self.state = CTFState[state.decode('utf-8') if isinstance(state, bytes) else state]
+        self.desiredState = CTFState[desiredState.decode('utf-8') if isinstance(desiredState, bytes) else desiredState]
+        self._currentRound = to_int(currentRound) or 0
+        self._roundStart = to_int(roundStart)
+        self._roundEnd = to_int(roundEnd)
+        self._roundTime = int(roundTime or self._roundTime)
+        self._stopAfterRound = to_int(stopAfterRound)
+        self._startAt = to_int(startAt)
 
-	def startCtf(self):
-		raise Exception('Not implemented')
+    def init_from_redis(self) -> None:
+        redis = get_redis_connection()
+        self.init(
+            state=redis.get('timing:state'),  # type: ignore
+            desiredState=redis.get('timing:desiredState'),  # type: ignore
+            currentRound=redis.get('timing:currentRound'),
+            roundStart=redis.get('timing:roundStart'),
+            roundEnd=redis.get('timing:roundEnd'),
+            roundTime=redis.get('timing:roundTime'),
+            stopAfterRound=redis.get('timing:stopAfterRound'),
+            startAt=redis.get('timing:startAt')
+        )
 
-	def suspendCtfAfterRound(self):
-		raise Exception('Not implemented')
+    def __listen_for_redis_events(self) -> None:
+        for item in self.redis_pubsub.listen():  # type: ignore
+            if item['type'] == 'message':
+                # print('Redis message:', item)
+                if item['channel'] == b'timing:state':
+                    self.state = CTFState[item['data'].decode('utf-8')]
+                elif item['channel'] == b'timing:desiredState':
+                    self.desiredState = CTFState[item['data'].decode('utf-8')]
+                elif item['channel'] == b'timing:currentRound':
+                    self._currentRound = int(item['data'])
+                elif item['channel'] == b'timing:roundStart':
+                    self._roundStart = to_int(item['data'])
+                elif item['channel'] == b'timing:roundEnd':
+                    self._roundEnd = to_int(item['data'])
+                elif item['channel'] == b'timing:roundTime':
+                    self._roundTime = int(item['data']) or self._roundTime
+                elif item['channel'] == b'timing:stopAfterRound':
+                    self._stopAfterRound = to_int(item['data'])
+                elif item['channel'] == b'timing:startAt':
+                    self._startAt = to_int(item['data'])
 
-	def stopCtfAfterRound(self):
-		raise Exception('Not implemented')
+    def bind_to_redis(self) -> None:
+        redis: StrictRedis = get_redis_connection()
+        self.redis_pubsub = redis.pubsub()
+        self.redis_pubsub.subscribe(
+            'timing:state', 'timing:desiredState', 'timing:currentRound', 'timing:roundStart', 'timing:roundEnd',
+            'timing:roundTime',
+            'timing:stopAfterRound', 'timing:startAt')
+        thread = threading.Thread(target=self.__listen_for_redis_events, name='Timer-Redis-Listener', daemon=True)
+        thread.start()
 
-	def checkTime(self):
-		pass
+    def countMasterTimer(self) -> int:
+        return get_redis_connection().pubsub_numsub('timing:master')[0][1]
+
+    def startCtf(self) -> None:
+        raise Exception('Not implemented')
+
+    def suspendCtfAfterRound(self) -> None:
+        raise Exception('Not implemented')
+
+    def stopCtfAfterRound(self) -> None:
+        raise Exception('Not implemented')
+
+    def checkTime(self) -> None:
+        pass
 
 
 class CTFTimer(CTFTimerBase):
-	def __init__(self):
-		super().__init__()
+    def __init__(self) -> None:
+        super().__init__()
 
-	@property
-	def roundTime(self) -> int:
-		return self._roundTime
+    def bind_to_redis(self) -> None:
+        CTFTimerBase.bind_to_redis(self)
+        self.redis_pubsub.subscribe('timing:master')  # type: ignore
 
-	@roundTime.setter
-	def roundTime(self, roundTime: int):
-		if self._roundTime != roundTime:
-			self._roundTime = roundTime
-			if self.roundStart:
-				self._roundEnd = self.roundStart + self._roundTime
-			self.onUpdateTimes()
+    def checkTime(self) -> None:
+        """
+        Called periodically (typically once per second)
+        :return:
+        """
+        t: int = int(time.time())
+        if self.state == CTFState.RUNNING and self._roundEnd and t >= self._roundEnd:
+            # current round ends
+            self.onEndRound(self._currentRound)
+            if self.desiredState == CTFState.RUNNING:
+                # start a new round
+                self._currentRound += 1
+                self._roundStart = t if t > self._roundEnd + 1 else self._roundEnd
+                self._roundEnd = self._roundStart + self._roundTime
+                self.onStartRound(self._currentRound)
+            else:
+                # suspend or stop after this round
+                self.state = self.desiredState
+                if self.state == CTFState.SUSPENDED:
+                    self.onSuspendCtf()
+                else:
+                    self.onEndCtf()
+            self.onUpdateTimes()
+        elif self.state != CTFState.RUNNING and self.desiredState == CTFState.RUNNING:
+            self.startCtf()
+        elif self.state != CTFState.RUNNING and self.startAt and self.startAt <= t <= self.startAt + 4:
+            self._startAt = None
+            self.startCtf()
 
-	@property
-	def stopAfterRound(self) -> Optional[int]:
-		return self._stopAfterRound
+    def startCtf(self) -> None:
+        """
+        Start the CTF now
+        :return:
+        """
+        self.desiredState = CTFState.RUNNING
+        if self.state != CTFState.RUNNING:
+            self._currentRound += 1
+            self._roundStart = int(time.time())
+            self._roundEnd = self._roundStart + self._roundTime
+            old_state = self.state
+            self.state = CTFState.RUNNING
+            if old_state == CTFState.STOPPED:
+                self.onStartCtf()
+            self.onStartRound(self._currentRound)
+            self.onUpdateTimes()
 
-	@stopAfterRound.setter
-	def stopAfterRound(self, lastRound: Optional[int]):
-		if self._stopAfterRound != lastRound:
-			self._stopAfterRound = lastRound
-			self.onUpdateTimes()
+    def suspendCtfAfterRound(self) -> None:
+        """
+        Pause the CTF after the current round finished
+        :return:
+        """
+        self.desiredState = CTFState.SUSPENDED
+        self.onUpdateTimes()
 
-	@property
-	def startAt(self) -> Optional[int]:
-		return self._startAt
+    def stopCtfAfterRound(self) -> None:
+        """
+        Stop the CTF after the current round finished
+        :return:
+        """
+        self.desiredState = CTFState.STOPPED
+        self.onUpdateTimes()
 
-	@startAt.setter
-	def startAt(self, timestamp: Optional[int]):
-		if self._startAt != timestamp:
-			self._startAt = timestamp
-			self.onUpdateTimes()
+    def onStartRound(self, roundnumber: int) -> None:
+        if self._stopAfterRound and self._stopAfterRound == roundnumber:
+            self.desiredState = CTFState.STOPPED
+            self._stopAfterRound = None
+        for l in self.listener:
+            l.onStartRound(roundnumber)
 
-	def bind_to_redis(self):
-		CTFTimerBase.bind_to_redis(self)
-		self.redis_pubsub.subscribe('timing:master')
+    def onEndRound(self, roundnumber: int) -> None:
+        for l in self.listener:
+            l.onEndRound(roundnumber)
 
-	def checkTime(self):
-		"""
-		Called periodically (typically once per second)
-		:return:
-		"""
-		t: int = int(time.time())
-		if self.state == CTFState.RUNNING and t >= self._roundEnd:
-			# current round ends
-			self.onEndRound(self._currentRound)
-			if self.desiredState == CTFState.RUNNING:
-				# start a new round
-				self._currentRound += 1
-				self._roundStart = t if t > self._roundEnd + 1 else self._roundEnd
-				self._roundEnd = self._roundStart + self._roundTime
-				self.onStartRound(self._currentRound)
-			else:
-				# suspend or stop after this round
-				self.state = self.desiredState
-				if self.state == CTFState.SUSPENDED:
-					self.onSuspendCtf()
-				else:
-					self.onEndCtf()
-			self.onUpdateTimes()
-		elif self.state != CTFState.RUNNING and self.desiredState == CTFState.RUNNING:
-			self.startCtf()
-		elif self.state != CTFState.RUNNING and self.startAt and self.startAt <= t <= self.startAt + 4:
-			self._startAt = None
-			self.startCtf()
+    def onStartCtf(self) -> None:
+        self.updateRoundTimes()
+        for l in self.listener:
+            l.onStartCtf()
 
-	def startCtf(self):
-		"""
-		Start the CTF now
-		:return:
-		"""
-		self.desiredState = CTFState.RUNNING
-		if self.state != CTFState.RUNNING:
-			self._currentRound += 1
-			self._roundStart = int(time.time())
-			self._roundEnd = self._roundStart + self._roundTime
-			old_state = self.state
-			self.state = CTFState.RUNNING
-			if old_state == CTFState.STOPPED:
-				self.onStartCtf()
-			self.onStartRound(self._currentRound)
-			self.onUpdateTimes()
+    def onSuspendCtf(self) -> None:
+        for l in self.listener:
+            l.onSuspendCtf()
 
-	def suspendCtfAfterRound(self):
-		"""
-		Pause the CTF after the current round finished
-		:return:
-		"""
-		self.desiredState = CTFState.SUSPENDED
-		self.onUpdateTimes()
+    def onEndCtf(self) -> None:
+        self.updateRoundTimes()
+        for l in self.listener:
+            l.onEndCtf()
 
-	def stopCtfAfterRound(self):
-		"""
-		Stop the CTF after the current round finished
-		:return:
-		"""
-		self.desiredState = CTFState.STOPPED
-		self.onUpdateTimes()
+    def onUpdateTimes(self) -> None:
+        redis = get_redis_connection()
+        redis_set_and_publish('timing:state', self.state.name, redis)
+        redis_set_and_publish('timing:desiredState', self.desiredState.name, redis)
+        redis_set_and_publish('timing:currentRound', self._currentRound, redis)
+        redis_set_and_publish('timing:roundStart', self._roundStart, redis)
+        redis_set_and_publish('timing:roundEnd', self._roundEnd, redis)
+        redis_set_and_publish('timing:roundTime', self._roundTime, redis)
+        redis_set_and_publish('timing:stopAfterRound', self._stopAfterRound, redis)
+        redis_set_and_publish('timing:startAt', self._startAt, redis)
+        self.updateRoundTimes(redis)
+        for l in self.listener:
+            l.onUpdateTimes()
 
-	def onStartRound(self, roundnumber: int):
-		if self._stopAfterRound and self._stopAfterRound == roundnumber:
-			self.desiredState = CTFState.STOPPED
-			self._stopAfterRound = None
-		for l in self.listener:
-			l.onStartRound(roundnumber)
-
-	def onEndRound(self, roundnumber: int):
-		for l in self.listener:
-			l.onEndRound(roundnumber)
-
-	def onStartCtf(self):
-		self.updateRoundTimes()
-		for l in self.listener:
-			l.onStartCtf()
-
-	def onSuspendCtf(self):
-		for l in self.listener:
-			l.onSuspendCtf()
-
-	def onEndCtf(self):
-		self.updateRoundTimes()
-		for l in self.listener:
-			l.onEndCtf()
-
-	def onUpdateTimes(self):
-		redis = get_redis_connection()
-		redis_set_and_publish('timing:state', self.state.name, redis)
-		redis_set_and_publish('timing:desiredState', self.desiredState.name, redis)
-		redis_set_and_publish('timing:currentRound', self._currentRound, redis)
-		redis_set_and_publish('timing:roundStart', self._roundStart, redis)
-		redis_set_and_publish('timing:roundEnd', self._roundEnd, redis)
-		redis_set_and_publish('timing:roundTime', self._roundTime, redis)
-		redis_set_and_publish('timing:stopAfterRound', self._stopAfterRound, redis)
-		redis_set_and_publish('timing:startAt', self._startAt, redis)
-		self.updateRoundTimes(redis)
-		for l in self.listener:
-			l.onUpdateTimes()
-
-	def updateRoundTimes(self, redis=None):
-		if self.state == CTFState.RUNNING:
-			redis = redis or get_redis_connection()
-			redis.set('round:{}:start'.format(self._currentRound), self._roundStart)
-			redis.set('round:{}:end'.format(self._currentRound), self._roundEnd)
-			redis.set('round:{}:time'.format(self._currentRound), self._roundTime)
+    def updateRoundTimes(self, redis: Redis | None = None) -> None:
+        if self.state == CTFState.RUNNING:
+            redis = redis or get_redis_connection()
+            redis.set('round:{}:start'.format(self._currentRound), self._roundStart)  # type: ignore
+            redis.set('round:{}:end'.format(self._currentRound), self._roundEnd)  # type: ignore
+            redis.set('round:{}:time'.format(self._currentRound), self._roundTime)  # type: ignore
 
 
 class CTFTimerSlave(CTFTimerBase):
-	def __init__(self):
-		super().__init__()
-		self.redis = get_redis_connection()
+    def __init__(self) -> None:
+        super().__init__()
+        self.redis = get_redis_connection()
 
-	@property
-	def roundTime(self) -> int:
-		return self._roundTime
+    @property
+    def roundTime(self) -> int:
+        return self._roundTime
 
-	@roundTime.setter
-	def roundTime(self, roundTime: int):
-		if self._roundTime != roundTime:
-			self._roundTime = roundTime
-			if self.roundStart:
-				self._roundEnd = self.roundStart + self._roundTime
-				redis_set_and_publish('timing:roundEnd', self._roundEnd)
-			redis_set_and_publish('timing:roundTime', self._roundTime)
+    @roundTime.setter
+    def roundTime(self, roundTime: int) -> None:
+        if self._roundTime != roundTime:
+            self._roundTime = roundTime
+            if self.roundStart:
+                self._roundEnd = self.roundStart + self._roundTime
+                redis_set_and_publish('timing:roundEnd', self._roundEnd)
+            redis_set_and_publish('timing:roundTime', self._roundTime)
 
-	@property
-	def stopAfterRound(self) -> Optional[int]:
-		return self._stopAfterRound
+    @property
+    def stopAfterRound(self) -> Optional[int]:
+        return self._stopAfterRound
 
-	@stopAfterRound.setter
-	def stopAfterRound(self, lastRound: Optional[int]):
-		if self._stopAfterRound != lastRound:
-			self._stopAfterRound = lastRound
-			redis_set_and_publish('timing:stopAfterRound', self._stopAfterRound)
+    @stopAfterRound.setter
+    def stopAfterRound(self, lastRound: Optional[int]) -> None:
+        if self._stopAfterRound != lastRound:
+            self._stopAfterRound = lastRound
+            redis_set_and_publish('timing:stopAfterRound', self._stopAfterRound)
 
-	@property
-	def startAt(self) -> Optional[int]:
-		return self._startAt
+    @property
+    def startAt(self) -> Optional[int]:
+        return self._startAt
 
-	@startAt.setter
-	def startAt(self, timestamp: Optional[int]):
-		if self._startAt != timestamp:
-			self._startAt = timestamp
-			redis_set_and_publish('timing:startAt', self._startAt)
+    @startAt.setter
+    def startAt(self, timestamp: Optional[int]) -> None:
+        if self._startAt != timestamp:
+            self._startAt = timestamp
+            redis_set_and_publish('timing:startAt', self._startAt)
 
-	def startCtf(self):
-		"""
-		Start the CTF now
-		:return:
-		"""
-		self.desiredState = CTFState.RUNNING
-		redis_set_and_publish('timing:desiredState', self.desiredState.name)
+    def startCtf(self) -> None:
+        """
+        Start the CTF now
+        :return:
+        """
+        self.desiredState = CTFState.RUNNING
+        redis_set_and_publish('timing:desiredState', self.desiredState.name)
 
-	def suspendCtfAfterRound(self):
-		"""
-		Pause the CTF after the current round finished
-		:return:
-		"""
-		self.desiredState = CTFState.SUSPENDED
-		redis_set_and_publish('timing:desiredState', self.desiredState.name)
+    def suspendCtfAfterRound(self) -> None:
+        """
+        Pause the CTF after the current round finished
+        :return:
+        """
+        self.desiredState = CTFState.SUSPENDED
+        redis_set_and_publish('timing:desiredState', self.desiredState.name)
 
-	def stopCtfAfterRound(self):
-		self.desiredState = CTFState.STOPPED
-		redis_set_and_publish('timing:desiredState', self.desiredState.name)
+    def stopCtfAfterRound(self) -> None:
+        self.desiredState = CTFState.STOPPED
+        redis_set_and_publish('timing:desiredState', self.desiredState.name)
+
+    def onUpdateTimes(self) -> None:
+        raise NotImplementedError
+
+
+class CTFTimerMock(CTFTimerBase):
+    @property
+    def currentRound(self) -> int:
+        return self._currentRound
+
+    @currentRound.setter
+    def currentRound(self, tick: int) -> None:
+        self._currentRound = tick
+        redis_set_and_publish('timing:currentRound', self._currentRound)
+
+    def onUpdateTimes(self) -> None:
+        pass
+
+    def updateRedis(self) -> None:
+        redis_set_and_publish('timing:state', self.state.name)
+        redis_set_and_publish('timing:desiredState', self.desiredState.name)
+        redis_set_and_publish('timing:currentRound', self._currentRound)
 
 
 # Singleton CTFTimer instance, and default listeners (either master=self-counting or slave=getting state from redis)
-master_timer: bool = not EXTERNAL_TIMER or __name__ == '__main__'
-Timer: CTFTimerBase = CTFTimer() if master_timer else CTFTimerSlave()
-Timer.init_from_redis()
-Timer.bind_to_redis()
-if master_timer:
-	Timer.listener.append(ConsoleCTFEvents())
+Timer: CTFTimerBase
 
 
-def notify():
-	"""
-	Called from outside (app.py)
-	:return:
-	"""
-	try:
-		Timer.checkTime()
-	except Exception as e:
-		logException('timer', e)
-		raise
+def init_timer(master_timer: bool) -> None:
+    global Timer
+    Timer = CTFTimer() if master_timer else CTFTimerSlave()
+    Timer.init_from_redis()
+    Timer.bind_to_redis()
+    if master_timer:
+        Timer.listener.append(ConsoleCTFEvents())
 
 
-__all__ = ['CTFTimer', 'CTFState', 'Timer', 'notify']
+def init_cp_timer() -> None:
+    master_timer: bool = not config.EXTERNAL_TIMER
+    init_timer(master_timer)
 
 
-def main():
-	"""
-	Run "master" timer
-	:return:
-	"""
-	from controlserver.events_impl import LogCTFEvents, DeferredCTFEvents, VPNCTFEvents
-	Timer.listener.append(LogCTFEvents())
-	Timer.listener.append(DeferredCTFEvents())
-	Timer.listener.append(VPNCTFEvents())
-	print('Timer active...')
-	try:
-		while True:
-			notify()
-			time.sleep(1.0 - (time.time() % 1.0))
-	except KeyboardInterrupt:
-		print('Timer stopped.')
+def init_slave_timer() -> None:
+    init_timer(False)
 
 
-if __name__ == '__main__':
-	main()
+def init_mock_timer() -> CTFTimerMock:
+    global Timer
+    Timer = CTFTimerMock()
+    return Timer
+
+
+def run_master_timer() -> None:
+    """
+    Run "master" timer
+    :return:
+    """
+    global Timer
+    from controlserver.events_impl import LogCTFEvents, DeferredCTFEvents, VPNCTFEvents
+    Timer.listener.append(LogCTFEvents())
+    Timer.listener.append(DeferredCTFEvents())
+    Timer.listener.append(VPNCTFEvents())
+    Timer.initialized = True
+    print('Timer active...')
+    try:
+        while True:
+            try:
+                Timer.checkTime()
+            except KeyboardInterrupt:
+                raise
+            except Exception as e:
+                logException('timer', e)
+                raise
+            time.sleep(1.0 - (time.time() % 1.0))
+    except KeyboardInterrupt:
+        print('Timer stopped.')
+
+
+__all__ = ['CTFTimer', 'CTFState', 'Timer', 'run_master_timer', 'init_slave_timer', 'init_cp_timer', 'run_master_timer']

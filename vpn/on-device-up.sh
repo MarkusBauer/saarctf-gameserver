@@ -4,8 +4,6 @@
 
 set -e
 
-source /etc/profile.d/env.sh 2>/dev/null || true
-
 cd "$( dirname "${BASH_SOURCE[0]}" )"
 # Load bpf program on interface
 bpf/install.sh "$1"

@@ -6,17 +6,19 @@
 #include <linux/pkt_cls.h>
 #include <linux/in.h>
 #include <linux/if_ether.h>
+#include <bpf/bpf_helpers.h>
 
-#define SEC(NAME) __attribute__((section(NAME), used))
+// #define SEC(NAME) __attribute__((section(NAME), used))
 
 
 // BPF helper functions
+/*
 static int (*bpf_skb_store_bytes)(void *ctx, int off, void *from, int len, int flags) = (void *) BPF_FUNC_skb_store_bytes;
 static int (*bpf_l3_csum_replace)(void *ctx, int off, int from, int to, int flags) = (void *) BPF_FUNC_l3_csum_replace;
 static int (*bpf_l4_csum_replace)(void *ctx, int off, int from, int to, int flags) = (void *) BPF_FUNC_l4_csum_replace;
 static void *(*bpf_map_lookup_elem)(void *map, const void *key) = (void *) BPF_FUNC_map_lookup_elem;
 static void *(*bpf_map_update_elem)(void *map, const void *key, const void* value, int flags) = (void *) BPF_FUNC_map_update_elem;
-
+*/
 
 
 // How to define a map for tc

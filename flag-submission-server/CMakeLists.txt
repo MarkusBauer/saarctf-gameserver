@@ -55,6 +55,14 @@ if (NOT json_POPULATED)
 endif ()
 
 
+# Download test library
+FetchContent_Declare(Catch2
+		GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+		GIT_TAG        v3.4.0 # or a later release
+)
+FetchContent_MakeAvailable(Catch2)
+
+
 set(SOURCE_FILES
 		src/flagchecker.cpp
 		src/flagchecker.h
@@ -99,4 +107,4 @@ set(SOURCE_FILES_TEST
 		)
 add_library(Catch INTERFACE)
 add_executable(testsuite ${SOURCE_FILES_TEST} ${SOURCE_FILES})
-target_link_libraries(testsuite Catch ${CMAKE_THREAD_LIBS_INIT} ${LIBEV_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${PostgreSQL_LIBRARIES} ${LIBHIREDIS_LIBRARIES})
+target_link_libraries(testsuite Catch2::Catch2WithMain ${CMAKE_THREAD_LIBS_INIT} ${LIBEV_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${PostgreSQL_LIBRARIES} ${LIBHIREDIS_LIBRARIES})

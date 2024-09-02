@@ -1,0 +1,18 @@
+{
+  "secret_flags": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "scoring": {
+    "flags_rounds_valid": 20,
+    "nop_team_id": 2,
+    "off_factor": 1.0,
+    "def_factor": 1.0,
+    "sla_factor": 1.0
+  },
+
+  "flags_rounds_valid": 5,
+  "nop_team_id": 3,
+
+  "network": {
+    "team_range": [127, [200, 256, 0], [1, 200, 0], 0, 24],
+    "vpn_peer_ips": [127, [200, 256, 52], [1, 200, 0], 1]
+  }
+}

@@ -72,7 +72,7 @@ struct IpSpec {
 
 static json config;
 static const char *postgresConfigString = nullptr;
-char Config::hmac_secret_key[32];
+unsigned char Config::hmac_secret_key[32];
 int Config::nopTeamId;
 int Config::flagRoundsValid;
 
@@ -81,12 +81,12 @@ static IpSpec team_range;
 static IpSpec vpn_peers_range;
 
 
-static void decodeHexSecret(const string &hex, char *output) {
+static void decodeHexSecret(const string &hex, unsigned char *output) {
 	unsigned long len = hex.length();
 	assert(len == 64);
 	for (unsigned long i = 0; i < len; i += 2) {
 		string byte = hex.substr(i, 2);
-		*output = (char) (int) strtol(byte.c_str(), nullptr, 16);
+		*output = (unsigned char) (int) strtol(byte.c_str(), nullptr, 16);
 		output++;
 	}
 }
@@ -114,14 +114,33 @@ void Config::load(const std::string filename) {
 		throw exception();
 	}
 	fin >> config;
-	// cout << config.dump(4) << endl;
+
+	// Load flag secret
 	decodeHexSecret(config["secret_flags"], Config::hmac_secret_key);
+
+	// Load legacy nop team/flags_round_valid
 	if (config.find("nop_team_id") != config.end() && !config["nop_team_id"].is_null()) {
 		nopTeamId = config["nop_team_id"].get<int>();
 	} else {
 		nopTeamId = 0;
 	}
-	flagRoundsValid = config["flags_rounds_valid"].get<int>();
+	if (config.find("flags_rounds_valid") != config.end() && !config["flags_rounds_valid"].is_null()) {
+		flagRoundsValid = config["flags_rounds_valid"].get<int>();
+	} else {
+		flagRoundsValid = 10;
+	}
+
+	// Load scoring config
+	if (config.find("scoring") != config.end() && config["scoring"].is_object()) {
+		const auto scoring = config["scoring"];
+		if (scoring.find("nop_team_id") != scoring.end() && !scoring["nop_team_id"].is_null()) {
+			nopTeamId = scoring["nop_team_id"].get<int>();
+		}
+		if (scoring.find("flags_rounds_valid") != scoring.end() && !scoring["flags_rounds_valid"].is_null()) {
+			flagRoundsValid = scoring["flags_rounds_valid"].get<int>();
+		}
+	}
+
 	// Network range
 	team_range = IpSpec(config["network"]["team_range"]);
 	vpn_peers_range = IpSpec(config["network"]["vpn_peer_ips"]);

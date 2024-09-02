@@ -57,8 +57,10 @@
 				<th>{{ team.id }}</th>
 				<td>{{ team.name }} <br/><small>(vulnbox&nbsp;{{ team.vulnbox_ip }})</small></td>
 				<td>
-					{% if team.vpn_connected or team.vpn2_connected %}
-						<span class="label label-success">connected</span>
+					{% if team.vpn_connected %}
+						<span class="label label-success">connected (self-hosted)</span>
+                    {% elif team.vpn2_connected %}
+						<span class="label label-success">connected (cloud-hosted)</span>
 					{% else %}
 						<span class="label label-default">disconnected</span>
 					{% endif %}

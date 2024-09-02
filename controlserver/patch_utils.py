@@ -1,9 +1,10 @@
 import os.path
 import shutil
+from pathlib import Path
 from typing import List, Tuple
 
 from controlserver.models import Team
-from saarctf_commons import config
+from saarctf_commons.config import config
 
 ANSIBLE_TEMPLATE_1 = '''
 ---
@@ -74,29 +75,29 @@ all:
 
 
 class PatchUtils:
-    def __init__(self, patchfile: str, additional_files: List[str] = None):
-        self.patchfile = patchfile
+    def __init__(self, patchfile: Path | str, additional_files: List[Path] | None = None) -> None:
+        self.patchfile = Path(patchfile)
         self.additional_files = additional_files or []
         if not os.path.exists(self.patchfile):
-            self.patchfile = os.path.join(config.PATCHES_PATH, self.patchfile)
+            self.patchfile = config.PATCHES_PATH / self.patchfile
         for i in range(len(self.additional_files)):
             if not os.path.exists(self.additional_files[i]):
-                self.additional_files[i] = os.path.join(config.PATCHES_PATH, self.additional_files[i])
+                self.additional_files[i] = config.PATCHES_PATH / self.additional_files[i]
 
     @staticmethod
     def ansible_base_template() -> str:
         return ANSIBLE_TEMPLATE_1 + ANSIBLE_TEMPLATE_2.replace('<FNAME>', 'your script') + ANSIBLE_TEMPLATE_3
 
-    def ansible_filename(self) -> str:
-        return os.path.join(os.path.dirname(self.patchfile), 'ansible-' + os.path.basename(self.patchfile) + '.yaml')
+    def ansible_filename(self) -> Path:
+        return self.patchfile.parent / f'ansible-{self.patchfile.name}.yaml'
 
-    def create_ansible_template(self) -> str:
+    def create_ansible_template(self) -> Path:
         """
         Generate a playbook if it does not exist
         :return: Filename of the generated playbook
         """
         fname = self.ansible_filename()
-        if not os.path.exists(fname):
+        if not fname.exists():
             tmpl = ANSIBLE_TEMPLATE_1
             tmpl += ANSIBLE_TEMPLATE_2 \
                 .replace('<PATH1>', os.path.abspath(self.patchfile)) \
@@ -125,23 +126,23 @@ class PatchUtils:
         tmpl2 = ANSIBLE_HOSTS_TEMPLATE
         online_teams = Team.query.filter((Team.vpn_connected == True) | (Team.vpn2_connected == True)).order_by(Team.id).all()
         for team in online_teams:
-            ip = config.team_id_to_vulnbox_ip(team.id)
+            ip = config.NETWORK.team_id_to_vulnbox_ip(team.id)
             tmpl += f'\n        {ip}:  # {team.name}'
-            if team.id == config.NOP_TEAM_ID:
+            if team.id == config.SCORING.nop_team_id:
                 tmpl2 += f'\n        {ip}:  # {team.name}'
         return tmpl, tmpl2
 
     @classmethod
-    def create_ansible_hosts_template(cls) -> str:
+    def create_ansible_hosts_template(cls) -> Path:
         """
         Generate fresh inventory files for all online vulnboxes
         :return: the filename of the primary inventory file
         """
         tmpl, tmpl2 = cls.get_ansible_hosts_templates()
-        fname = os.path.join(config.PATCHES_PATH, 'hosts.yaml')
+        fname = config.PATCHES_PATH / 'hosts.yaml'
         with open(fname, 'w') as f:
             f.write(tmpl)
-        with open(os.path.join(config.PATCHES_PATH, 'hosts_nop.yaml'), 'w') as f:
+        with open(config.PATCHES_PATH / 'hosts_nop.yaml', 'w') as f:
             f.write(tmpl2)
         return fname
 

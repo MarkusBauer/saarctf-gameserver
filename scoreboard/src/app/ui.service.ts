@@ -1,6 +1,7 @@
 import {Injectable} from '@angular/core';
 import {SessionStorage} from "ngx-store";
 import {Subject} from "rxjs";
+import {setSchemeDarkmode} from "./chart-colorschemes";
 
 /**
  * Service storing user preferences (in session storage for persistence).
@@ -32,6 +33,7 @@ export class UiService {
 		} else {
 			document.body.parentElement.classList.remove('dark');
 		}
+		setSchemeDarkmode(enabled);
 		if (enabled != this.darkmode) {
 			this.darkmodeChanges.next(enabled);
 		}

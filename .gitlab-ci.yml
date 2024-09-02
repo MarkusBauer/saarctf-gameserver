@@ -1,4 +1,4 @@
-image: debian:bullseye
+image: debian:bookworm
 
 variables:
   # Initialize submodules
@@ -13,7 +13,7 @@ variables:
   RABBITMQ_DEFAULT_PASS: 123456789
   RABBITMQ_DEFAULT_VHOST: saarctf
   # https://hub.docker.com/_/rabbitmq#memory-limits
-  RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 128MB
+  # RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 512MB  # not supported anymore
 
   # Ensure the docker uses utf-8
   LC_ALL: C.UTF-8
@@ -33,9 +33,9 @@ cache:
     - .cache
 
 services:
-  - name: postgres:13
-  - name: redis:6.0-alpine
-  - name: rabbitmq:3.8-management-alpine
+  - name: postgres:15
+  - name: redis:7.0-alpine
+  - name: rabbitmq:3.9-management-alpine
 
 flag-submission:
   before_script:
@@ -57,7 +57,7 @@ demo-checker:
     # Configure database credentials for container setup
     - cp ./config.containers.json ./config.json
     - ./ci/test-python-unittest.sh
-    - ./ci/test-demo-checker.py
+    - ./run.sh ./ci/test-demo-checker.py
 
 shellcheck:
   image: koalaman/shellcheck-alpine:v0.7.0

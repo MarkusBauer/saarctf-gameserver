@@ -4,7 +4,7 @@ from typing import Optional
 import requests
 
 
-USE_NPING_TIMEPINGS = True
+USE_NPING_TIMEPINGS: bool = True
 
 
 def test_ping(ip: str) -> Optional[float]:

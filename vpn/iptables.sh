@@ -2,10 +2,12 @@
 
 set -e
 
+# DIR = "vpn" directory, ROOT = saarctf repo root
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+ROOT="$(dirname "$DIR")"
 
-GAMESERVER_IP=`python3 $DIR/../saarctf_commons/config.py get network gameserver_ip`
-GAMENETWORK_RANGE=`python3 $DIR/../saarctf_commons/config.py get network game`
+GAMESERVER_IP=`"$ROOT/run.sh" "$ROOT/saarctf_commons/config.py" get network gameserver_ip`
+GAMENETWORK_RANGE=`"$ROOT/run.sh" "$ROOT/saarctf_commons/config.py" get network game`
 
 # cleanup
 iptables -F FORWARD

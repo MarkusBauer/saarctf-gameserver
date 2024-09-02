@@ -1,13 +1,11 @@
-import time
-
-from saarctf_commons.config import postgres_psycopg2
-import psycopg2
 import psycopg2.extras
 import psycopg2.extensions
 
-from sample_files.debug_sql_timing import timing
+from controlserver.models import TeamPoints, db_session
+from saarctf_commons.config import config
+from saarctf_commons.debug_sql_timing import timing
 
-conn: psycopg2.extensions.connection = psycopg2.connect(postgres_psycopg2())
+conn: psycopg2.extensions.connection = psycopg2.connect(config.postgres_psycopg2())
 try:
 	cursor: psycopg2.extensions.cursor = conn.cursor()
 
@@ -55,9 +53,6 @@ finally:
 
 # ===== SAME WITH SQLALCHEMY =====
 
-import controlserver.app
-from controlserver.models import db, TeamPoints
-
 
 def get_data():
 	data = []
@@ -76,31 +71,31 @@ def get_data_map():
 
 
 TeamPoints.query.filter(TeamPoints.round >= 500).delete()
-db.session.commit()
+db_session().commit()
 
 timing('')
 data = get_data()
 timing('SQLAlchemy prepared')
-db.session.add_all(data)
-db.session.commit()
+db_session().add_all(data)
+db_session().commit()
 timing('SQLAlchemy add_all')
 
 TeamPoints.query.filter(TeamPoints.round >= 500).delete()
-db.session.commit()
+db_session().commit()
 
 timing('')
 data = get_data()
 timing('SQLAlchemy prepared')
-db.session.bulk_save_objects(data)
-db.session.commit()
+db_session().bulk_save_objects(data)
+db_session().commit()
 timing('SQLAlchemy bulk_save_objects')
 
 TeamPoints.query.filter(TeamPoints.round >= 500).delete()
-db.session.commit()
+db_session().commit()
 
 timing('')
 data = get_data_map()
 timing('SQLAlchemy prepared')
-db.session.bulk_insert_mappings(TeamPoints, data)
-db.session.commit()
+db_session().bulk_insert_mappings(TeamPoints, data)
+db_session().commit()
 timing('SQLAlchemy bulk_insert_mappings')

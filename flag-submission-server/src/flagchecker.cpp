@@ -1,8 +1,5 @@
-#include <string>
-#include <ctime>
 #include <openssl/hmac.h>
 #include <cstring>
-#include <cmath>
 #include <iostream>
 #include <arpa/inet.h>
 #include "flagchecker.h"
@@ -172,34 +169,41 @@ const char *progress_flag(const char *flag, int len, struct sockaddr_in *addr, u
 	return "[OK]\n";
 }
 
+static EVP_MAC *mac = EVP_MAC_fetch(nullptr, "HMAC", nullptr);
 
 bool verify_hmac(void *data_start, void *data_end, const char *hmac) {
-	HMAC_CTX *ctx = HMAC_CTX_new();
-	HMAC_Init_ex(ctx, Config::hmac_secret_key, sizeof Config::hmac_secret_key, EVP_sha256(), nullptr);
+	EVP_MAC_CTX *ctx = EVP_MAC_CTX_new(mac);
+	OSSL_PARAM params[2];
+	params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA256", 0);
+    params[1] = OSSL_PARAM_construct_end();
+	EVP_MAC_init(ctx, Config::hmac_secret_key, sizeof Config::hmac_secret_key, params);
 
 	size_t length = ((char *) data_end) - ((char *) data_start);
-	HMAC_Update(ctx, (unsigned char *) data_start, length);
+	EVP_MAC_update(ctx, (unsigned char *) data_start, length);
 
 	unsigned char buffer[32];
-	unsigned int mdlen;
-	HMAC_Final(ctx, buffer, &mdlen);
-	HMAC_CTX_free(ctx);
+	size_t mdlen;
+	EVP_MAC_final(ctx, buffer, &mdlen, sizeof buffer);
+	EVP_MAC_CTX_free(ctx);
 
 	return memcmp(hmac, buffer, sizeof FlagFormat::mac) == 0;
 }
 
 
 void create_hmac(void *data_start, void *data_end, char *hmac_out) {
-	HMAC_CTX *ctx = HMAC_CTX_new();
-	HMAC_Init_ex(ctx, Config::hmac_secret_key, sizeof Config::hmac_secret_key, EVP_sha256(), nullptr);
+	EVP_MAC_CTX *ctx = EVP_MAC_CTX_new(mac);
+	OSSL_PARAM params[2];
+	params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA256", 0);
+    params[1] = OSSL_PARAM_construct_end();
+	EVP_MAC_init(ctx, Config::hmac_secret_key, sizeof Config::hmac_secret_key, params);
 
 	size_t length = ((char *) data_end) - ((char *) data_start);
-	HMAC_Update(ctx, (unsigned char *) data_start, length);
+	EVP_MAC_update(ctx, (unsigned char *) data_start, length);
 
 	unsigned char buffer[32];
-	unsigned int mdlen;
-	HMAC_Final(ctx, buffer, &mdlen);
-	HMAC_CTX_free(ctx);
+	size_t mdlen;
+	EVP_MAC_final(ctx, buffer, &mdlen, sizeof buffer);
+	EVP_MAC_CTX_free(ctx);
 
 	memcpy(hmac_out, buffer, sizeof FlagFormat::mac);
 }

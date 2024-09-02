@@ -1,7 +1,9 @@
-mypy>=0.931
+mypy>=1.5.1
 sqlalchemy-stubs
-types-requests
-types-ujson
+types-PyYAML
 types-redis
+types-requests
+types-selenium
 types-setuptools
 types-six
+types-ujson

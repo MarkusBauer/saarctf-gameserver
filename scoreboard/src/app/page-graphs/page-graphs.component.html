@@ -1,0 +1,14 @@
+<p *ngIf="currentTick === null || currentRoundInfo === null || loading > 0" class="lead">
+    <span class="fas fa-spinner fa-spin"></span>
+</p>
+
+<div class="chart-group" *ngFor="let chart of chartDatas">
+    <h3>{{ chart.title }}</h3>
+    <div class="chart-container">
+        <canvas baseChart #charts
+                [data]="chart.chart"
+                [options]="chartOptions"
+                [type]="'line'">
+        </canvas>
+    </div>
+</div>

@@ -36,6 +36,7 @@ Outgoing traffic is counted as team traffic or game traffic, depending on the ma
 
 
 
+/*
 struct bpf_elf_map SEC("maps") counting_map = {
 	.type        = BPF_MAP_TYPE_ARRAY,
 	.id          = 1,
@@ -45,6 +46,17 @@ struct bpf_elf_map SEC("maps") counting_map = {
 	.flags       = 0,
 	.pinning     = PIN_GLOBAL_NS
 };
+BPF_ANNOTATE_KV_PAIR(counting_map, __u32, struct stats_for_team);
+*/
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, __u32);
+	__type(value, struct stats_for_team);
+	__uint(max_entries, MAX_TEAM_COUNT + 1);
+	__uint(map_flags, 0);
+	__uint(pinning, LIBBPF_PIN_BY_NAME);
+} counting_map SEC(".maps");
 
 
 

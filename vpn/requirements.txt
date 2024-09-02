@@ -1,6 +1,0 @@
-flask
-flask_sqlalchemy
-Flask-Migrate
-Flask-APScheduler
-psycopg2-binary
-redis

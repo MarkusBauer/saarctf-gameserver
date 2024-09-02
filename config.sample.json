@@ -24,6 +24,7 @@
     },
     "website_team_url": "...",
     "scoreboard_path": "/dev/shm/scoreboard",
+    "vpnboard_path": "/dev/shm/vpnboard",
     "checker_packages_path": "/dev/shm/packages",
     "logo_input_path": "...",
     "patches_path": "/dev/shm/patches",
@@ -33,10 +34,15 @@
     "scoreboard_url": "",
     "grafana_url": "",
     "secret_flags": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "flags_rounds_valid": 10,
     "external_timer": false,
-    "nop_team_id": 1,
     "dispatcher_check_vpn_status": true,
+    "scoring": {
+        "flags_rounds_valid": 10,
+        "nop_team_id": 1,
+        "off_factor": 1.0,
+        "def_factor": 1.0,
+        "sla_factor": 1.0
+    },
     "network": {
         "game": "10.32.0.0/15",
         "__ip_syntax": ["number", "or list", ["a", "b", "c"], "= ((team_id / a) mod b) + c"],
