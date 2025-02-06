@@ -20,8 +20,14 @@ class ConfigTest(TestCase):
             self.assertEqual(getattr(config.current_config, f.name), getattr(c2, f.name), f'Not equal: {f.name}')
         self.assertEqual(config.current_config, c2)
 
-    def test_sample_config(self) -> None:
+    def test_sample_config_json(self) -> None:
         f = Path(__file__).parent.parent / 'config.sample.json'
+        c = config.Config.load_from_file(f)
+        self.assertEqual(1, c.SCORING.nop_team_id)
+        self.assertEqual(10, c.SCORING.flags_rounds_valid)
+
+    def test_sample_config_yaml(self) -> None:
+        f = Path(__file__).parent.parent / 'config.sample.yaml'
         c = config.Config.load_from_file(f)
         self.assertEqual(1, c.SCORING.nop_team_id)
         self.assertEqual(10, c.SCORING.flags_rounds_valid)

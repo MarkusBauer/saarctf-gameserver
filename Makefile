@@ -17,8 +17,8 @@ venv/deps: venv requirements.txt requirements-dev.txt
 
 # install typical checker script dependencies
 deps-script: venv/deps venv/deps-script
-venv/deps-script: venv requirements-script.txt
-	$(IN_VENV) ; pip install -Ur requirements-script.txt
+venv/deps-script: venv gamelib/checker-default-requirements.txt
+	$(IN_VENV) ; pip install -Ur gamelib/checker-default-requirements.txt
 	@touch $(@)
 
 
@@ -26,7 +26,7 @@ venv/deps-script: venv requirements-script.txt
 check: check-mypy
 check-mypy: deps
 	#TODO add --disallow-untyped-defs at some point
-	$(IN_VENV) ; mypy --config-file mypy.ini --no-incremental checker_runner controlserver gamelib saarctf_commons scripts tests vpn vpnboard
+	$(IN_VENV) ; mypy --config-file mypy.ini --no-incremental checker_runner controlserver gamelib saarctf_commons scripts tests vpn vpnboard wireguard-sync/wireguard_sync
 
 
 # run all the unittests

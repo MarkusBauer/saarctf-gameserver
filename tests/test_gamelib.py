@@ -1,16 +1,19 @@
 import unittest
 from typing import Any
 
-from gamelib import gamelib, usernames, Team
+from gamelib import gamelib, usernames, Team, ServiceConfig
 from tests.utils.base_cases import TestCase
 
 
 class DummyService(gamelib.ServiceInterface):
-    name = 'dummy'
-    flag_id_types = ['hex8', 'alphanum5', 'username', 'email', 'pattern:${username}/abc/${alphanum12}']
-
-    def __init__(self, service_id) -> None:
-        super(DummyService, self).__init__(service_id)
+    def __init__(self) -> None:
+        super().__init__(ServiceConfig(
+            service_id=1,
+            name='dummy',
+            flag_ids=['hex8', 'alphanum5', 'username', 'email', 'pattern:${username}/abc/${alphanum12}'],
+            interface_class='',
+            interface_file=''
+        ))
 
     def check_integrity(self, team: Team, tick: int) -> None:
         raise NotImplementedError
@@ -31,12 +34,12 @@ TEST_TEAMS = [
 
 class GamelibTestCase(TestCase):
     def test_flag_generator(self) -> None:
-        service = DummyService(17)
+        service = DummyService()
         seen_flags: set[str] = set()
         for team in TEST_TEAMS:
-            for round in (1, 2, 0, -1, 1338):
+            for tick in (1, 2, 0, -1, 1338):
                 for payload in (0, 1, 1339):
-                    flag: str = service.get_flag(team, round, payload)
+                    flag: str = service.get_flag(team, tick, payload)
                     self.assertNotIn(flag, seen_flags, f'Flag {flag} duplicated!')
                     seen_flags.add(flag)
                     self.assertTrue(gamelib.FLAG_REGEX.fullmatch(flag), f'Flag {flag} did not match regex {gamelib.FLAG_REGEX}')
@@ -44,21 +47,21 @@ class GamelibTestCase(TestCase):
                     a, b, c, d = service.check_flag(flag)
                     self.assertEqual(a, team.id)
                     self.assertEqual(b, service.id)
-                    self.assertEqual(c & 0xffff, round & 0xffff)  # type: ignore
+                    self.assertEqual(c & 0xffff, tick & 0xffff)  # type: ignore
                     self.assertEqual(d, payload)
                     # check if flag is deterministic
                     for _ in range(3):
-                        flag2 = service.get_flag(team, round, payload)
+                        flag2 = service.get_flag(team, tick, payload)
                         self.assertEqual(flag, flag2)
 
     def test_flag_ids(self) -> None:
-        service = DummyService(17)
+        service = DummyService()
         flag_ids: list[list[str]] = [[], []]
         for i in range(2):
             seen_flag_ids: set[str] = set()
             for team in TEST_TEAMS:
                 for round in (1, 2, 0, -1, 1338):
-                    for index in range(len(DummyService.flag_id_types)):
+                    for index in range(len(service.config.flag_ids)):
                         flag_id = service.get_flag_id(team, round, index)
                         self.assertNotIn(flag_id, seen_flag_ids, f'Flag ID {flag_id} repeated')
                         seen_flag_ids.add(flag_id)

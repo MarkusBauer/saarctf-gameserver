@@ -1,0 +1,31 @@
+# This file is used to host wireguard-sync in an independent setting
+# During saarctf, we'll install dependencies using the main project's "make deps" mechanism
+
+[tool.poetry]
+name = "wireguard-sync"
+version = "0.1.0"
+description = ""
+authors = ["SaarCTF maintainers <saarctf@saarsec.rocks>"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+aiohttp = "^3.11.7"
+python-dotenv = "^1.0.1"
+pyroute2 = "^0.7.12"
+cryptography = "^43.0.3"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.8.0"
+mypy = "^1.13.0"
+pytest = "^8.3.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 128
+
+[[tool.mypy.overrides]]
+module = ["pyroute2.*", "saarctf_commons"]
+ignore_missing_imports = true

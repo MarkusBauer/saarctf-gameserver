@@ -1,0 +1,30 @@
+networks:
+  default:
+    name: saarctf-local_default
+    external: true
+
+services:
+  # This container owns the network namespace and can stay up when restarting
+  # wg-sync, this way wg-interfaces aren't deleted every time you restart the
+  # container
+  network-dummy:
+    image: alpine:3.20
+    command: tail -f /dev/null
+    stop_grace_period: 1s
+
+  wg-sync:
+    image: saarctf/vpn
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    network_mode: service:network-dummy
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ../wireguard_sync:/opt/saarctf/router/wireguard_sync
+    environment:
+      API_TOKEN: ${API_TOKEN}
+      API_SERVER: "http://caddy:8000"
+    stop_grace_period: 1s
+    command: python wireguard_sync

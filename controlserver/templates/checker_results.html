@@ -19,7 +19,7 @@
 		<thead>
 		<tr>
 			<th><a href="#" class="sort-link" data-sort="id">ID</a></th>
-			<th><a href="#" class="sort-link" data-sort="round">Round</a></th>
+			<th><a href="#" class="sort-link" data-sort="tick">Tick</a></th>
 			<th><a href="#" class="sort-link" data-sort="team_id">Team</a></th>
 			<th><a href="#" class="sort-link" data-sort="service_id">Service</a></th>
 			<th><a href="#" class="sort-link" data-sort="status">Status</a></th>
@@ -35,7 +35,7 @@
 		{% for checker_result in checker_results.items %}
 			<tr>
 				<td>{{ checker_result.id }}</td>
-				<td>{{ checker_result.round }}</td>
+				<td>{{ checker_result.tick }}</td>
 				<td>{{ checker_result.team.name }} ({{ checker_result.team.vulnbox_ip }})</td>
 				<td>{{ checker_result.service.name }}</td>
 				<td>

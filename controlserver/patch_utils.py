@@ -124,7 +124,7 @@ class PatchUtils:
     def get_ansible_hosts_templates() -> Tuple[str, str]:
         tmpl = ANSIBLE_HOSTS_TEMPLATE
         tmpl2 = ANSIBLE_HOSTS_TEMPLATE
-        online_teams = Team.query.filter((Team.vpn_connected == True) | (Team.vpn2_connected == True)).order_by(Team.id).all()
+        online_teams = Team.query.filter((Team.vpn_connected == True) | (Team.vpn2_connected == True) | (Team.wg_vulnbox_connected)).order_by(Team.id).all()
         for team in online_teams:
             ip = config.NETWORK.team_id_to_vulnbox_ip(team.id)
             tmpl += f'\n        {ip}:  # {team.name}'

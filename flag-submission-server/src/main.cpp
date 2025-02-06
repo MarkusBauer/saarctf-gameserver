@@ -15,6 +15,7 @@
 #include "redis.h"
 #include "database.h"
 #include "statistics.h"
+#include "periodic.h"
 
 
 #define MAX_LINE_BYTES 80
@@ -378,9 +379,8 @@ int main(int argc, char **argv) {
 	uint32_t max_teams = (uint32_t) max(25, getMaxTeamId() + 2);
 	uint32_t max_services = (uint32_t) max(6, getMaxServiceId() + 1);
 	initModelSizes(max_teams, max_services);
-	statistics::initStatisticSize(max_teams);
 
-	// we don't need a signal for broken pipes, we can handle that ourself
+	// we don't need a signal for broken pipes, we can handle that ourselves
 	signal(SIGPIPE, SIG_IGN);
 	// unbuffer stdout
 	std::cout.setf(std::ios::unitbuf);
@@ -389,6 +389,8 @@ int main(int argc, char **argv) {
 	ev::default_loop loop;
 	Redis::connect(loop.raw_loop);
 	SubmissionServer echo(port, threads);
+	PeriodicMaintenance maintenance;
+	maintenance.connect(loop);
 	loop.run(0);
 
 	return 0;

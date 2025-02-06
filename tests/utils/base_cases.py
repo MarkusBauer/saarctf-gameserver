@@ -84,17 +84,17 @@ class DatabaseTestCase(TestCase):
             session.add(Service(
                 id=1, name='Service1',
                 checker_script='checker_runner.demo_checker:WorkingService', checker_timeout=1,
-                num_payloads=0, flags_per_round=1
+                num_payloads=0, flags_per_tick=1
             ))  # type: ignore[misc]
             session.add(Service(
                 id=2, name='Service2',
                 checker_script='checker_runner.demo_checker:FlagNotFoundService', checker_timeout=1,
-                num_payloads=0, flags_per_round=1
+                num_payloads=0, flags_per_tick=1
             ))  # type: ignore[misc]
             session.add(Service(
                 id=3, name='Service3',
                 checker_script='checker_runner.demo_checker:TimeoutService', checker_timeout=1,
-                num_payloads=2, flags_per_round=2
+                num_payloads=2, flags_per_tick=2
             ))  # type: ignore[misc]
             session.commit()
 

@@ -3,8 +3,10 @@ ORM wrappers for all database tables (using SQLAlchemy).
 For a database connection, Flask is needed (import controlserver.app).
 
 """
+import logging
 import typing
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -43,7 +45,7 @@ class Database:
 
 
 def init_database(app: Flask | None = None) -> None:
-    engine = create_engine(config.postgres_sqlalchemy(), echo=False)
+    engine = create_engine(config.postgres_sqlalchemy(), pool_size=50, max_overflow=10, echo=False)
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = scoped_session(session_factory)
     Base.query = session.query_property()  # type: ignore
@@ -97,9 +99,12 @@ class Team(Base, ModelMixin):
     points = relationship("TeamPoints", back_populates="team")
     vpn_connected = Column(Boolean, nullable=False, server_default=text('FALSE'))  # team-hosted VPN
     vpn2_connected = Column(Boolean, nullable=False, server_default=text('FALSE'))  # cloud-hosted vulnbox VPN
+    vpn_connection_count = Column(Integer, nullable=False, server_default=text('0'))  # "cloud"-style VPN connections / wireguard active peers
+    # OpenVPN selfhosted connect/disconnect timestamp, or wireguard connect timestamp for vulnbox ip
     vpn_last_connect = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
     vpn_last_disconnect = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
-    vpn_connection_count = Column(Integer, nullable=False, server_default=text('0'))  # "cloud"-style VPN connections
+    wg_vulnbox_connected = Column(Boolean, nullable=False, server_default=text('FALSE'))  # team has a wireguard connection for vulnbox ip
+    wg_boxes_connected = Column(Boolean, nullable=False, server_default=text('FALSE'))  # team has a wg conn for router, vulnbox, or testbox ip
 
     query: 'Query[Team]'
 
@@ -139,12 +144,12 @@ class TeamLogo(Base):
         :param data:
         :return: md5-hash that identifies this image later.
         """
-        imghash = hashlib.md5(data).hexdigest()
+        imghash = hashlib.md5(data, usedforsecurity=False).hexdigest()
         if cls.query.filter(cls.hash == imghash).count() > 0:
             return imghash
         # load, resize and pad logo image
         from PIL import Image
-        img = Image.open(io.BytesIO(data))
+        img: Image.Image = Image.open(io.BytesIO(data))
         w = round(img.width * cls.target_size / max(img.width, img.height))
         h = round(img.height * cls.target_size / max(img.width, img.height))
         img = img.resize((w, h), Image.Resampling.BICUBIC)
@@ -188,24 +193,34 @@ class Service(Base, ModelMixin):
     num_payloads = Column(Integer, nullable=False,
                           server_default=text('0'))  # number of possible payloads. 0 = unlimited
     flag_ids = Column(String(128), nullable=True, server_default=text('NULL'))  # flag id types, comma-separated
-    flags_per_round = Column(Float, nullable=False,
-                             server_default=text('1'))  # number of issued flags per round, used for scoring
+    flags_per_tick = Column(Float, nullable=False,
+                            server_default=text('1'))  # number of issued flags per tick, used for scoring
+    ports = Column(String, nullable=False, server_default=text("''"))  # "tcp:123,tcp:124,udp:125"
 
     query: 'Query[Service]'
+
+    def parse_ports(self) -> list[tuple[str, int]]:
+        result = []
+        for x in self.ports.split(','):
+            x = x.strip()
+            if x:
+                proto, port = x.split(':')
+                result.append((proto, int(port)))
+        return result
 
 
 class TeamPoints(Base, ModelMixin):
     """
-    The points a team has per service AFTER round has been counted.
-    Includes the incremental points from previous rounds.
+    The points a team has per service AFTER tick has been counted.
+    Includes the incremental points from previous ticks.
     """
     __tablename__ = 'team_points'
 
     id = Column(Integer, primary_key=True)
-    round = Column(Integer, nullable=False, index=True)
+    tick = Column(Integer, nullable=False, index=True)
     team_id = Column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
     service_id = Column(SmallInteger, ForeignKey('services.id', ondelete="CASCADE"), nullable=False)
-    team_points_unique_1 = UniqueConstraint('round', 'team_id', 'service_id', name='team_points_unique_1')
+    team_points_unique_1 = UniqueConstraint('tick', 'team_id', 'service_id', name='team_points_unique_1')
     __table_args__ = (team_points_unique_1,)
 
     # modify these columns to fit your scoring scheme (and check the methods below)
@@ -222,7 +237,7 @@ class TeamPoints(Base, ModelMixin):
 
     def props_dict(self) -> Dict:
         return {
-            'round': self.round,
+            'tick': self.tick,
             'team_id': self.team_id,
             'service_id': self.service_id,
             'flag_captured_count': self.flag_captured_count,
@@ -256,7 +271,7 @@ class TeamPoints(Base, ModelMixin):
         if len(items) == 0:
             return
         cursor = (session or db_session()).connection().connection.cursor()
-        sql = 'INSERT INTO team_points (team_id, service_id, round, flag_captured_count, flag_stolen_count, off_points, def_points, sla_points, sla_delta) ' + \
+        sql = 'INSERT INTO team_points (team_id, service_id, tick, flag_captured_count, flag_stolen_count, off_points, def_points, sla_points, sla_delta) ' + \
               'SELECT unnest(%(teams)s) , unnest(%(services)s), {}, unnest(%(flag_captured_count)s), unnest(%(flag_stolen_count)s), ' \
               'unnest(%(off_points)s), unnest(%(def_points)s), unnest(%(sla_points)s), unnest(%(sla_delta)s)'.format(
                   tick)
@@ -273,12 +288,12 @@ class TeamPoints(Base, ModelMixin):
 
 
 class TeamPointsLite:
-    def __init__(self, team_id, service_id, round, flag_captured_count: int = 0, flag_stolen_count: int = 0,
+    def __init__(self, team_id: int, service_id: int, tick: int, flag_captured_count: int = 0, flag_stolen_count: int = 0,
                  off_points: float = 0.0, def_points: float = 0.0, sla_points: float = 0.0,
                  sla_delta: float = 0.0) -> None:
-        self.team_id = team_id
-        self.service_id = service_id
-        self.round = round
+        self.team_id: int = team_id
+        self.service_id: int = service_id
+        self.tick: int = tick
         self.flag_captured_count: int = flag_captured_count
         self.flag_stolen_count: int = flag_stolen_count
         self.off_points: float = off_points
@@ -290,7 +305,7 @@ class TeamPointsLite:
     def query(cls, session: Session | None = None):
         if session is None:
             session = db_session()
-        return session.query(TeamPoints.team_id, TeamPoints.service_id, TeamPoints.round,
+        return session.query(TeamPoints.team_id, TeamPoints.service_id, TeamPoints.tick,
                              TeamPoints.flag_captured_count, TeamPoints.flag_stolen_count,
                              TeamPoints.off_points, TeamPoints.def_points, TeamPoints.sla_points,
                              TeamPoints.sla_delta)
@@ -298,15 +313,15 @@ class TeamPointsLite:
 
 class TeamRanking(Base, ModelMixin):
     """
-    Scoreboard position of a team AFTER a round
+    Scoreboard position of a team AFTER a tick
     """
     __tablename__ = 'team_rankings'
     id = Column(Integer, primary_key=True)
-    round = Column(Integer, nullable=False, index=True)
+    tick = Column(Integer, nullable=False, index=True)
     team_id = Column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
     rank = Column(Integer, nullable=False)  # rank [1, ...]
     points = Column(Float, nullable=False)  # total points
-    __table_args__ = (UniqueConstraint('round', 'team_id', name='team_rankings_unique_1'),)
+    __table_args__ = (UniqueConstraint('tick', 'team_id', name='team_rankings_unique_1'),)
     team = relationship("Team")
 
     query: 'Query[TeamRanking]'
@@ -314,7 +329,7 @@ class TeamRanking(Base, ModelMixin):
 
 class TeamTrafficStats(Base, ModelMixin):
     """
-    The points a team has per service AFTER round has been counted
+    The points a team has per service AFTER tick has been counted
     """
     __tablename__ = 'team_traffic_stats'
 
@@ -423,12 +438,12 @@ class SubmittedFlag(Base, ModelMixin):
     submitted_by = Column(SmallInteger, nullable=False)  # references teams (attacking team)
     team_id = Column(SmallInteger, nullable=False)  # references teams (exploited team)
     service_id = Column(SmallInteger, nullable=False)  # references services
-    round_issued = Column(SmallInteger, nullable=False)
+    tick_issued = Column(SmallInteger, nullable=False)
     payload = Column(Integer, nullable=False, server_default=text('0'))  # more or less random payload
-    round_submitted = Column(SmallInteger, nullable=False, index=True)  # submitted in this round
+    tick_submitted = Column(SmallInteger, nullable=False, index=True)  # submitted in this tick
     is_firstblood = Column(Boolean, nullable=False, server_default=text('FALSE'), index=True)
     ts = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
-    __table_args__ = (UniqueConstraint('submitted_by', 'team_id', 'service_id', 'round_issued', 'payload',
+    __table_args__ = (UniqueConstraint('submitted_by', 'team_id', 'service_id', 'tick_issued', 'payload',
                                        name='submitted_flags_unique_1'),)
     submitted_by_team = relationship('Team', foreign_keys=[submitted_by],
                                      primaryjoin='Team.id == SubmittedFlag.submitted_by')
@@ -441,16 +456,16 @@ class SubmittedFlag(Base, ModelMixin):
         if len(items) == 0:
             return
         cursor = db_session().connection().connection.cursor()
-        sql = f'INSERT INTO {cls.__tablename__} (team_id, service_id, round_issued, payload, submitted_by, round_submitted) ' + \
-              'SELECT unnest(%(team_id)s) , unnest(%(service_id)s), unnest(%(round_issued)s), unnest(%(payload)s), ' \
-              'unnest(%(submitted_by)s), unnest(%(round_submitted)s)'
+        sql = f'INSERT INTO {cls.__tablename__} (team_id, service_id, tick_issued, payload, submitted_by, tick_submitted) ' + \
+              'SELECT unnest(%(team_id)s) , unnest(%(service_id)s), unnest(%(tick_issued)s), unnest(%(payload)s), ' \
+              'unnest(%(submitted_by)s), unnest(%(tick_submitted)s)'
         cursor.execute(sql, {
             'team_id': [x.team_id for x in items],
             'service_id': [x.service_id for x in items],
-            'round_issued': [x.round_issued for x in items],
+            'tick_issued': [x.tick_issued for x in items],
             'payload': [x.payload for x in items],
             'submitted_by': [x.submitted_by for x in items],
-            'round_submitted': [x.round_submitted for x in items],
+            'tick_submitted': [x.tick_submitted for x in items],
         })
 
 
@@ -461,10 +476,10 @@ class CheckerResult(Base, ModelMixin):
 
     __tablename__ = 'checker_results'
     id = Column(Integer, primary_key=True)
-    round = Column(Integer, nullable=False, index=True)
+    tick = Column(Integer, nullable=False, index=True)
     team_id = Column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
     service_id = Column(SmallInteger, ForeignKey('services.id', ondelete="CASCADE"), nullable=False)
-    checker_results_unique_1 = UniqueConstraint('round', 'team_id', 'service_id', name='checker_results_unique_1')
+    checker_results_unique_1 = UniqueConstraint('tick', 'team_id', 'service_id', name='checker_results_unique_1')
     __table_args__ = (checker_results_unique_1,)
 
     # status can be: SUCCESS, FLAGMISSING, MUMBLE, OFFLINE, TIMEOUT, REVOKED, CRASHED, PENDING (this one only for test runs)
@@ -498,7 +513,7 @@ class CheckerResult(Base, ModelMixin):
 
     def props_dict(self) -> dict[str, Any]:
         return {
-            'round': self.round,
+            'tick': self.tick,
             'team_id': self.team_id,
             'service_id': self.service_id,
             'status': self.status,
@@ -542,11 +557,11 @@ class CheckerResult(Base, ModelMixin):
 
 
 class CheckerResultLite:
-    def __init__(self, team_id: int, service_id: int, round: int, status: str, run_over_time: bool = False,
+    def __init__(self, team_id: int, service_id: int, tick: int, status: str, run_over_time: bool = False,
                  message: str = '') -> None:
         self.team_id: int = team_id
         self.service_id: int = service_id
-        self.round: int = round
+        self.tick: int = tick
         self.status: str = status
         self.run_over_time: bool = run_over_time
         self.message: str = message
@@ -556,13 +571,13 @@ class CheckerResultLite:
         if len(items) == 0:
             return
         cursor = db_session().connection().connection.cursor()
-        sql = f'INSERT INTO {CheckerResult.__tablename__} (team_id, service_id, round, status, run_over_time, message, celery_id) ' + \
-              'SELECT unnest(%(team_id)s) , unnest(%(service_id)s), unnest(%(round)s), unnest(%(status)s), ' \
+        sql = f'INSERT INTO {CheckerResult.__tablename__} (team_id, service_id, tick, status, run_over_time, message, celery_id) ' + \
+              'SELECT unnest(%(team_id)s) , unnest(%(service_id)s), unnest(%(tick)s), unnest(%(status)s), ' \
               'unnest(%(run_over_time)s), unnest(%(message)s), \'\''
         cursor.execute(sql, {
             'team_id': [x.team_id for x in items],
             'service_id': [x.service_id for x in items],
-            'round': [x.round for x in items],
+            'tick': [x.tick for x in items],
             'status': [x.status for x in items],
             'run_over_time': [x.run_over_time for x in items],
             'message': [x.message for x in items],
@@ -584,7 +599,7 @@ class LogMessage(Base, Serializer, ModelMixin):
     # Log levels (higher = more important)
     DEBUG = 1
     INFO = 5
-    IMPORTANT = 10  # for example: "new round starts here"
+    IMPORTANT = 10  # for example: "new tick starts here"
     NOTIFICATION = 15  # for example: "first blood"
     WARNING = 20
     ERROR = 30
@@ -592,6 +607,16 @@ class LogMessage(Base, Serializer, ModelMixin):
     LEVELS = ['ERROR', 'WARNING', 'NOTIFICATION', 'IMPORTANT', 'INFO', 'DEBUG']
 
     query: 'Query[LogMessage]'
+
+    @classmethod
+    def level_to_python(cls, lvl: int) -> int:
+        if lvl <= cls.DEBUG:
+            return logging.DEBUG
+        if lvl <= cls.NOTIFICATION:
+            return logging.INFO
+        if lvl <= cls.WARNING:
+            return logging.WARNING
+        return logging.ERROR
 
 
 class CheckerFilesystem(Base, ModelMixin):
@@ -619,6 +644,28 @@ class CheckerFile(Base, ModelMixin):
     __table_args__ = (UniqueConstraint('file_hash', name='checker_files_unique_1'),)
 
     query: 'Query[CheckerFile]'
+
+
+class Tick(Base, ModelMixin):
+    # we record some timing information in DB because Grafana requires this
+    __tablename__ = 'ticks'
+    tick = Column(Integer, primary_key=True)
+    start = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
+    end = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
+
+    @classmethod
+    def _set(cls, session: Session, tick: int, field: str, ts: datetime) -> None:
+        sql = f'INSERT INTO {Tick.__tablename__} (tick, "{field}") VALUES (:tick, :ts) ' \
+              f'ON CONFLICT (tick) DO UPDATE SET "{field}" = :ts'
+        session.execute(text(sql), {'tick': tick, 'ts': ts})
+
+    @classmethod
+    def set_start(cls, session: Session, tick: int, dt: datetime) -> None:
+        cls._set(session, tick, 'start', dt)
+
+    @classmethod
+    def set_end(cls, session: Session, tick: int, dt: datetime) -> None:
+        cls._set(session, tick, 'end', dt)
 
 
 T = typing.TypeVar('T')

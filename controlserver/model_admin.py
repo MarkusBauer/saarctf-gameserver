@@ -9,10 +9,10 @@ from controlserver.models import Service, Team, db_session
 
 class ServiceAdmin(sqla.ModelView):
     form_excluded_columns = ['package', 'setup_package']
-    column_editable_list = ['name', 'checker_timeout', 'checker_enabled', 'checker_route', 'num_payloads', 'flag_ids', 'flags_per_round']
+    column_editable_list = ['name', 'checker_timeout', 'checker_enabled', 'checker_route', 'num_payloads', 'flag_ids', 'flags_per_tick', 'ports']
     column_list = ['id', 'name',
                    'checker_script_dir', 'checker_script', 'checker_timeout', 'checker_enabled', 'checker_subprocess', 'checker_route',
-                   'num_payloads', 'flag_ids', 'flags_per_round']
+                   'num_payloads', 'flag_ids', 'flags_per_tick', 'ports']
     create_modal = True
     edit_modal = True
     column_display_pk = True

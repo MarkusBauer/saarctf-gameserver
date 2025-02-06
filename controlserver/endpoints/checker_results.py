@@ -3,6 +3,7 @@ Displays checker results - list or single entry.
 """
 
 from flask import Blueprint, render_template, request
+from flask.json import jsonify
 from flask.typing import ResponseReturnValue
 from sqlalchemy.orm import joinedload
 
@@ -38,9 +39,9 @@ def checker_results_index(page=1) -> ResponseReturnValue:
     if filter_service:
         query = query.filter(CheckerResult.service_id == filter_service)
 
-    filter_round = int(request.args.get('filter_round', 0)) or None
-    if filter_round:
-        query = query.filter(CheckerResult.round == filter_round)
+    filter_tick = int(request.args.get('filter_tick', 0)) or None
+    if filter_tick:
+        query = query.filter(CheckerResult.tick == filter_tick)
 
     checker_results: Pagination = paginate_query(query, page, per_page)
     if checker_results.pages < page:
@@ -58,8 +59,20 @@ def checker_results_index(page=1) -> ResponseReturnValue:
 
 @app.route('/checker_results/view/<int:id>', methods=['GET'])
 def checker_results_view(id=None) -> ResponseReturnValue:
-    checker_result = CheckerResult.query.options(joinedload(CheckerResult.team)).options(joinedload(CheckerResult.service)) \
+    checker_result: CheckerResult | None = CheckerResult.query.options(joinedload(CheckerResult.team)).options(joinedload(CheckerResult.service)) \
         .filter(CheckerResult.id == id).first()
     if not checker_result:
         return render_template('404.html'), 404
+    if request.headers.get('accept', '') == 'application/json':
+        return jsonify({
+            'id': checker_result.id,
+            'tick': checker_result.tick,
+            'team_id': checker_result.team_id,
+            'service_id': checker_result.service_id,
+            'status': checker_result.status,
+            'message': checker_result.message,
+            'time': checker_result.time,
+            'output': checker_result.output,
+            'finished': checker_result.finished,
+        })
     return render_template('checker_results_view.html', checker_result=checker_result, FLOWER_URL=config.FLOWER_URL)

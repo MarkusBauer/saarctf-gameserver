@@ -56,7 +56,7 @@ def reset_redis() -> None:
 
     from controlserver.timer import CTFTimer
     timer = CTFTimer()
-    timer.onUpdateTimes()  # update without init - write default values
+    timer.on_update_times()  # update without init - write default values
 
 
 def reset_broker() -> None:

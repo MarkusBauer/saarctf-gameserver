@@ -20,25 +20,25 @@
 		<div class="panel-heading">
 			<nav class="pull-right" style="margin-top: -4px">
 				<ul class="pagination pagination-sm" style="margin: 0">
-					{% if roundnumber <= 1 %}
+					{% if tick <= 1 %}
 						<li class="disabled">
 							<span>&laquo;</span>
 						</li>
 					{% else %}
 						<li>
-							<a href="{{ url_for('endpoints.checker_status', roundnumber=roundnumber-1) }}">&laquo;</a>
+							<a href="{{ url_for('endpoints.checker_status', tick=tick-1) }}">&laquo;</a>
 						</li>
 					{% endif %}
 					<li>
 						<a href="{{ url_for('endpoints.checker_status_overview') }}">&uArr;</a>
 					</li>
-					{% if roundnumber >= current_round %}
+					{% if tick >= current_tick %}
 						<li class="disabled">
 							<span>&raquo;</span>
 						</li>
 					{% else %}
 						<li>
-							<a href="{{ url_for('endpoints.checker_status', roundnumber=roundnumber+1) }}">&raquo;</a>
+							<a href="{{ url_for('endpoints.checker_status', tick=tick+1) }}">&raquo;</a>
 						</li>
 					{% endif %}
 				</ul>
@@ -46,13 +46,13 @@
 			Checker Script Results
 		</div>
 		<div class="panel-body">
-			<strong>Round {{ roundnumber }}</strong>,
+			<strong>Tick {{ tick }}</strong>,
 			finished scripts: {{ count_finished }} / {{ count_dispatched }},
-			started at {{ round_start_dt.strftime('%H:%M:%S') }},
-			{% if server_time <= round_end %}
-				remaining time: {{ round_end - server_time }} sec.
+			started at {{ tick_start_dt.strftime('%H:%M:%S') }},
+			{% if server_time <= tick_end %}
+				remaining time: {{ tick_end - server_time }} sec.
 			{% else %}
-				round is over.
+				tick is over.
 			{% endif %}
 			<div class="progress no-margin-bottom">
 				<div class="progress-bar" role="progressbar" aria-valuenow="{{ (100 * count_finished / count_dispatched) | round |int }}"
@@ -80,13 +80,13 @@
 				{% for status in states %}
 					<th style="white-space: nowrap;">
 						<small>{{ status }}
-							<a href="{{ url_for('checker_results.checker_results_index') }}?filter_round={{ roundnumber }}&filter_status={{ status }}"
+							<a href="{{ url_for('checker_results.checker_results_index') }}?filter_tick={{ tick }}&filter_status={{ status }}"
 							   class="glyphicon glyphicon-search">
 							</a>
 						</small>
 					</th>
 				{% endfor %}
-				<th title="Finished after round end">Late</th>
+				<th title="Finished after tick end">Late</th>
 				<th>&nbsp;</th>
 			</tr>
 			</thead>
@@ -107,7 +107,7 @@
 					{% endfor %}
 					<td>{{ stats_toolate[service.id] }}</td>
 					<td>
-						<a href="{{ url_for('checker_results.checker_results_index') }}?filter_service={{ service.id }}&filter_round={{ roundnumber }}&sort=status"
+						<a href="{{ url_for('checker_results.checker_results_index') }}?filter_service={{ service.id }}&filter_tick={{ tick }}&sort=status"
 						   class="glyphicon glyphicon-search"></a>
 					</td>
 				</tr>
@@ -130,7 +130,7 @@
 				{% endfor %}
 				<td>{{ total_toolate }}</td>
 				<td>
-					<a href="{{ url_for('checker_results.checker_results_index') }}?filter_round={{ roundnumber }}&sort=status"
+					<a href="{{ url_for('checker_results.checker_results_index') }}?filter_tick={{ tick }}&sort=status"
 					   class="glyphicon glyphicon-search"></a>
 				</td>
 			</tr>
@@ -156,17 +156,17 @@
 			</div>
 		</div>
 		<table class="table table-stats">
-			{% for ts, stats in finished_per_round %}
+			{% for ts, stats in finished_per_tick %}
 				<tr>
 					<td style="width: 180px">
 						{{ ts.strftime('%H:%M:%S') }}
 						<small class="text-muted">
-							{% if ts.timestamp() == round_start %}
-								(round start)
-							{% elif ts.timestamp() >= round_end %}
-								(round ended)
+							{% if ts.timestamp() == tick_start %}
+								(tick start)
+							{% elif ts.timestamp() >= tick_end %}
+								(tick ended)
 							{% else %}
-								(+{{ (ts.timestamp() - round_start)|int }} sec)
+								(+{{ (ts.timestamp() - tick_start)|int }} sec)
 							{% endif %}
 						</small>
 					</td>

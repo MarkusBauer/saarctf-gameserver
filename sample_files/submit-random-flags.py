@@ -2,11 +2,11 @@ import os
 import random
 import sys
 
-from controlserver.models import Team, Service, SubmittedFlag, db
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from saarctf_commons import config
+from controlserver.models import Team, Service, SubmittedFlag, db_session
 
 config.EXTERNAL_TIMER = True
 from saarctf_commons.debug_sql_timing import timing
@@ -36,20 +36,20 @@ def submit_random_flags(endround: int, chance=0.33):
 					# hack!
 					p = 0
 					if s.num_payloads > 1: p = random.randint(0, s.num_payloads - 1)
-					flag = SubmittedFlag(submitted_by=attacker.id, service_id=sid, team_id=victim.id, round_issued=r, payload=p,
-										 round_submitted=r + random.randint(0, 4))
+					flag = SubmittedFlag(submitted_by=attacker.id, service_id=sid, team_id=victim.id, tick_issued=r, payload=p,
+										 tick_submitted=r + random.randint(0, 4))
 					submitted_flags.append(flag)
 			# print(len(submitted_flags))
 		print(f'Service {sid}, submitting {len(submitted_flags)} flags...')
-		db.session.add_all(submitted_flags)
-		db.session.commit()
+		db_session().add_all(submitted_flags)
+		db_session().commit()
 
 
 if __name__ == '__main__':
 	config.set_redis_clientname('script-' + os.path.basename(__file__))
 	from controlserver.timer import Timer, CTFState
 
-	roundnumber = Timer.currentRound
+	roundnumber = Timer.current_tick
 	if Timer.state == CTFState.RUNNING:
 		roundnumber -= 1
 	timing()

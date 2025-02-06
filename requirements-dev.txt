@@ -7,3 +7,4 @@ types-selenium
 types-setuptools
 types-six
 types-ujson
+pytest

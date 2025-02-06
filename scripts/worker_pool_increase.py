@@ -23,6 +23,14 @@ class FlowerInterface:
         workers = self.session.get(config.FLOWER_INTERNAL_URL + 'api/workers', params={'refresh': '1'}).json()
         return {name: len(worker['stats']['pool']['processes']) for name, worker in workers.items() if 'stats' in worker}
 
+    def get_worker_pool_size_for_queue(self, queue: str) -> int:
+        c = 0
+        workers = self.session.get(config.FLOWER_INTERNAL_URL + 'api/workers', params={'refresh': '1'}).json()
+        for name, worker in workers.items():
+            if 'stats' in worker and 'active_queues' in worker and any(q['name'] == queue for q in worker['active_queues']):
+                c += len(worker['stats']['pool']['processes'])
+        return c
+
     def get_worker_online(self) -> dict[str, bool]:
         workers = self.session.get(config.FLOWER_INTERNAL_URL + 'dashboard?json=1').json()
         return {item['hostname']: item['status'] for item in workers['data']}

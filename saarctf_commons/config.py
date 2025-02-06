@@ -1,15 +1,21 @@
 """
 This module loads the configuration file and exposes it with a nicer interface.
-The configuration file is a json file, to get the format see the examples in the repository root.
+The configuration file is a yaml/json file, to get the format see the examples in the repository root.
 
 The file is looked up in this order, the first match is loaded:
 - $SAARCTF_CONFIG
+- $SAARCTF_CONFIG_DIR/config_test.yaml
+- $SAARCTF_CONFIG_DIR/config2.yaml
+- $SAARCTF_CONFIG_DIR/config.yaml
 - $SAARCTF_CONFIG_DIR/config_test.json
 - $SAARCTF_CONFIG_DIR/config2.json
 - $SAARCTF_CONFIG_DIR/config.json
 - <repo-root>/config_test.json
 - <repo-root>/config2.json
 - <repo-root>/config.json
+- <repo-root>/config_test.yaml
+- <repo-root>/config2.yaml
+- <repo-root>/config.yaml
 
 """
 
@@ -19,6 +25,8 @@ import os
 from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional, Any
+
+import yaml
 
 
 @dataclass
@@ -150,6 +158,26 @@ class ScoringConfig:
 
 
 @dataclass
+class WireguardSyncConfig:
+    api_server: str
+    api_token: str
+    api_base: str = "/api/router/"
+    api_concurrency: int = 1
+
+    @classmethod
+    def from_dict(cls, d: dict) -> 'WireguardSyncConfig':
+        return cls(**d)
+
+    def to_dict(self) -> dict:
+        return {
+            'api_server': self.api_server,
+            'api_token': self.api_token,
+            'api_base': self.api_base,
+            'api_concurrency': self.api_concurrency,
+        }
+
+
+@dataclass
 class Config:
     basedir: Path
     VPN_BASE_DIR: Path
@@ -166,6 +194,7 @@ class Config:
     VPNBOARD_PATH: Path
     CHECKER_PACKAGES_PATH: Path
     CHECKER_PACKAGES_LFS: Path | None
+    SERVICES_PATH: Path
     PATCHES_PATH: Path
     PATCHES_PUBLIC_PATH: Path
     FLOWER_URL: str
@@ -179,10 +208,12 @@ class Config:
     SECRET_FLAG_KEY: bytes
     DISPATCHER_CHECK_VPN_STATUS: bool
     SCORING: ScoringConfig
+    SERVICE_REMOTES: list[str]
 
     EXTERNAL_TIMER: bool
 
     NETWORK: NetworkConfig
+    WIREGUARD_SYNC: WireguardSyncConfig | None
 
     @classmethod
     def load_default(cls) -> 'Config':
@@ -191,8 +222,11 @@ class Config:
         else:
             basedir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         possible_config_files = [
+            basedir + '/config_test.yaml',
             basedir + '/config_test.json',
+            basedir + '/config2.yaml',
             basedir + '/config2.json',
+            basedir + '/config.yaml',
             basedir + '/config.json'
         ]
         if 'SAARCTF_CONFIG' in os.environ:
@@ -204,10 +238,11 @@ class Config:
 
     @classmethod
     def load_from_file(cls, filename: str | Path) -> 'Config':
-        with open(filename, 'rb') as f:
-            CONFIG = json.loads(f.read())
-
-        return cls.from_dict(filename, CONFIG)
+        with open(filename, 'r') as f:
+            if Path(filename).suffix == '.json':
+                return cls.from_dict(filename, json.load(f))
+            else:
+                return cls.from_dict(filename, yaml.safe_load(f))
 
     @classmethod
     def from_dict(cls, filename: str | Path, CONFIG: dict) -> 'Config':
@@ -221,7 +256,7 @@ class Config:
         POSTGRES: dict = CONFIG['databases']['postgres']
         POSTGRES_USE_SOCKET = os.environ.get('SAARCTF_POSTGRES_USE_SOCKET', 'False').lower() == 'true'
         REDIS: dict = CONFIG['databases']['redis']
-        RABBITMQ: dict = CONFIG['databases']['rabbitmq'] if 'rabbitmq' in CONFIG['databases'] else None
+        RABBITMQ: dict | None = CONFIG['databases']['rabbitmq'] if 'rabbitmq' in CONFIG['databases'] else None
 
         SCOREBOARD_PATH: Path = Path(CONFIG['scoreboard_path'])
         VPNBOARD_PATH: Path = Path(CONFIG.get('vpnboard_path', SCOREBOARD_PATH))
@@ -229,14 +264,14 @@ class Config:
         CHECKER_PACKAGES_LFS: Path | None = CHECKER_PACKAGES_PATH / 'lfs' if os.name != 'nt' else None
         PATCHES_PATH: Path = Path(CONFIG.get('patches_path', CHECKER_PACKAGES_PATH / 'patches'))
         PATCHES_PUBLIC_PATH: Path = Path(CONFIG.get('patches_public_path', SCOREBOARD_PATH / 'patches'))
+        SERVICES_PATH: Path = Path(CONFIG.get('services_path', CHECKER_PACKAGES_PATH / 'services'))
         FLOWER_URL: str = CONFIG['flower_url']
         FLOWER_INTERNAL_URL: str = CONFIG.get('flower_internal_url', FLOWER_URL)
         FLOWER_AJAX_URL: str = CONFIG.get('flower_ajax_url', FLOWER_URL)
         CODER_URL: Optional[str] = CONFIG.get('coder_url', False) or None
         SCOREBOARD_URL: Optional[str] = CONFIG.get('scoreboard_url', False) or None
         GRAFANA_URL: Optional[str] = CONFIG.get('grafana_url', False) or None
-        PATCHES_URL: Optional[str] = CONFIG.get('patches_url', False) or (
-            SCOREBOARD_URL.rstrip('/') + '/patches' if SCOREBOARD_URL else None)
+        PATCHES_URL: Optional[str] = CONFIG.get('patches_url', False) or (SCOREBOARD_URL.rstrip('/') + '/patches' if SCOREBOARD_URL else None)
 
         SECRET_FLAG_KEY: bytes = binascii.unhexlify(CONFIG['secret_flags'])
         DISPATCHER_CHECK_VPN_STATUS: bool = CONFIG.get('dispatcher_check_vpn_status', False)
@@ -246,9 +281,12 @@ class Config:
         if 'flags_rounds_valid' in CONFIG and 'flags_rounds_valid' not in SCORING:
             SCORING['flags_rounds_valid'] = CONFIG['flags_rounds_valid']
 
+        SERVICE_REMOTES: list[str] = CONFIG.get('service_remotes', [])
+
         EXTERNAL_TIMER: bool = 'external_timer' in CONFIG and CONFIG['external_timer']
 
         NETWORK: NetworkConfig = NetworkConfig.from_dict(CONFIG['network'])
+        WIREGUARD_SYNC = WireguardSyncConfig.from_dict(CONFIG['wireguard_sync']) if CONFIG.get('wireguard_sync', None) is not None else None
 
         return Config(
             basedir=basedir,
@@ -264,6 +302,7 @@ class Config:
             VPNBOARD_PATH=VPNBOARD_PATH,
             CHECKER_PACKAGES_PATH=CHECKER_PACKAGES_PATH,
             CHECKER_PACKAGES_LFS=CHECKER_PACKAGES_LFS,
+            SERVICES_PATH=SERVICES_PATH,
             PATCHES_PATH=PATCHES_PATH,
             PATCHES_PUBLIC_PATH=PATCHES_PUBLIC_PATH,
             FLOWER_URL=FLOWER_URL,
@@ -275,9 +314,11 @@ class Config:
             PATCHES_URL=PATCHES_URL,
             SECRET_FLAG_KEY=SECRET_FLAG_KEY,
             SCORING=ScoringConfig.from_dict(SCORING),
+            SERVICE_REMOTES=SERVICE_REMOTES,
             DISPATCHER_CHECK_VPN_STATUS=DISPATCHER_CHECK_VPN_STATUS,
             EXTERNAL_TIMER=EXTERNAL_TIMER,
             NETWORK=NETWORK,
+            WIREGUARD_SYNC=WIREGUARD_SYNC,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -290,6 +331,7 @@ class Config:
             'scoreboard_path': str(self.SCOREBOARD_PATH),
             'vpnboard_path': str(self.VPNBOARD_PATH),
             'checker_packages_path': str(self.CHECKER_PACKAGES_PATH),
+            'services_path': str(self.SERVICES_PATH),
             'patches_path': str(self.PATCHES_PATH),
             'patches_public_path': str(self.PATCHES_PUBLIC_PATH),
             'flower_url': self.FLOWER_URL,
@@ -301,9 +343,11 @@ class Config:
             'patches_url': self.PATCHES_URL,
             'secret_flags': binascii.hexlify(self.SECRET_FLAG_KEY).decode('ascii'),
             'scoring': self.SCORING.to_dict(),
+            'service_remotes': self.SERVICE_REMOTES,
             'dispatcher_check_vpn_status': self.DISPATCHER_CHECK_VPN_STATUS,
             'external_timer': self.EXTERNAL_TIMER,
-            'network': self.NETWORK.to_dict()
+            'network': self.NETWORK.to_dict(),
+            'wireguard_sync': self.WIREGUARD_SYNC.to_dict() if self.WIREGUARD_SYNC else None,
         }
 
     @classmethod

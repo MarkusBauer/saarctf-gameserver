@@ -1,4 +1,5 @@
 import datetime
+from typing_extensions import override
 
 
 class CTFEvents:
@@ -6,22 +7,22 @@ class CTFEvents:
     Extend this class to listen to timing-relevant events. Timer.listener.append registers event listeners.
     """
 
-    def onStartRound(self, roundnumber: int) -> None:
+    def on_start_tick(self, tick: int, ts: datetime.datetime) -> None:
         pass
 
-    def onEndRound(self, roundnumber: int) -> None:
+    def on_end_tick(self, tick: int, ts: datetime.datetime) -> None:
         pass
 
-    def onStartCtf(self) -> None:
+    def on_start_ctf(self) -> None:
         pass
 
-    def onSuspendCtf(self) -> None:
+    def on_suspend_ctf(self) -> None:
         pass
 
-    def onEndCtf(self) -> None:
+    def on_end_ctf(self) -> None:
         pass
 
-    def onUpdateTimes(self) -> None:
+    def on_update_times(self) -> None:
         pass
 
 
@@ -30,20 +31,25 @@ class ConsoleCTFEvents(CTFEvents):
     Example implementation of the CTFEvents interface
     """
 
-    def __now(self) -> str:
-        return datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S') + ' |'
+    def __now(self, ts: datetime.datetime) -> str:
+        return ts.astimezone().strftime('%d.%m.%Y %H:%M:%S') + ' |'
 
-    def onStartRound(self, roundnumber: int) -> None:
-        print(self.__now(), 'Start of round {}'.format(roundnumber))
+    @override
+    def on_start_tick(self, tick: int, ts: datetime.datetime) -> None:
+        print(self.__now(ts), 'Start of tick {}'.format(tick))
 
-    def onEndRound(self, roundnumber: int) -> None:
-        print(self.__now(), 'End of round {}'.format(roundnumber))
+    @override
+    def on_end_tick(self, tick: int, ts: datetime.datetime) -> None:
+        print(self.__now(ts), 'End of tick {}'.format(tick))
 
-    def onStartCtf(self) -> None:
-        print(self.__now(), 'CTF initially started')
+    @override
+    def on_start_ctf(self) -> None:
+        print(self.__now(datetime.datetime.now()), 'CTF initially started')
 
-    def onSuspendCtf(self) -> None:
-        print(self.__now(), 'CTF suspended')
+    @override
+    def on_suspend_ctf(self) -> None:
+        print(self.__now(datetime.datetime.now()), 'CTF suspended')
 
-    def onEndCtf(self) -> None:
-        print(self.__now(), 'CTF is over!')
+    @override
+    def on_end_ctf(self) -> None:
+        print(self.__now(datetime.datetime.now()), 'CTF is over!')

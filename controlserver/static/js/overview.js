@@ -235,6 +235,7 @@ app.controller('ComponentsController', function ($scope, $http) {
 
 app.controller('VPNController', function ($scope, $http) {
 	$scope.state = 'off';
+	$scope.newvpnstate = null;
 	$scope.banned = [];
 	$scope.bantick = null;
 	$scope.banteam = null;
@@ -270,6 +271,7 @@ app.controller('VPNController', function ($scope, $http) {
 	$scope.updateComponents = function () {
 		$http.get('/overview/vpn', {params: {last: $scope.traffic_last}}).then(function (xhr) {
 			$scope.state = xhr.data.state || 'off';
+			if ($scope.newvpnstate === null) $scope.newvpnstate = $scope.state;
 			$scope.banned = xhr.data.banned;
 			$scope.permissions = xhr.data.permissions;
 			$scope.teams_online = xhr.data.teams_online;
@@ -320,6 +322,7 @@ app.controller('VPNController', function ($scope, $http) {
 	};
 
 	$scope.setState = function (state) {
+		if (!state) return;
 		$http.post('/overview/set_vpn', {state: state}).then($scope.updateComponents);
 	};
 

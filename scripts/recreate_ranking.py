@@ -11,12 +11,12 @@ from saarctf_commons.redis import NamedRedisConnection
 from saarctf_commons.config import config, load_default_config
 
 """
-ARGUMENTS: start_round end_round (inclusive, optional)
+ARGUMENTS: start_tick end_tick (inclusive, optional)
 --scoreboard: Recreate scoreboard after update
 """
 
 
-def recreate_ranking(round_start: int, round_end: Optional[int], refresh_scoreboard: bool) -> int:
+def recreate_ranking(tick_start: int, tick_end: Optional[int], refresh_scoreboard: bool) -> int:
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     init_database()
@@ -30,23 +30,23 @@ def recreate_ranking(round_start: int, round_end: Optional[int], refresh_scorebo
     # Recreate points / ranking from checker results and submitted_flags
     scoring = ScoringCalculation(config.SCORING)
     scoreboard = Scoreboard(scoring)
-    rn = round_start
-    round_end_game = Timer.currentRound if Timer.state != CTFState.RUNNING else Timer.currentRound - 1
-    if refresh_scoreboard and round_start <= 1 and round_end_game > 0:
+    rn = tick_start
+    tick_end_game = Timer.current_tick if Timer.state != CTFState.RUNNING else Timer.current_tick - 1
+    if refresh_scoreboard and tick_start <= 1 and tick_end_game > 0:
         scoreboard.create_scoreboard(0, False, False)
         scoreboard.create_scoreboard(0, True, False)
-    while rn <= (round_end or round_end_game):
+    while rn <= (tick_end or tick_end_game):
         ts = time.time()
         # Remove old points/ranking from DB
-        TeamPoints.query.filter(TeamPoints.round == rn).delete()
-        TeamRanking.query.filter(TeamRanking.round == rn).delete()
+        TeamPoints.query.filter(TeamPoints.tick == rn).delete()
+        TeamRanking.query.filter(TeamRanking.tick == rn).delete()
         db_session().commit()
 
         scoring.calculate_scoring_for_tick(rn)
         scoring.calculate_ranking_per_tick(rn)
         if refresh_scoreboard:
-            round_end_game = Timer.currentRound if Timer.state != CTFState.RUNNING else Timer.currentRound - 1
-            scoreboard.create_scoreboard(rn, Timer.state != CTFState.STOPPED, rn == round_end_game)
+            tick_end_game = Timer.current_tick if Timer.state != CTFState.RUNNING else Timer.current_tick - 1
+            scoreboard.create_scoreboard(rn, Timer.state != CTFState.STOPPED, rn == tick_end_game)
         ts = time.time() - ts
         print(f'- Round {rn} recalculated in {ts:.2f} seconds')
         rn += 1
@@ -60,15 +60,15 @@ if __name__ == '__main__':
     NamedRedisConnection.set_clientname('script-' + os.path.basename(__file__))
 
     if len(sys.argv) <= 2:
-        round_start = 1
-        round_end = None
+        tick_start = 1
+        tick_end = None
     else:
-        round_start = int(sys.argv[1])
-        round_end = int(sys.argv[2]) if sys.argv[2] != 'current' else None
+        tick_start = int(sys.argv[1])
+        tick_end = int(sys.argv[2]) if sys.argv[2] != 'current' else None
     scoreboard = '--scoreboard' in sys.argv
     t = time.time()
-    print('Recreating ranking from round {} to round {}...'.format(round_start, round_end or '<current>'))
-    roundnumber = recreate_ranking(round_start, round_end, scoreboard)
+    print('Recreating ranking from tick {} to tick {}...'.format(tick_start, tick_end or '<current>'))
+    tick = recreate_ranking(tick_start, tick_end, scoreboard)
     print('Done, took {:.1f} sec.'.format(time.time() - t))
     if not scoreboard:
         print('Suggestion: > python ' + sys.argv[0].replace('recreate_ranking.py', 'recreate_scoreboard.py'))

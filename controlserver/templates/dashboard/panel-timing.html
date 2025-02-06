@@ -18,24 +18,24 @@
 			<span ng-if="timer.desiredState == CTFTimer.RUNNING && timer.state != CTFTimer.RUNNING"
 				  class="label label-success" title="Not starting? Check if the master timer is running!">Starting soon...</span>
 			<span ng-if="timer.desiredState == CTFTimer.SUSPENDED && timer.state != CTFTimer.SUSPENDED"
-				  class="label label-warning">Suspending after this round</span>
+				  class="label label-warning">Suspending after this tick</span>
 			<span ng-if="timer.desiredState == CTFTimer.STOPPED && timer.state != CTFTimer.STOPPED"
-				  class="label label-danger">Stopping after this round</span>
+				  class="label label-danger">Stopping after this tick</span>
 
-			<strong>Round {{ timer.currentRound }}</strong>
+			<strong>Tick {{ timer.currentRound }}</strong>
 		</p>
 		<p>
-			<span ng-if="timer.roundStart">Round start: {{ timer.roundStart*1000 | date:'dd.MM.yyyy HH:mm:ss' }}<br></span>
-			<span ng-if="timer.state == CTFTimer.RUNNING">Next round in: {{ timer.roundEnd - timer.serverTime }} sec<br></span>
+			<span ng-if="timer.roundStart">Tick start: {{ timer.roundStart*1000 | date:'dd.MM.yyyy HH:mm:ss' }}<br></span>
+			<span ng-if="timer.state == CTFTimer.RUNNING">Next tick in: {{ timer.roundEnd - timer.serverTime }} sec<br></span>
 			Server time: {{ timer.serverTime*1000 | date:'dd.MM.yyyy HH:mm:ss' }}<br>
-			Current round time: {{ timer.roundTime }} sec
+			Current tick time: {{ timer.roundTime }} sec
 			<span ng-if="timer.startAt"><br/>
 							<span class="glyphicon glyphicon-play"></span> Autostart: {{ timer.startAt | newDate | date:'dd.MM.yyyy HH:mm:ss' }}
 							(in {{ timer.startAt - timer.serverTime |interval }})
 							<a ng-click="setAutostart(null)" class="btn btn-link btn-xs">&times;</a>
 						</span>
 			<span ng-if="timer.lastRound"><br/>
-							<span class="glyphicon glyphicon-stop"></span> Final round: {{ timer.lastRound }}
+							<span class="glyphicon glyphicon-stop"></span> Final tick: {{ timer.lastRound }}
 							<span ng-if="timer.endAt">(~ {{ timer.endAt | newDate | date:'HH:mm:ss' }})</span>
 							<a ng-click="setLastRound(null)" class="btn btn-link btn-xs">&times;</a>
 						</span>
@@ -58,10 +58,10 @@
 
 		<form class="form-horizontal" ng-if="!hideControls">
 			<div class="form-group">
-				<label class="col-sm-4 control-label" title="Change the time each round lasts">Round time</label>
+				<label class="col-sm-4 control-label" title="Change the time each tick lasts">Tick time</label>
 				<div class="col-sm-8">
 					<div class="input-group">
-						<input type="number" class="form-control" placeholder="Change round time" ng-model="newroundtime">
+						<input type="number" class="form-control" placeholder="Change tick time" ng-model="newroundtime">
 						<span class="input-group-btn"><button class="btn btn-default" type="submit"
 															  ng-click="setRoundTime(newroundtime)">Set</button></span>
 					</div>
@@ -71,7 +71,7 @@
 
 		<form class="form-horizontal" ng-if="!hideControls">
 			<div class="form-group">
-				<label class="col-sm-4 control-label" title="CTF stops after this round">Set autostart</label>
+				<label class="col-sm-4 control-label" title="CTF starts at this time">Set autostart</label>
 				<div class="col-sm-8">
 					<div class="input-group date">
 						<input type="text" class="form-control" placeholder="Start time" ng-model="startAt" bs-datepicker>
@@ -88,10 +88,10 @@
 
 		<form class="form-horizontal" ng-if="!hideControls">
 			<div class="form-group">
-				<label class="col-sm-4 control-label" title="CTF stops after this round">Set last round</label>
+				<label class="col-sm-4 control-label" title="CTF stops after this tick">Set last tick</label>
 				<div class="col-sm-8">
 					<div class="input-group">
-						<input type="number" class="form-control" placeholder="Last round" ng-model="lastRoundNumber">
+						<input type="number" class="form-control" placeholder="Last tick" ng-model="lastRoundNumber">
 						<span class="input-group-btn"><button class="btn btn-default" type="submit"
 															  ng-click="setLastRound(lastRoundNumber)">Set</button></span>
 					</div>

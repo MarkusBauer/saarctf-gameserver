@@ -34,13 +34,16 @@ def import_logo_from_url(team: Team, fname: str) -> None:
     if not fname:
         import_logo(team, None)
         return
-    # check if image is present
-    if fname.split('.')[0] == team.logo:
+    # check if image is already present
+    if team.logo is not None and team.logo in fname:
         return
     # download image
-    url: str = config.CONFIG['website_team_url'].split('?')[0]
-    url = url.rstrip('/').rsplit('/', 2)[0]
-    url += '/static/img/logo/' + fname
+    if 'website_logo_url' in config.CONFIG:
+        url: str = config.CONFIG['website_logo_url'] + '/' + fname
+    else:
+        url = config.CONFIG['website_team_url'].split('?')[0]
+        url = url.rstrip('/').rsplit('/', 2)[0]
+        url += '/media/' + fname
     resp = requests.get(url)
     assert resp.status_code == 200
     import_logo_from_bytes(team, resp.content)

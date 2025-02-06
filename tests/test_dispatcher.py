@@ -1,5 +1,5 @@
 import time
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from controlserver.dispatcher import Dispatcher
 from controlserver.models import Team, db_session, Service, CheckerResult
@@ -32,8 +32,9 @@ class DispatcherTestCase(CeleryTestCase):
     def test_dispatch_tick(self) -> None:
         self._prepare_db()
         dispatcher = Dispatcher()
-        dispatcher.create_flagid_json = Mock()  # type: ignore
-        dispatcher.dispatch_checker_scripts(1)
+        with patch('pathlib.Path.write_text') as write_text_mock:  # called by "attack.json" writer
+            dispatcher.dispatch_checker_scripts(1)
+            write_text_mock.assert_called_once()
 
         time.sleep(3.5)
 

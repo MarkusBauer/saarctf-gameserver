@@ -43,6 +43,7 @@
         "def_factor": 1.0,
         "sla_factor": 1.0
     },
+    "service_remotes": [],
     "network": {
         "game": "10.32.0.0/15",
         "__ip_syntax": ["number", "or list", ["a", "b", "c"], "= ((team_id / a) mod b) + c"],
@@ -55,5 +56,9 @@
         "vpn_peer_ips": [10, [200, 256, 48], [1, 200, 0], 1],
         "gameserver_ip": "10.32.250.2",
         "gameserver_range": "10.32.250.0/24"
+    },
+    "wireguard_sync": {
+        "api_server": "https://ctf.saarland",
+        "api_token": "..."
     }
 }

@@ -1,12 +1,12 @@
 import {Component, QueryList, ViewChildren} from '@angular/core';
 import {BackendService} from "../backend.service";
-import {forkJoin, Observable, Subscription} from "rxjs";
+import {forkJoin, Observable} from "rxjs";
 import {Chart, ChartData, ChartOptions} from "chart.js";
 import {BaseChartDirective} from "ng2-charts";
 import {UiService} from "../ui.service";
 import {addScheme, COLORS} from "../chart-colorschemes";
 import {StatisticsComponentBase} from "../page-team/page-team.component";
-import {RoundInformation, Service, Team} from "../models";
+import {RoundInformation, Service, ServiceStat, Team} from "../models";
 
 @Component({
     selector: 'app-page-graphs',
@@ -15,7 +15,8 @@ import {RoundInformation, Service, Team} from "../models";
 })
 export class PageGraphsComponent extends StatisticsComponentBase {
 
-    public chartDatas: { chart: ChartData, title: string }[] = [];
+    public teamChartDatas: { chart: ChartData, title: string }[] = [];
+    public serviceChartDatas: { chart: ChartData, title: string }[] = [];
     public chartOptions: ChartOptions = {
         maintainAspectRatio: false,
         responsive: true,
@@ -29,7 +30,8 @@ export class PageGraphsComponent extends StatisticsComponentBase {
         },
     };
 
-    @ViewChildren(BaseChartDirective) charts: QueryList<BaseChartDirective>;
+    @ViewChildren(BaseChartDirective) teamCharts: QueryList<BaseChartDirective>;
+    @ViewChildren(BaseChartDirective) serviceCharts: QueryList<BaseChartDirective>;
 
     constructor(public backend: BackendService, public ui: UiService) {
         super(backend, ui);
@@ -43,7 +45,13 @@ export class PageGraphsComponent extends StatisticsComponentBase {
 
     protected updateChartColors() {
         this.chartOptions.color = Chart.defaults.color;
-        for (let chart of this.chartDatas) {
+        for (let chart of this.teamChartDatas) {
+            for (let ds of chart.chart.datasets) {
+                if (ds['colorIndex'] > 1)
+                    addScheme(ds, ds['colorIndex'], false);
+            }
+        }
+        for (let chart of this.serviceChartDatas) {
             for (let ds of chart.chart.datasets) {
                 if (ds['colorIndex'] > 1)
                     addScheme(ds, ds['colorIndex'], false);
@@ -58,7 +66,7 @@ export class PageGraphsComponent extends StatisticsComponentBase {
             console.warn('No teams in backend');
             return;
         }
-        console.log('retrieveData start...');
+        console.log('updating graph data...');
 
         let teams = [];
         let services = this.currentRoundInfo.services;
@@ -73,8 +81,14 @@ export class PageGraphsComponent extends StatisticsComponentBase {
         forkJoin(subscriptions).subscribe(points => {
             this.loading--;
             this.setPoints(teams, services, points);
-            console.log('retrieveData end...');
-        })
+        });
+
+        // retrieve service stats data
+        this.loading++;
+        this.backend.getServiceStatHistory().subscribe(stats => {
+            this.loading--;
+            this.setServiceStats(services, stats);
+        });
     }
 
     /**
@@ -85,17 +99,17 @@ export class PageGraphsComponent extends StatisticsComponentBase {
      * @private
      */
     private setPoints(teams: Team[], services: Service[], points: number[][][]) {
-        this.chartDatas = [
+        this.teamChartDatas = [
             {
-                chart: this.chartFromArray(teams, this.extractSum(points)),
+                chart: this.teamChartFromArray(teams, this.extractSum(points)),
                 title: "Points (overall)"
             }
         ];
 
         for (let serviceIndex = 0; serviceIndex < services.length; serviceIndex++) {
             let service = services[serviceIndex];
-            this.chartDatas.push({
-                chart: this.chartFromArray(teams, this.extractIndex(points, serviceIndex)),
+            this.teamChartDatas.push({
+                chart: this.teamChartFromArray(teams, this.extractIndex(points, serviceIndex)),
                 //title: `Points (service ${index + 1})`
                 title: `Points (service ${service.name})`
             });
@@ -105,8 +119,13 @@ export class PageGraphsComponent extends StatisticsComponentBase {
     }
 
     private updateCharts() {
-        if (this.charts) {
-            for (let chart of this.charts) {
+        if (this.teamCharts) {
+            for (let chart of this.teamCharts) {
+                chart.update();
+            }
+        }
+        if (this.serviceCharts) {
+            for (let chart of this.serviceCharts) {
                 chart.update();
             }
         }
@@ -129,7 +148,7 @@ export class PageGraphsComponent extends StatisticsComponentBase {
         return result;
     }
 
-    private chartFromArray(teams: Team[], points: number[][]) {
+    private teamChartFromArray(teams: Team[], points: number[][]) {
         let datasets = [];
         let labels = [];
         for (let i = 0; i < teams.length; i++) {
@@ -140,6 +159,40 @@ export class PageGraphsComponent extends StatisticsComponentBase {
             }, (teams[i].id % (COLORS.length - 2)) + 2));
 
             while (labels.length < points[i].length) {
+                labels.push(labels.length);
+            }
+        }
+
+        return {datasets, labels};
+    }
+
+    private setServiceStats(services: Service[], stats: ServiceStat[][]) {
+        this.serviceChartDatas = [
+            {
+                chart: this.serviceChartFromArray(services, stats, 'a'),
+                title: "No. of Attackers"
+            },
+            {
+                chart: this.serviceChartFromArray(services, stats, 'v'),
+                title: "No. of Victims"
+            },
+        ];
+
+        this.updateCharts();
+        setTimeout(() => this.updateCharts(), 20);
+    }
+
+    private serviceChartFromArray(services: Service[], stats: ServiceStat[][], key: string) {
+        let datasets = [];
+        let labels = [];
+        for (let i = 0; i < services.length; i++) {
+            datasets.push(addScheme({
+                data: stats[i].map(s => s[key]),
+                label: services[i].name,
+                pointRadius: 0
+            }, (i % (COLORS.length - 2)) + 2));
+
+            while (labels.length < stats[i].length) {
                 labels.push(labels.length);
             }
         }

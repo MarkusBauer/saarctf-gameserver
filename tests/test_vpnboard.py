@@ -14,8 +14,8 @@ class VpnBoardTests(DatabaseTestCase):
         self.demo_team_services()
         with TemporaryDirectory() as directory:
             config.current_config.VPNBOARD_PATH = Path(directory)
-            board = VpnBoard(use_nping=False)
-            board.build_vpn_board(False, set())
+            board = VpnBoard()
+            board.build_vpn_board([], set())
             self._assert_valid_vpnboard(config.current_config.VPNBOARD_PATH)
 
     def _assert_valid_vpnboard(self, d: Path) -> None:
@@ -38,7 +38,7 @@ class VpnBoardTests(DatabaseTestCase):
 
         with TemporaryDirectory() as directory:
             config.current_config.VPNBOARD_PATH = Path(directory)
-            result = ScriptRunner.run_script('vpnboard/vpn_board.py', ['--system-ping'])
+            result = ScriptRunner.run_script('vpnboard/vpn_status_daemon.py', ['--system-ping'])
             ScriptRunner.assert_no_exception(result)
             self.assertIn(b'Created VPN board', result.stderr)
             self._assert_valid_vpnboard(config.current_config.VPNBOARD_PATH)

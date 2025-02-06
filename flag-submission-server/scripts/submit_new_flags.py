@@ -2,13 +2,15 @@ import socket
 import sys
 import telnetlib
 
-from generate_flag import generate_flag
+from generate_flag import generate_flag, config, load_default_config
 
 """
 USAGE: python3 submit_new_flags.py <count>
 Submits <count> new and valid flags to localhost:31337
 """
 
+load_default_config()
+config.set_script()
 
 HOST = "localhost"
 PORT = 31337

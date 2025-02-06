@@ -1,0 +1,52 @@
+{
+  "id": 10,
+  "cidr": "10.32.11.0/24",
+  "last_modified": "2024-11-22T14:43:02.282846Z",
+  "last_synced": null,
+  "port": 32010,
+  "peers": [
+    {
+      "key_slot": {
+        "public_key": "GlrIoQh1cHo9+PYt+lPqap8VcGfnhbvt6dmGlxpxU28="
+      },
+      "cidr": "10.10.11.100/32"
+    },
+    {
+      "key_slot": {
+        "public_key": "LEGSGepT9di1yScfH21AF2HneLw8/0yTtTnowYWMy38="
+      },
+      "cidr": "10.10.11.101/32"
+    },
+    {
+      "key_slot": {
+        "public_key": "ShSXVB1Ih5uoByubvBb/AGhHfzdp8hhjIsk817FpgEQ="
+      },
+      "cidr": "10.10.11.102/32"
+    },
+    {
+      "key_slot": {
+        "public_key": "zy0JCMB51vPlJp+unGP1x1MZZf42/1TxlgRdwqwJSlQ="
+      },
+      "cidr": "10.10.11.103/32"
+    },
+    {
+      "key_slot": {
+        "public_key": "SEcElwBKrmiVRM0QoWOiy6JI4C3/oarXC1HhXmV18j4="
+      },
+      "cidr": "10.10.11.104/32"
+    },
+    {
+      "key_slot": {
+        "public_key": "Au5y1Rf+QTmnExz1A8/HkDzHf/XloiSP0CQLeD1OG3E="
+      },
+      "cidr": "10.10.11.105/32"
+    },
+    {
+      "key_slot": {
+        "public_key": "qnyB4GP3LvkQ48KrC5UgQXu6ShViWh7mC5fvASxGzlE="
+      },
+      "cidr": "10.10.11.106/32"
+    }
+  ],
+  "public_key": null
+}

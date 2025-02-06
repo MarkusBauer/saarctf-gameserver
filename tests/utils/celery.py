@@ -29,7 +29,7 @@ class CeleryTestCase(DatabaseTestCase):
                                  userid=config.RABBITMQ['username'], password=config.RABBITMQ['password'],
                                  virtual_host=config.RABBITMQ['vhost']) as connection:
                 ch = connection.channel()
-                for queue in ['celery', 'broadcast']:
+                for queue in ['celery', 'broadcast', 'tests']:
                     try:
                         ch.queue_purge(queue)
                     except amqp.exceptions.NotFound:
@@ -48,4 +48,4 @@ class CeleryTestCase(DatabaseTestCase):
 
     def _run_worker(self) -> None:
         init_database()
-        celery_worker.app.worker_main(['worker', '-Ofair', '-E', '-Q', 'celery,broadcast', '--concurrency=1'])
+        celery_worker.app.worker_main(['worker', '-Ofair', '-E', '-Q', 'celery,broadcast,tests', '--concurrency=1'])

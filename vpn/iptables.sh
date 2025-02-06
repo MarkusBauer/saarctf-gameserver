@@ -20,6 +20,7 @@ iptables -t nat -F POSTROUTING
 iptables -t nat -A POSTROUTING -o tun+ -j MASQUERADE --random -m comment --comment "Nat for all"
 iptables -t nat -A POSTROUTING -o orga+ -j MASQUERADE --random -m comment --comment "Nat for all"
 iptables -t nat -A POSTROUTING -o tun+ -p tcp --syn -j TCPMSS --clamp-mss-to-pmtu -m comment --comment "Fix MSS"  # thanks to Sebastian Neef
+iptables -t mangle -F PREROUTING
 iptables -t mangle -F FORWARD
 
 
@@ -32,21 +33,32 @@ iptables -A vpn-ok
 # "Log" forwarded connections (make accessible for tcpdump) / excluding SSH (TCP 22) from team2team traffic
 iptables -A vpn-ok   -i tun+ ! -o tun+ -j NFLOG --nflog-group 5 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->game traffic (1/2)"
 iptables -A vpn-ok ! -i tun+   -o tun+ -j NFLOG --nflog-group 5 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->game traffic (2/2)"
-iptables -A vpn-ok   -i tun+   -o tun+ -p tcp -m tcp ! --dport 22 ! --sport 22 -j NFLOG --nflog-group 6 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic"
-iptables -A vpn-ok   -i tun+   -o tun+ ! -p tcp -j NFLOG --nflog-group 6 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0x0000/0xf000 -j NFLOG --nflog-group 10 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 0)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0x1000/0xf000 -j NFLOG --nflog-group 11 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 1)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0x2000/0xf000 -j NFLOG --nflog-group 12 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 2)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0x3000/0xf000 -j NFLOG --nflog-group 13 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 3)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0x4000/0xf000 -j NFLOG --nflog-group 14 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 4)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0x5000/0xf000 -j NFLOG --nflog-group 15 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 5)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0x6000/0xf000 -j NFLOG --nflog-group 16 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 6)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0x7000/0xf000 -j NFLOG --nflog-group 17 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 7)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0x8000/0xf000 -j NFLOG --nflog-group 18 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 8)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0x9000/0xf000 -j NFLOG --nflog-group 19 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 9)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0xa000/0xf000 -j NFLOG --nflog-group 20 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 10)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0xb000/0xf000 -j NFLOG --nflog-group 21 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 11)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0xc000/0xf000 -j NFLOG --nflog-group 22 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 12)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0xd000/0xf000 -j NFLOG --nflog-group 23 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 13)"
+iptables -A vpn-ok   -i tun+   -o tun+ -m mark --mark 0xe000/0xf000 -j NFLOG --nflog-group 24 --nflog-threshold 16 -m comment --comment "tcpdump interface for team<->team traffic (service 14)"
+# service 15 = SSH, we don't log that
 # finally pass traffic
 iptables -A vpn-ok -j ACCEPT
 
 
 
 # Chain to block network / teams
-# this chain is later filled with rules to disable network access / block a single team
+# this chain is later filled with rules to disable network access / block a single team.
 iptables -N vpn-blocking || true
 iptables -F vpn-blocking
 iptables -A vpn-blocking -j REJECT  # block by default, until iptables management script has been started / restarted
-iptables -N vpn-allow-teams || true
-iptables -F vpn-allow-teams
-iptables -A vpn-allow-teams -j REJECT
 
 
 
@@ -58,14 +70,15 @@ iptables -A FORWARD -i orga+ -j vpn-user -m comment --comment "Temporary user-de
 # 1. Forwarding that is allowed regardless of blocking state (and not logged):
 iptables -A FORWARD -i tun+ -d $GAMESERVER_IP -p icmp -j ACCEPT -m comment --comment "Gameserver/ping"
 iptables -A FORWARD -o tun+ -s $GAMESERVER_IP -p icmp -j ACCEPT -m comment --comment "Gameserver/ping"
-iptables -A FORWARD -o orga+ -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT -m comment --comment "Responses to orga"
+iptables -A FORWARD -i tun+ -d $GAMESERVER_IP -p tcp --dport 31337 -j vpn-ok -m comment --comment "Gameserver/Submitter"
+iptables -A FORWARD -o tun+ -s $GAMESERVER_IP -p tcp --sport 31337 -j vpn-ok -m comment --comment "Gameserver/Submitter"
+iptables -A FORWARD -i orga+ -j vpn-ok -m comment --comment "Orga can connect anywhere"
+iptables -A FORWARD -o orga+ -m conntrack --ctstate RELATED,ESTABLISHED -j vpn-ok -m comment --comment "Responses to orga"
 # 2. Check if network is disabled
 iptables -A FORWARD -i tun+ -j vpn-blocking
 iptables -A FORWARD ! -i tun+ -o tun+ -j vpn-blocking
 # 3. Allow VPN connections to the game server, but not the rest of the internal network
 iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j vpn-ok
-iptables -A FORWARD -i tun+ -d $GAMESERVER_IP -p tcp --dport 80 -j vpn-ok -m comment --comment "Gameserver/Scoreboard"
-iptables -A FORWARD -i tun+ -d $GAMESERVER_IP -p tcp --dport 31337 -j vpn-ok -m comment --comment "Gameserver/Submitter"
 iptables -A FORWARD -i tun+ -o tun+ -j vpn-ok -m comment --comment "Team to Team"
 iptables -A FORWARD -i tun+ ! -o tun+ -j DROP -m comment --comment "VPN => internal network"
 
@@ -73,8 +86,11 @@ iptables -A FORWARD -i tun+ ! -o tun+ -j DROP -m comment --comment "VPN => inter
 # (actual limit is enforced by tc, we just mark packets accordingly)
 NEW_CONN_MARK=0x100000/0x300000
 REPLY_MARK=0x200000/0x300000
-iptables -t mangle -A FORWARD -i tun+ -o tun+ -m conntrack --ctdir ORIGINAL -j MARK --set-mark ${NEW_CONN_MARK} -m comment --comment "Mark team to team attack traffic as ${NEW_CONN_MARK}"
-iptables -t mangle -A FORWARD -i tun+ -o tun+ -m conntrack --ctdir REPLY -j MARK --set-mark ${REPLY_MARK} -m comment --comment "Mark team to team response traffic as ${REPLY_MARK}"
+iptables -t mangle -A PREROUTING -i tun+ -m conntrack --ctdir ORIGINAL -j MARK --set-mark ${NEW_CONN_MARK} -m comment --comment "Mark team to team attack traffic as ${NEW_CONN_MARK}"
+iptables -t mangle -A PREROUTING -i tun+ -m conntrack --ctdir REPLY -j MARK --set-mark ${REPLY_MARK} -m comment --comment "Mark team to team response traffic as ${REPLY_MARK}"
+# KEEP CT MARKS
+iptables -t mangle -A PREROUTING -m state --state NEW -j CONNMARK --save-mark --mask 0xfc00
+iptables -t mangle -A PREROUTING -m state --state ESTABLISHED,RELATED -j CONNMARK --restore-mark --mask 0xfc00
 
 
 # INPUT CHAIN - Filter connections from VPN to this machine
@@ -89,7 +105,8 @@ iptables -A INPUT -i tun+ -j DROP
 iptables -A INPUT -p tcp --dport 22 -j ACCEPT -m comment --comment "SSH"
 iptables -A INPUT -p tcp --dport 80 -j ACCEPT -m comment --comment "HTTP / VPN-Board"
 iptables -A INPUT -p tcp --dport 443 -j ACCEPT -m comment --comment "HTTPS / VPN-Board"
-iptables -A INPUT -p udp -j ACCEPT -m comment --comment "OpenVPN servers"
+# iptables -A INPUT -p udp --dport 443 -j ACCEPT -m comment --comment "HTTPS / VPN-Board (http3/quic)"
+iptables -A INPUT -p udp -j ACCEPT -m comment --comment "OpenVPN/WireGuard servers"
 iptables -P INPUT DROP
 
 # Filter connections from outside world to VPN - TODO IPs
@@ -97,6 +114,15 @@ iptables -A FORWARD -o tun+ -s 10.32.250.0/24 -j vpn-ok -m comment --comment "Ga
 iptables -N outside-to-vpn || iptables -F outside-to-vpn
 iptables -A FORWARD -o tun+ ! -i tun+ -j outside-to-vpn -m comment --comment "Outside world -> VPN (1)"
 iptables -A outside-to-vpn -o tun+ ! -i orga+ -j DROP -m comment --comment "Outside world -> VPN (2)"
+
+# Disable conntrack for traffic from the outer world. Thus, UDP floods won't fill/crash conntrack.
+# This requires manually allowing incoming UDP packets, because "related" won't do it anymore.
+# Luckily we have "-p udp -j ACCEPT" in the INPUT rules already.
+# TODO not really tested
+iptables -t raw -A PREROUTING -p udp -i eth0 -j NOTRACK
+iptables -t raw -A PREROUTING -p udp -i ens1 -j NOTRACK
+iptables -t raw -A PREROUTING -p icmp -i eth0 -j NOTRACK
+iptables -t raw -A PREROUTING -p icmp -i ens1 -j NOTRACK
 
 
 

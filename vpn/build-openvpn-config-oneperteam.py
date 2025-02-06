@@ -169,7 +169,6 @@ def main():
         build_server_config(team, server_root, secret_root)
         build_team_config(team, client_root, secret_root)
     if teams:
-        build_bpf(max(team.id for team in teams))
         build_systemd_file(teams)
     else:
         print('No teams.')

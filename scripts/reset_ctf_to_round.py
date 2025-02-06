@@ -11,7 +11,7 @@ from controlserver.scoring.scoreboard import Scoreboard
 from controlserver.scoring.scoring import ScoringCalculation
 
 """
-ARGUMENT: round
+ARGUMENT: tick
 """
 
 
@@ -67,9 +67,9 @@ def reset_database(tick: int) -> None:
     import controlserver.models
     for m in ['TeamPoints', 'TeamRanking', 'CheckerResult']:
         model = getattr(controlserver.models, m)
-        count = model.query.filter(model.round > tick).delete()
+        count = model.query.filter(model.tick > tick).delete()
         print('- dropped {} entries from {}'.format(count, m))
-    count = controlserver.models.SubmittedFlag.query.filter(controlserver.models.SubmittedFlag.round_submitted > tick).delete()
+    count = controlserver.models.SubmittedFlag.query.filter(controlserver.models.SubmittedFlag.tick_submitted > tick).delete()
     print('- dropped {} entries from SubmittedFlag'.format(count))
     controlserver.models.db_session().commit()
 
@@ -84,8 +84,8 @@ def reset_scoreboard(tick: int) -> None:
                     os.remove(config.SCOREBOARD_PATH / 'api' / fname)
                     print('- deleted', config.SCOREBOARD_PATH / 'api' / fname)
         scoreboard = Scoreboard(ScoringCalculation(config.SCORING))
-        scoreboard_tick = scoreboard.update_round_info()
-        scoreboard.update_round_info(min(scoreboard_tick, tick))
+        scoreboard_tick = scoreboard.update_tick_info()
+        scoreboard.update_tick_info(min(scoreboard_tick, tick))
 
 
 def reset_ctf_to_tick() -> None:
@@ -96,14 +96,14 @@ def reset_ctf_to_tick() -> None:
     tick = int(sys.argv[1])
     force = '--force' in sys.argv
 
-    if not force and not query_yes_no(f'Do you really want to wipe the whole CTF after round {tick}?', 'no'):
+    if not force and not query_yes_no(f'Do you really want to wipe the whole CTF after tick {tick}?', 'no'):
         return
 
     from controlserver.timer import Timer, CTFState
     if Timer.state == CTFState.RUNNING:
         print('CTF must not be running.')
         return
-    if Timer.countMasterTimer() > 0:
+    if Timer.count_master_timer() > 0:
         print('Please stop all master timers.')
         return
 

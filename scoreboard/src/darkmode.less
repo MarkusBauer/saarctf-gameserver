@@ -1,7 +1,7 @@
 @import "variables.less";
-@import "~bootstrap/less/mixins/buttons";
-@import "~bootstrap/less/mixins/background-variant";
-@import "~bootstrap/less/mixins/gradients";
+@import "bootstrap/less/mixins/buttons";
+@import "bootstrap/less/mixins/background-variant";
+@import "bootstrap/less/mixins/gradients";
 
 html.dark {
 	body {
@@ -52,6 +52,13 @@ html.dark {
 
 			&:after {
 				border-bottom-color: @dm-popover-arrow-color;
+			}
+		}
+		&.top > .arrow {
+			border-top-color: @dm-popover-arrow-outer-color;
+
+			&:after {
+				border-top-color: @dm-popover-arrow-color;
 			}
 		}
 	}

@@ -8,7 +8,6 @@ Details about the DB filesystem structure are in controlserver/db_filesystem.py
 import importlib.util
 import sys
 from types import ModuleType
-from typing import Dict
 
 from filelock import FileLock
 
@@ -21,7 +20,7 @@ sys.path.append(str(config.CHECKER_PACKAGES_PATH))
 class PackageLoader:
     config.CHECKER_PACKAGES_PATH.mkdir(exist_ok=True)
     lock = FileLock(config.CHECKER_PACKAGES_PATH / '.lock')
-    cached_modules: Dict[str, ModuleType] = {}
+    cached_modules: dict[str, ModuleType] = {}
 
     @classmethod
     def package_exists(cls, package: str) -> bool:

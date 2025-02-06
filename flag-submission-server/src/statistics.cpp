@@ -11,26 +11,23 @@
 #include <dirent.h>
 
 struct CounterLine {
-	std::atomic_long counters[6];
+	std::atomic_long counters[6] = {
+			{0},
+			{0},
+			{0},
+			{0},
+			{0},
+			{0}
+	};
 };
 
 static std::atomic_long connection_counter(0);
-static CounterLine *flag_counters;
-static int flag_counters_size;
+static std::vector<CounterLine> flag_counters(MAX_TEAMS);
 
-
-void statistics::initStatisticSize(int max_teams) {
-	flag_counters_size = max_teams + 1;
-	flag_counters = (CounterLine *) malloc(flag_counters_size * sizeof(CounterLine));
-	for (int i = 0; i <= max_teams; i++) {
-		for (auto &counter : flag_counters[i].counters) {
-			counter = 0;
-		}
-	}
-}
 
 void statistics::countFlag(uint16_t submittingTeam, statistics::FlagState state) {
-	flag_counters[submittingTeam].counters[state]++;
+	if (submittingTeam < flag_counters.size())
+		flag_counters.at(submittingTeam).counters[state]++;
 }
 
 void statistics::countConnection() {
@@ -60,7 +57,7 @@ const char *statistics::getConnectionFDReport(int current_connection_count) {
 	auto current = filecount("/proc/self/fd/");
 
 	char *buffer = (char *) malloc(56);
-	sprintf(buffer, "%d,%ld,%d,%ld\n", current_connection_count, std::atomic_exchange(&connection_counter, 0L), current, limit);
+	snprintf(buffer, 56, "%d,%ld,%d,%ld\n", current_connection_count, std::atomic_exchange(&connection_counter, 0L), current, limit);
 	return buffer;
 }
 
@@ -68,7 +65,7 @@ std::vector<const char *> statistics::getFlagReport() {
 	std::vector<const char *> result;
 	long line[6];
 
-	for (int team_id = 0; team_id < flag_counters_size; team_id++) {
+	for (int team_id = 0; team_id < flag_counters.size(); team_id++) {
 		bool notzero = false;
 		for (int j = 0; j < 6; j++) {
 			long c = std::atomic_exchange(&flag_counters[team_id].counters[j], 0L);
@@ -76,8 +73,8 @@ std::vector<const char *> statistics::getFlagReport() {
 			if (c != 0) notzero = true;
 		}
 		if (notzero) {
-			char *buffer = (char *) malloc(100);
-			sprintf(buffer, "team%d,%ld,%ld,%ld,%ld,%ld,%ld\n", team_id, line[0], line[1], line[2], line[3], line[4], line[5]);
+			char *buffer = (char *) malloc(128);
+			snprintf(buffer, 128, "team%d,%ld,%ld,%ld,%ld,%ld,%ld\n", team_id, line[0], line[1], line[2], line[3], line[4], line[5]);
 			result.push_back(buffer);
 		}
 	}
@@ -87,6 +84,6 @@ std::vector<const char *> statistics::getFlagReport() {
 
 const char *statistics::getCacheReport() {
 	char *buffer = (char *) malloc(48);
-	sprintf(buffer, "%ld,%ld,%ld\n", flag_cache.getCacheHits(), flag_cache.getCacheMisses(), flag_cache.getCacheFails());
+	snprintf(buffer, 48, "%ld,%ld,%ld\n", flag_cache.getCacheHits(), flag_cache.getCacheMisses(), flag_cache.getCacheFails());
 	return buffer;
 }

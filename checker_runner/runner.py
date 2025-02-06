@@ -57,7 +57,7 @@ def set_limits() -> None:
     Set resource limits on the checker process
     """
     if 'SAARCTF_NO_RLIMIT' not in os.environ:
-        resource.setrlimit(resource.RLIMIT_AS, (1024 * 1000000, 2048 * 1000000))  # 1GB soft / 2GB hard
+        resource.setrlimit(resource.RLIMIT_AS, (2048 * 1000000, 3072 * 1000000))  # 2GB soft / 3GB hard
     pass
 
 
@@ -65,7 +65,7 @@ def set_limits() -> None:
 def save_checker_result(tick: int, service_id: int, team_id: int, celery_id: str,
                         status: str, message: str | None,
                         output: str, runtime: float) -> None:
-    result = CheckerResult(round=tick, service_id=service_id, team_id=team_id, celery_id=celery_id)
+    result = CheckerResult(tick=tick, service_id=service_id, team_id=team_id, celery_id=celery_id)
     result.time = runtime  # type: ignore[assignment]
     result.status = status
     result.message = message

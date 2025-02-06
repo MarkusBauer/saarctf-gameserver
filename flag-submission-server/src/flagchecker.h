@@ -40,10 +40,15 @@ struct __attribute__((__packed__)) FlagFormat {
  */
 
 
+// valid team ids: [1 .. max_team_id]
+extern uint32_t max_team_id;
+// valid service ids: [1 .. max_service_id]
+extern uint32_t max_service_id;
+
 
 void initModelSizes(uint32_t _max_team_id, uint32_t _max_service_id);
 
-const char *progress_flag(const char *flag, int len, struct sockaddr_in *addr, uint16_t* team_id_cache);
+const char *progress_flag(const char *flag, int len, struct sockaddr_in *addr, uint16_t *team_id_cache);
 
 bool verify_hmac(void *data_start, void *data_end, const char *hmac);
 

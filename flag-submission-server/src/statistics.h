@@ -5,6 +5,8 @@
 
 #include <vector>
 
+# define MAX_TEAMS 2048
+
 namespace statistics {
 
 enum FlagState {
@@ -26,7 +28,7 @@ const char *getConnectionFDReport(int current_connection_count);
 
 std::vector<const char *> getFlagReport();
 
-const char* getCacheReport();
+const char *getCacheReport();
 
 }
 

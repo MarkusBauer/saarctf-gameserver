@@ -53,5 +53,15 @@ export interface RoundInformation {
 
 export interface TeamHistoryInformation {
     services: Array<Service>;
-    points: number[][];
+    points: number[][];  // [service number => [tick => points]]
+}
+
+export interface ServiceStat {
+    a: number;  // attackers
+    v: number;  // victims
+}
+
+export interface ServiceStatsInformation {
+    services: Array<Service>;
+    stats: ServiceStat[][];  // [service number => [tick => stats]]
 }

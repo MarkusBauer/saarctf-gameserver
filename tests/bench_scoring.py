@@ -117,8 +117,8 @@ class BenchTestCase(DatabaseTestCase):
                         # hack!
                         p = 0
                         if s.num_payloads > 1: p = rnd.randint(0, s.num_payloads - 1)
-                        flag = SubmittedFlag(submitted_by=attacker.id, service_id=sid, team_id=victim.id, round_issued=r, payload=p,
-                                             round_submitted=r + rnd.randint(0, 4))
+                        flag = SubmittedFlag(submitted_by=attacker.id, service_id=sid, team_id=victim.id, tick_issued=r, payload=p,
+                                             tick_submitted=r + rnd.randint(0, 4))
                         submitted_flags.append(flag)
             print(f'Service {sid}, submitting {len(submitted_flags)} flags...')
             SubmittedFlag.efficient_insert(submitted_flags)
@@ -129,8 +129,8 @@ class BenchTestCase(DatabaseTestCase):
         times = []
         for rn in range(1, endround + 1):
             # Remove old points/ranking from DB
-            TeamPoints.query.filter(TeamPoints.round == rn).delete()
-            TeamRanking.query.filter(TeamRanking.round == rn).delete()
+            TeamPoints.query.filter(TeamPoints.tick == rn).delete()
+            TeamRanking.query.filter(TeamRanking.tick == rn).delete()
             db_session().commit()
 
             ts = time.time()

@@ -70,7 +70,7 @@ def get_data_map():
 	return data
 
 
-TeamPoints.query.filter(TeamPoints.round >= 500).delete()
+TeamPoints.query.filter(TeamPoints.tick >= 500).delete()
 db_session().commit()
 
 timing('')
@@ -80,7 +80,7 @@ db_session().add_all(data)
 db_session().commit()
 timing('SQLAlchemy add_all')
 
-TeamPoints.query.filter(TeamPoints.round >= 500).delete()
+TeamPoints.query.filter(TeamPoints.tick >= 500).delete()
 db_session().commit()
 
 timing('')
@@ -90,7 +90,7 @@ db_session().bulk_save_objects(data)
 db_session().commit()
 timing('SQLAlchemy bulk_save_objects')
 
-TeamPoints.query.filter(TeamPoints.round >= 500).delete()
+TeamPoints.query.filter(TeamPoints.tick >= 500).delete()
 db_session().commit()
 
 timing('')

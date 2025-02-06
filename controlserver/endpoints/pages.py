@@ -9,19 +9,21 @@ import threading
 import time
 from collections import defaultdict
 from math import ceil, floor
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any, cast
 
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, Response
 from flask.typing import ResponseReturnValue
 from sqlalchemy import distinct, Integer, text, func
+from sqlalchemy.orm.exc import NoResultFound
 
 from checker_runner.runner import celery_worker
 from controlserver.db_filesystem import DBFilesystem
 from controlserver.models import db_session, Service, Team, LogMessage, TeamTrafficStats, \
     CheckerFile, CheckerFilesystem, CheckerResult
+from controlserver.service_mgr import ServiceRepoManager
 from controlserver.vpncontrol import VPNControl, VpnStatus
 from saarctf_commons.config import config
-from controlserver.logger import logResultOfExecution
+from controlserver.logger import log_result_of_execution
 from saarctf_commons.redis import get_redis_connection
 
 app = Blueprint('endpoints', __name__)
@@ -58,15 +60,15 @@ def overview_timing() -> ResponseReturnValue:
     from controlserver.timer import Timer
     return jsonify({
         'state': Timer.state,
-        'desiredState': Timer.desiredState,
-        'currentRound': Timer.currentRound,
-        'roundStart': Timer.roundStart,
-        'roundEnd': Timer.roundEnd,
-        'roundTime': Timer.roundTime,
-        'lastRound': Timer.stopAfterRound,
-        'startAt': Timer.startAt,
+        'desiredState': Timer.desired_state,
+        'currentRound': Timer.current_tick,
+        'roundStart': Timer.tick_start,
+        'roundEnd': Timer.tick_end,
+        'roundTime': Timer.tick_time,
+        'lastRound': Timer.stop_after_tick,
+        'startAt': Timer.start_at,
         'serverTime': int(time.time()),
-        'masterTimers': Timer.countMasterTimer()
+        'masterTimers': Timer.count_master_timer()
     })
 
 
@@ -77,25 +79,25 @@ def overview_set_timing() -> ResponseReturnValue:
     if 'state' in body:
         state = CTFState(body['state'])
         if state == CTFState.RUNNING:
-            Timer.startCtf()
+            Timer.start_ctf()
         elif state == CTFState.SUSPENDED:
-            Timer.suspendCtfAfterRound()
+            Timer.suspend_ctf_after_tick()
         elif state == CTFState.STOPPED:
-            Timer.stopCtfAfterRound()
+            Timer.stop_ctf_after_tick()
     if 'roundtime' in body:
         roundtime = body['roundtime']
         if roundtime >= 5 and roundtime < 1000:
-            Timer.roundTime = roundtime
+            Timer.tick_time = roundtime
     if 'lastround' in body:
         lastround = body['lastround'] or None
-        if lastround is None or lastround > Timer.currentRound:
-            Timer.stopAfterRound = lastround
-        elif lastround == Timer.currentRound:
-            Timer.stopCtfAfterRound()
+        if lastround is None or lastround > Timer.current_tick:
+            Timer.stop_after_tick = lastround
+        elif lastround == Timer.current_tick:
+            Timer.stop_ctf_after_tick()
     if 'startAt' in body:
         startAt = body['startAt'] or None
         if startAt is None or startAt >= int(time.time()):
-            Timer.startAt = startAt
+            Timer.start_at = startAt
     return 'OK'
 
 
@@ -130,10 +132,10 @@ def overview_vpn() -> ResponseReturnValue:
     ]
     open_teams = [{'id': team.id, 'name': team.name, 'network': config.NETWORK.team_id_to_network_range(team.id)} for
                   team in vpn.get_open_teams()]
-    teams_online = Team.query.filter((Team.vpn_connected == True) | (Team.vpn2_connected == True)).count()
-    teams_online_once = Team.query.filter((Team.vpn_connected == False) & (Team.vpn2_connected == False),
+    teams_online = Team.query.filter((Team.vpn_connected == True) | (Team.vpn2_connected == True) | (Team.wg_vulnbox_connected == True)).count()
+    teams_online_once = Team.query.filter((Team.vpn_connected == False) & (Team.vpn2_connected == False) & (Team.wg_vulnbox_connected == False),
                                           Team.vpn_last_connect != None).count()
-    teams_offline = Team.query.filter((Team.vpn_connected == False) & (Team.vpn2_connected == False),
+    teams_offline = Team.query.filter((Team.vpn_connected == False) & (Team.vpn2_connected == False) & (Team.wg_vulnbox_connected == False),
                                       Team.vpn_last_connect == None).count()
 
     # format: dt_bytes, dt_syns, dg_bytes, dg_syns, ut_bytes, ut_syns, ug_bytes, ug_syns
@@ -142,9 +144,9 @@ def overview_vpn() -> ResponseReturnValue:
     trafficstats = []
     trafficstats_keys = []
     for line in TeamTrafficStats.query_sum_lite().filter(TeamTrafficStats.time > datetime.datetime.fromtimestamp(last)) \
-            .filter(TeamTrafficStats.time <= text('NOW()')).filter(
+        .filter(TeamTrafficStats.time <= text('NOW()')).filter(
         TeamTrafficStats.time >= text("NOW() - interval '12 hours'")) \
-            .group_by(TeamTrafficStats.time).order_by(TeamTrafficStats.time.desc()).limit(60).all():
+        .group_by(TeamTrafficStats.time).order_by(TeamTrafficStats.time.desc()).limit(60).all():
         trafficstats_keys.append(line[0].timestamp())
         trafficstats.append(list(map(int, line[1:])))
 
@@ -189,12 +191,14 @@ def packages() -> ResponseReturnValue:
 
 @app.route('/packages/update', methods=['POST'])
 def packages_update() -> ResponseReturnValue:
-    dbfs = DBFilesystem()
+    service_mgr = ServiceRepoManager()
     messages = []
     body: dict[str, Any] = request.json  # type: ignore
 
     if 'service' in body and body['service']:
         services: List[Service] = Service.query.filter(Service.id == int(body['service'])).all()
+    elif 'service_file' in body:
+        services = Service.query.filter(text(":filename LIKE checker_script_dir || '%'")).params(filename=body['service_file']).all()
     else:
         services = Service.query.all()
     changed_packages = []
@@ -203,7 +207,9 @@ def packages_update() -> ResponseReturnValue:
             if not os.path.exists(service.checker_script_dir):
                 messages.append(f'[{service.name}] Folder does not exist: "{service.checker_script_dir}"')
                 continue
-            package, is_new = dbfs.move_folder_to_package(service.checker_script_dir)
+            # upload package
+            package, setup_package, is_new = service_mgr.upload_checker_scripts(service.checker_script_dir)
+            # set if changed
             if package != service.package:
                 if is_new:
                     messages.append('[{}] Created new package: {}'.format(service.name, package))
@@ -215,16 +221,8 @@ def packages_update() -> ResponseReturnValue:
                 messages.append('[{}] No updates.'.format(service.name))
             checker_script = service.checker_script.split(':')[0]
             if not os.path.exists(os.path.join(service.checker_script_dir, checker_script)):
-                messages.append(
-                    f'[{service.name}] Checker script "{checker_script}" not found in path "{service.checker_script_dir}"')
-            # try to upload an setup script
-            if os.path.exists(os.path.join(service.checker_script_dir, 'dependencies.sh')):
-                setup_package = package
-            elif os.path.exists(os.path.join(os.path.dirname(service.checker_script_dir), 'dependencies.sh')):
-                fname = os.path.join(os.path.dirname(service.checker_script_dir), 'dependencies.sh')
-                setup_package, is_new = dbfs.move_single_file_to_package(fname)
-            else:
-                setup_package = None
+                messages.append(f'[{service.name}] Checker script "{checker_script}" not found in path "{service.checker_script_dir}"')
+            # report stored setup script
             if setup_package != service.setup_package:
                 service.setup_package = setup_package
                 messages.append(f'[{service.name}] Init script from package: {setup_package}')
@@ -264,15 +262,22 @@ def packages_run() -> ResponseReturnValue:
 
 @app.route('/packages/test', methods=['POST'])
 def packages_test() -> ResponseReturnValue:
-    team_id: int = request.json['team_id']  # type: ignore
-    service_id: int = request.json['service_id']  # type: ignore
-    roundnumber: int = request.json['round']  # type: ignore
+    body: dict[str, Any] = cast(dict, request.json)
+    team_id: int = body.get('team_id', config.SCORING.nop_team_id)  # type: ignore
     team = Team.query.filter(Team.id == team_id).one()
-    service = Service.query.filter(Service.id == service_id).one()
-    if not roundnumber:
-        min_round = db_session().query(func.min(CheckerResult.round)).filter(CheckerResult.team_id == team_id) \
-            .filter(CheckerResult.service_id == service_id).scalar()
-        roundnumber = min_round - 1 if min_round is not None and min_round < 0 else -1
+    if 'service_id' in body:
+        service_id: int = body['service_id']  # type: ignore
+        service = Service.query.filter(Service.id == service_id).one()
+    else:
+        try:
+            service = Service.query.filter(text(":filename LIKE checker_script_dir || '%'")).params(filename=body['service_file']).one()
+        except NoResultFound:
+            return Response(f'File "{body["service_file"]}" does not belong to a known service', status=400)
+    tick: int = body.get('round', 0)  # type: ignore
+    if not tick:
+        min_round = db_session().query(func.min(CheckerResult.tick)).filter(CheckerResult.team_id == team.id) \
+            .filter(CheckerResult.service_id == service.id).scalar()
+        tick = min_round - 1 if min_round is not None and min_round < 0 else -1
 
     # Check for changed files
     if service.checker_script_dir:
@@ -293,37 +298,37 @@ def packages_test() -> ResponseReturnValue:
         package = None
 
     from controlserver.dispatcher import Dispatcher
-    task, result = Dispatcher.default.dispatch_test_script(team, service, roundnumber, package)
+    task, result = Dispatcher.default.dispatch_test_script(team, service, tick, package)
     return jsonify({
         'task': task.id,
         'result_id': result.id,
         'message': message,
-        'ident': '{}/{} ({})'.format(service.name, team.name, roundnumber)
+        'ident': '{}/{} ({})'.format(service.name, team.name, tick)
     })
 
 
 @app.route('/checker_status')
 @app.route('/checker_status/')
-@app.route('/checker_status/<int:roundnumber>')
-def checker_status(roundnumber: int | None = None) -> ResponseReturnValue:
+@app.route('/checker_status/<int:tick>')
+def checker_status(tick: int | None = None) -> ResponseReturnValue:
     from controlserver.timer import Timer
     from controlserver.dispatcher import Dispatcher
-    if not roundnumber:
-        roundnumber = Timer.currentRound
+    if not tick:
+        tick = Timer.current_tick
 
     session = db_session()
-    count = session.query(func.count(CheckerResult.id)).filter(CheckerResult.round == roundnumber) \
+    count = session.query(func.count(CheckerResult.id)).filter(CheckerResult.tick == tick) \
         .filter(CheckerResult.status != 'PENDING').filter(CheckerResult.status != 'REVOKED').scalar()
-    combinations = Dispatcher.default.get_tick_combinations(roundnumber)
+    combinations = Dispatcher.default.get_tick_combinations(tick)
     if not combinations:
-        return render_template('404.html', message='Round {} has not yet been dispatched.'.format(roundnumber)), 404
+        return render_template('404.html', message='Round {} has not yet been dispatched.'.format(tick)), 404
     services = Service.query.order_by(Service.name).all()
 
     # Big table statistics
     results: List[CheckerResult] = session.query(CheckerResult.service_id, CheckerResult.status, CheckerResult.time,
                                                  CheckerResult.finished,
                                                  CheckerResult.run_over_time) \
-        .filter(CheckerResult.round == roundnumber).order_by(CheckerResult.finished).all()
+        .filter(CheckerResult.tick == tick).order_by(CheckerResult.finished).all()
     stats_dispatched: dict[int, int] = defaultdict(lambda: 0)  # service => count
     stats_results: dict[int, int] = defaultdict(lambda: 0)  # service => count of results
     stats_finished: dict[int, int] = defaultdict(lambda: 0)  # service => count of non-pending results
@@ -354,8 +359,8 @@ def checker_status(roundnumber: int | None = None) -> ResponseReturnValue:
     # graph data
     redis = get_redis_connection()
     bucketsize = 5
-    round_start = int(redis.get(f'round:{roundnumber}:start') or 0)
-    round_end = int(redis.get(f'round:{roundnumber}:end') or 0)
+    tick_start = int(redis.get(f'round:{tick}:start') or 0)
+    tick_end = int(redis.get(f'round:{tick}:end') or 0)
     first_finished = None
     last_finished = None
     for r in results:
@@ -365,30 +370,30 @@ def checker_status(roundnumber: int | None = None) -> ResponseReturnValue:
             ts2 = int(ceil(r.finished.timestamp()))
             last_finished = ts2 if not last_finished or ts2 > last_finished else last_finished
     # List[round => (last_finished, {status => count})]
-    finished_per_round: List[Tuple[datetime.datetime, dict[str, int]]] = []
+    finished_per_tick: List[Tuple[datetime.datetime, dict[str, int]]] = []
     no_finished_timestamp = 0
-    t = min(round_start, first_finished or round_start)
+    t = min(tick_start, first_finished or tick_start)
     i = 0
-    finished_per_round.append((datetime.datetime.fromtimestamp(t), defaultdict(lambda: 0)))
+    finished_per_tick.append((datetime.datetime.fromtimestamp(t), defaultdict(lambda: 0)))
     for result in results:
         if result.finished is None:
             no_finished_timestamp += 1
         else:
             while result.finished.timestamp() >= t:
                 t += bucketsize
-                finished_per_round.append((datetime.datetime.fromtimestamp(t), copy.copy(finished_per_round[i][1])))
+                finished_per_tick.append((datetime.datetime.fromtimestamp(t), copy.copy(finished_per_tick[i][1])))
                 i += 1
-            finished_per_round[i][1][result.status if not result.run_over_time else 'TOOLATE'] += 1
-    while t < round_end and t < time.time():
+            finished_per_tick[i][1][result.status if not result.run_over_time else 'TOOLATE'] += 1
+    while t < tick_end and t < time.time():
         t += bucketsize
-        finished_per_round.append((datetime.datetime.fromtimestamp(t), copy.copy(finished_per_round[i][1])))
+        finished_per_tick.append((datetime.datetime.fromtimestamp(t), copy.copy(finished_per_tick[i][1])))
         i += 1
 
     return render_template(
-        'checker_status.html', roundnumber=roundnumber, services=services, states=CheckerResult.states,
+        'checker_status.html', tick=tick, services=services, states=CheckerResult.states,
         count_finished=count or 0, count_dispatched=len(combinations),
-        server_time=int(time.time()), round_start=round_start,
-        round_start_dt=datetime.datetime.fromtimestamp(round_start), round_end=round_end,
+        server_time=int(time.time()), tick_start=tick_start,
+        tick_start_dt=datetime.datetime.fromtimestamp(tick_start), tick_end=tick_end,
         stats_dispatched=stats_dispatched, stats_finished=stats_finished, stats_time=stats_time,
         stats_status=stats_status,
         stats_time_count=stats_time_count, stats_toolate=stats_toolate, total_toolate=sum(stats_toolate.values()),
@@ -396,7 +401,7 @@ def checker_status(roundnumber: int | None = None) -> ResponseReturnValue:
         status_format={'SUCCESS': 'success', 'FLAGMISSING': 'info', 'MUMBLE': 'info', 'OFFLINE': 'info',
                        'TIMEOUT': 'warning', 'REVOKED': 'danger',
                        'CRASHED': 'danger'},
-        finished_per_round=finished_per_round, no_finished_timestamp=no_finished_timestamp,
+        finished_per_tick=finished_per_tick, no_finished_timestamp=no_finished_timestamp,
         first_finished=first_finished, last_finished=last_finished
     )
 
@@ -409,33 +414,33 @@ def checker_status_overview() -> ResponseReturnValue:
     from controlserver.dispatcher import Dispatcher
 
     if request.url_rule.rule.endswith('/all'):  # type: ignore
-        first_round = 1
+        first_tick = 1
     else:
-        first_round = max(Timer.currentRound - 30, 1)
-    last_round = Timer.currentRound
+        first_tick = max(Timer.current_tick - 30, 1)
+    last_tick = Timer.current_tick
     redis = get_redis_connection()
     session = db_session()
-    results_ok = session.query(CheckerResult.round, func.count(CheckerResult.id),
+    results_ok = session.query(CheckerResult.tick, func.count(CheckerResult.id),
                                func.sum(CheckerResult.run_over_time.cast(Integer))).group_by(
-        CheckerResult.round) \
-        .filter(CheckerResult.round >= first_round).filter(CheckerResult.round <= last_round) \
+        CheckerResult.tick) \
+        .filter(CheckerResult.tick >= first_tick).filter(CheckerResult.tick <= last_tick) \
         .filter(CheckerResult.status.in_(['SUCCESS', 'FLAGMISSING', 'MUMBLE', 'OFFLINE'])).all()
-    results_warn = session.query(CheckerResult.round, func.count(CheckerResult.id)).group_by(CheckerResult.round) \
-        .filter(CheckerResult.round >= first_round).filter(CheckerResult.round <= last_round) \
+    results_warn = session.query(CheckerResult.tick, func.count(CheckerResult.id)).group_by(CheckerResult.tick) \
+        .filter(CheckerResult.tick >= first_tick).filter(CheckerResult.tick <= last_tick) \
         .filter(CheckerResult.status == 'TIMEOUT').all()
-    results_error = session.query(CheckerResult.round, func.count(CheckerResult.id)).group_by(CheckerResult.round) \
-        .filter(CheckerResult.round >= first_round).filter(CheckerResult.round <= last_round) \
+    results_error = session.query(CheckerResult.tick, func.count(CheckerResult.id)).group_by(CheckerResult.tick) \
+        .filter(CheckerResult.tick >= first_tick).filter(CheckerResult.tick <= last_tick) \
         .filter(CheckerResult.status == 'CRASHED').all()
-    results_revoked = session.query(CheckerResult.round, func.count(CheckerResult.id)).group_by(CheckerResult.round) \
-        .filter(CheckerResult.round >= first_round).filter(CheckerResult.round <= last_round) \
+    results_revoked = session.query(CheckerResult.tick, func.count(CheckerResult.id)).group_by(CheckerResult.tick) \
+        .filter(CheckerResult.tick >= first_tick).filter(CheckerResult.tick <= last_tick) \
         .filter(CheckerResult.status == 'REVOKED').all()
-    results_last_finished = session.query(CheckerResult.round, func.max(CheckerResult.finished)).group_by(
-        CheckerResult.round) \
-        .filter(CheckerResult.round >= first_round).filter(CheckerResult.round <= last_round).all()
+    results_last_finished = session.query(CheckerResult.tick, func.max(CheckerResult.finished)).group_by(
+        CheckerResult.tick) \
+        .filter(CheckerResult.tick >= first_tick).filter(CheckerResult.tick <= last_tick).all()
 
-    rounds = {}
-    for i in range(first_round, Timer.currentRound + 1):
-        rounds[i] = {
+    ticks = {}
+    for i in range(first_tick, Timer.current_tick + 1):
+        ticks[i] = {
             'number': i,
             'start': datetime.datetime.fromtimestamp(int(redis.get('round:{}:start'.format(i)) or 0),
                                                      datetime.timezone.utc),  # type: ignore
@@ -451,17 +456,17 @@ def checker_status_overview() -> ResponseReturnValue:
             'last_finished': None
         }
     for i, count, over_time in results_ok:
-        rounds[i]['tasks_ok'] = count - over_time
-        rounds[i]['tasks_toolate'] = over_time
+        ticks[i]['tasks_ok'] = count - over_time
+        ticks[i]['tasks_toolate'] = over_time
     for i, count in results_warn:
-        rounds[i]['tasks_warn'] = count
+        ticks[i]['tasks_warn'] = count
     for i, count in results_error:
-        rounds[i]['tasks_error'] = count
+        ticks[i]['tasks_error'] = count
     for i, count in results_revoked:
-        rounds[i]['tasks_revoked'] = count
+        ticks[i]['tasks_revoked'] = count
     for i, last_finished in results_last_finished:
-        rounds[i]['last_finished'] = last_finished
-    return render_template('checker_status_overview.html', rounds=rounds, first_round=first_round)
+        ticks[i]['last_finished'] = last_finished
+    return render_template('checker_status_overview.html', ticks=ticks, first_tick=first_tick)
 
 
 @app.route('/scripts/recreate_scoreboard', methods=['POST'])
@@ -474,14 +479,14 @@ def recreate_scoreboard() -> ResponseReturnValue:
         scoreboard = Scoreboard(scoring)
         scoreboard.create_scoreboard(0, False, False)
         rn = 0
-        end_round: int = Timer.currentRound - 1 if Timer.state == CTFState.RUNNING else Timer.currentRound
+        end_round: int = Timer.current_tick - 1 if Timer.state == CTFState.RUNNING else Timer.current_tick
         while rn <= end_round:
             scoreboard.create_scoreboard(rn, Timer.state != CTFState.STOPPED or end_round > 0, rn == end_round)
             rn += 1
-            end_round = Timer.currentRound - 1 if Timer.state == CTFState.RUNNING else Timer.currentRound
+            end_round = Timer.current_tick - 1 if Timer.state == CTFState.RUNNING else Timer.current_tick
 
     def do_scoreboard() -> None:
-        logResultOfExecution(
+        log_result_of_execution(
             'scoring',
             recreate_scoreboard_inner, args=(),
             success='Scoreboard generated manually, took {:.1f} sec',

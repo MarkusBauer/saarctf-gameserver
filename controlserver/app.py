@@ -10,6 +10,7 @@ import sys
 import threading
 
 from controlserver.timer import init_cp_timer, run_master_timer
+from saarctf_commons.metric_utils import setup_default_metrics
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -29,7 +30,7 @@ def _register_endpoints(app: Flask) -> None:
     import controlserver.endpoints.log_messages
     import controlserver.endpoints.teams
     import controlserver.endpoints.flags
-    import controlserver.endpoints.influx
+    import controlserver.endpoints.metrics
     import controlserver.endpoints.services
     import controlserver.endpoints.patches
     app.register_blueprint(controlserver.endpoints.pages.app)
@@ -37,7 +38,7 @@ def _register_endpoints(app: Flask) -> None:
     app.register_blueprint(controlserver.endpoints.log_messages.app)
     app.register_blueprint(controlserver.endpoints.teams.app)
     app.register_blueprint(controlserver.endpoints.flags.app)
-    app.register_blueprint(controlserver.endpoints.influx.app)
+    app.register_blueprint(controlserver.endpoints.metrics.app)
     app.register_blueprint(controlserver.endpoints.services.app)
     app.register_blueprint(controlserver.endpoints.patches.app)
     app.register_blueprint(controlserver.endpoints.api.app)
@@ -52,7 +53,8 @@ def _register_processors(app: Flask) -> None:
             'coder_url': config.CODER_URL,
             'grafana_url': config.GRAFANA_URL,
             'scoreboard_url': config.SCOREBOARD_URL,
-            'current_round': Timer.currentRound
+            'current_round': Timer.current_tick,
+            'current_tick': Timer.current_tick,
         }
 
     @app.template_filter('bool2html')
@@ -82,6 +84,7 @@ def create_app() -> Flask:
     NamedRedisConnection.set_clientname('controlserver')
     celery_worker.init()
     start_timer_if_necessary()
+    setup_default_metrics()
 
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.urandom(12).hex()

@@ -5,16 +5,16 @@ This repository contains the gameserver we used to organize our first attack-def
 If you want to build your own CTF with this framework: contact us for additional explanations.
 
 This CTF infrastructure was build in a two-years-effort by @MarkusBauer, 
-with additional contributions by [Jonas Bushart](https://github.com/jonasbb) and Patrick Schmelzeisen. 
+with additional contributions by [Jonas Bushart](https://github.com/jonasbb), Patrick Schmelzeisen, Niklas Beierl, and Simon Einzinger.
 
 
 Structure
 ---------
 - Central databases: PostgresSQL, Redis, RabbitMQ
-- Central gameserver *(folder `controlserver`)*: Round timer, dispatches checker scripts, calculate ranking and create scoreboard
+- Central gameserver *(folder `controlserver`)*: Tick timer, dispatches checker scripts, calculate ranking and create scoreboard
 - Checker script workers *(folder `checker_runner`)*: Run the checker scripts
 - Submission Server: Accept flags from the participants
-- VPN Server: OpenVPN-Servers for each team with additional monitoring / IPTables controller / tcpdump.
+- VPN Server: Wireguard/OpenVPN servers for each team with additional monitoring / IPTables controller / tcpdump.
 
 
 Setup
@@ -22,13 +22,18 @@ Setup
 - Setup a PostgreSQL database, a redis database and a RabbitMQ server (see below).
 - `make deps`
 - `npm install && npm run build`
-- Write `config.json`
+- Write `config.yaml` (see [config.sample.yaml](config.sample.yaml))
 - `alembic upgrade head`
+
+Scoreboard and submission server need additional setup:
+- cd scoreboard
+- npm install && npm run build
+- [Flag submission server build instructions](./flag-submission-server/README.md)
 
 
 Run gameserver
 --------------
-`export FLASK_APP=controlserver/app.py` is required for most commands.
+`export FLASK_APP=controlserver/app.py` is required for most commands. So is either `run.sh` or `. venv/bin/activate`.
 
 - Main server: `flask run --host=0.0.0.0`
 - Celery control panel: `celery -A checker_runner.celery_cmd flower --port=5555`
@@ -64,8 +69,7 @@ Folders
 
 Configuration
 -------------
-To test, copy `config.sample.json` to `config.json` and adjust if needed. 
-JSON keys starting with `__` are stripped. 
+To test, copy [`config.sample.yaml`](config.sample.yaml) to `config.yaml` and adjust if needed. 
 
 To deploy, you can use environment variables:
 - `SAARCTF_CONFIG` path to config.json file
@@ -87,3 +91,10 @@ On the gameserver side, there are several factors you can use to adjust scores (
 
 Suggestions for saarCTF are default settings (1/10/1.0/1.0/1.0). 
 Suggestions for our small workshop are (0/20/2.5/1.5/1.0). 
+
+
+More
+----
+There are many more things implemented here, for example VPN / network handling, which require additional setup.
+Also there are many utilities (in `/scripts`) which might help you with typical situations.
+Most of the stuff has little documentation so far.

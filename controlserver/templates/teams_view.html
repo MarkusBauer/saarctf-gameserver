@@ -11,6 +11,8 @@
 				<span class="label label-success">up (team-hosted)</span>
 			{% elif team.vpn2_connected %}
 				<span class="label label-success">up (cloud-hosted)</span>
+            {% elif team.wg_vulnbox_connected %}
+				<span class="label label-success">up (wg)</span>
 			{% else %}
 				<span class="label label-danger">down</span>
 			{% endif %}

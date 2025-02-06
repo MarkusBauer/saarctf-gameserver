@@ -3,16 +3,16 @@ from . import test
 
 
 class SampleService(gamelib.ServiceInterface):
-	def check_integrity(self, team, round):
+	def check_integrity(self, team, tick):
 		if not test.VERSION == 1:
 			raise Exception(test.VERSION)
 		return True
 
-	def store_flags(self, team, round):
+	def store_flags(self, team, tick):
 		# self.do_blocking_io()
 		return 1
 
-	def retrieve_flags(self, team, round):
+	def retrieve_flags(self, team, tick):
 		# return 1
 		raise gamelib.FlagMissingException("FLAG{} not found")
 

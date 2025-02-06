@@ -5,7 +5,7 @@ import {BackendService} from "../backend.service";
 import {Rank, RoundInformation} from "../models";
 import {UiService} from "../ui.service";
 import {KeyValue} from "@angular/common";
-import {Chart, ChartData, ChartDataset, ChartOptions} from "chart.js";
+import {Chart, ChartData, ChartOptions} from "chart.js";
 import {BaseChartDirective} from "ng2-charts";
 import {addScheme, COLORS} from "../chart-colorschemes";
 
@@ -55,7 +55,7 @@ export abstract class StatisticsComponentBase implements OnInit, OnDestroy {
 @Component({
     selector: 'app-page-team',
     templateUrl: './page-team.component.html',
-    styleUrls: ['./page-team.component.less']
+    styleUrls: ['./page-team.component.less'],
 })
 export class PageTeamComponent extends StatisticsComponentBase {
 
@@ -158,7 +158,7 @@ export class PageTeamComponent extends StatisticsComponentBase {
 
     addRoundInfo(ri: RoundInformation) {
         for (let rank of ri.scoreboard) {
-            if (rank.team_id == this.teamId) {
+            if (rank.team_id === this.teamId) {
                 this.tickInfos[ri.tick] = rank;
                 this.tickInfosLength = Object.keys(this.tickInfos).length;
                 break;
@@ -205,13 +205,13 @@ export class PageTeamComponent extends StatisticsComponentBase {
     }
 
     updateGraph() {
-        if (this.currentRoundInfo.tick < 0)
+        if (!this.currentRoundInfo || this.currentRoundInfo.tick < 0 || this.teamId === null)
             return;
         // Get team before/after
         let teamAfterUs: number = null;
         let teamBeforeUs: number = null;
         for (let i = 0; i < this.currentRoundInfo.scoreboard.length; i++) {
-            if (this.currentRoundInfo.scoreboard[i].team_id == this.teamId) {
+            if (this.currentRoundInfo.scoreboard[i].team_id === this.teamId) {
                 if (i > 0)
                     teamBeforeUs = this.currentRoundInfo.scoreboard[i - 1].team_id;
                 if (i + 1 < this.currentRoundInfo.scoreboard.length)
@@ -288,6 +288,6 @@ export class PageTeamComponent extends StatisticsComponentBase {
                 addScheme(ds, ds['colorIndex'], false);
         }
         this.chartOptions = {...this.chartOptions};
-        this.chart?.update(0);
+        this.chart?.update();
     }
 }

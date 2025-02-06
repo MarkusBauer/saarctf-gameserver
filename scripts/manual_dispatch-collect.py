@@ -9,7 +9,7 @@ from controlserver.dispatcher import Dispatcher
 from saarctf_commons.redis import NamedRedisConnection
 
 """
-ARGUMENTS: round (optional)
+ARGUMENTS: tick (optional)
 """
 
 if __name__ == '__main__':
@@ -22,13 +22,13 @@ if __name__ == '__main__':
         from controlserver.timer import Timer, init_slave_timer
         init_slave_timer()
 
-        roundnumber = Timer.currentRound
+        tick = Timer.current_tick
     else:
-        roundnumber = int(sys.argv[1])
+        tick = int(sys.argv[1])
 
     init_database()
 
     t = time.time()
     dispatcher = Dispatcher()
-    dispatcher.collect_checker_results(roundnumber)
-    print('Collected checker scripts for round {}. Took {:.1f} sec'.format(roundnumber, time.time() - t))
+    dispatcher.collect_checker_results(tick)
+    print('Collected checker scripts for tick {}. Took {:.1f} sec'.format(tick, time.time() - t))

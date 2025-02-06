@@ -38,13 +38,13 @@
 					{% endif %}
 				</td>
 				<td>
-					{{ '{:.3g}'.format(service.flags_per_round) }}&nbsp;flag{% if service.flags_per_round != 1 %}s{% endif %}/round<br/>
+					{{ '{:.3g}'.format(service.flags_per_tick) }}&nbsp;flag{% if service.flags_per_tick != 1 %}s{% endif %}/tick<br/>
 					{{ '' if service.flag_ids else 'no ' }} flag ids
 				</td>
 				<td>
 					{% for flag in first_bloods[service.id] %}
 						{% if service.num_payloads %}[{{ flag.payload }}]: {% endif %}
-						{{ flag.ts.strftime('%H:%M:%S') }} (round {{ flag.round_submitted }}):
+						{{ flag.ts.strftime('%H:%M:%S') }} (tick {{ flag.tick_submitted }}):
 						<strong>{{ flag.submitted_by_team.name }}</strong>
 						<small>(from {{ flag.victim_team.name }})</small>
 						{% if not loop.last %}<br/>{% endif %}

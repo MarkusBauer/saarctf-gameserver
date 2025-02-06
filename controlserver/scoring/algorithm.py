@@ -16,7 +16,7 @@ class FlagSet:
         Return True if this flag was not seen by this set before.
         Submitter is ignored, thus similar to "flag string".
         """
-        key = (flag.service_id, flag.team_id, flag.round_issued, flag.payload)
+        key = (flag.service_id, flag.team_id, flag.tick_issued, flag.payload)
         if key in self._set:
             return False
         self._set.add(key)
@@ -69,7 +69,7 @@ class ScoreTickAlgorithm:
         for team_id in self.team_ids:
             for service in self.services:
                 if (team_id, service.id) not in result:
-                    result[(team_id, service.id)] = TeamPointsLite(team_id=team_id, service_id=service.id, round=tick)
+                    result[(team_id, service.id)] = TeamPointsLite(team_id=team_id, service_id=service.id, tick=tick)
         return result
 
     def calculate_scoring_for_tick(self, tick: int,
@@ -96,9 +96,9 @@ class ScoreTickAlgorithm:
         for flag in flags:
             try:
                 service = self.services_by_id[flag.flag.service_id]
-                service_flags_per_tick: float = service.flags_per_round  # type: ignore
+                service_flags_per_tick: float = service.flags_per_tick  # type: ignore
                 # Victim's rank when the flag was created (end of the tick before)
-                victim_rank = team_rank_in_tick.get((flag.flag.round_issued - 1, flag.flag.team_id),
+                victim_rank = team_rank_in_tick.get((flag.flag.tick_issued - 1, flag.flag.team_id),
                                                     len(self.team_ids))
 
                 self._flag_stolen_attacker(new_tick_points, flag, service_flags_per_tick, victim_rank)
@@ -138,7 +138,7 @@ class ScoreTickAlgorithm:
         # Victim's SLA points when the flag was stored (0 if the flag couldn't be stored)
         victim = new_tick_points[(flag.flag.team_id, flag.flag.service_id)]
         victim_sla_when_issued = self.sla_delta_for \
-            .get((flag.flag.service_id, flag.flag.round_issued), {}) \
+            .get((flag.flag.service_id, flag.flag.tick_issued), {}) \
             .get(flag.flag.team_id, 0)
         prev_damage = flag.def_points_previous(num_active_teams, victim_sla_when_issued)
         new_damage = flag.def_points(num_active_teams, victim_sla_when_issued)

@@ -1,13 +1,14 @@
 #ifndef FLAG_SUBMISSION_SERVER_CONFIG_H
 #define FLAG_SUBMISSION_SERVER_CONFIG_H
 
-
 #include <string>
+#include <cstdint>
 
 class Config {
 public:
 	static void load();
-	static void load(const std::string filename);
+
+	static void load(const std::string& filename);
 
 	static const char *getPostgresConnectionString();
 

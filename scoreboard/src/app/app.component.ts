@@ -10,6 +10,6 @@ export class AppComponent {
 	title = 'scoreboard';
 
 	constructor() {
-		setTheme('bs3');
+		setTheme('bs4');
 	}
 }

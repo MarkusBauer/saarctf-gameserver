@@ -12,18 +12,18 @@ from controlserver.scoring.scoreboard import Scoreboard
 from controlserver.scoring.scoring import ScoringCalculation
 
 """
-ARGUMENTS: start_round end_round (both optional)
+ARGUMENTS: filename (default: stdout)
 """
 
 
-def export_ctftime_scoreboard(fname: Optional[str]) -> None:
+def export_ctftime_scoreboard(fname: str | None) -> None:
     init_database()
     init_slave_timer()
     from controlserver.timer import Timer
     scoring = ScoringCalculation(config.SCORING)
     scoreboard = Scoreboard(scoring)
-    roundnumber = Timer.currentRound if Timer.state != CTFState.RUNNING else Timer.currentRound - 1
-    data = scoreboard.create_ctftime_json(roundnumber)
+    tick = Timer.current_tick if Timer.state != CTFState.RUNNING else Timer.current_tick - 1
+    data = scoreboard.create_ctftime_json(tick)
     if fname:
         fname = os.path.abspath(fname)
         with open(fname, 'w') as f:

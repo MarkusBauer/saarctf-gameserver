@@ -56,7 +56,11 @@
 						<span class="label label-success" title="cloud-hosted vulnbox vpn">on (c)</span>
 						since {{ team.vpn_last_connect.strftime('%H:%M:%S') if team.vpn_last_connect else '?' }}
 					{% endif %}
-					{% if not team.vpn_connected and not team.vpn2_connected %}
+                    {% if team.wg_vulnbox_connected %}
+						<span class="label label-success" title="vulnbox wireguard vpn">on (wg)</span>
+						since {{ team.vpn_last_connect.strftime('%H:%M:%S') if team.vpn_last_connect else '?' }}
+					{% endif %}
+					{% if not team.vpn_connected and not team.vpn2_connected and not team.wg_vulnbox_connected %}
 						<span class="label label-danger">off</span>
 						{% if team.vpn_last_disconnect %}
 							since {{ team.vpn_last_disconnect.strftime('%H:%M:%S') }}

@@ -17,6 +17,7 @@ class ScriptRunner:
         cmd: list[str] = [sys.executable, file] + args
         cwd = str(Path(__file__).absolute().parent.parent.parent)
         env = {k: v for k, v in os.environ.items()}
+        env['METRICS_LOGFILE'] = '-'
         with TemporaryDirectory() as config_dir:
             (Path(config_dir) / 'config.json').write_text(json.dumps(config.to_dict()))
             env['SAARCTF_CONFIG'] = os.path.join(config_dir, 'config.json')

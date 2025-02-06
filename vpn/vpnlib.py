@@ -105,17 +105,7 @@ def format_vpn_server_keys(directory: Path) -> str:
     return config
 
 
-def build_bpf(max_team_id: int) -> None:
-    root = os.path.dirname(os.path.abspath(__file__))
-    if max_team_id > 511:
-        raise Exception('You hit the limit in bpf/traffic_stats.c. Please update and recompile!')
-    bpfcode = readb(os.path.join(root, 'bpf', 'traffic_stats.o'))
-    old = struct.pack('<I', 0xdeadbeef)
-    if bpfcode.count(old) != 2:
-        print('contant found:', bpfcode.count(old))
-        assert bpfcode.count(old) == 2
-    for team_id in range(1, max_team_id + 11):
-        new = struct.pack('<I', team_id)
-        team_bpfcode = bpfcode.replace(old, new)
-        writeb(os.path.join(root, 'bpf', f'traffic_stats_team{team_id}.o'), team_bpfcode)
-    print('[OK] BPF files produced.')
+def gen_wg_keypair() -> tuple[str, str]:
+    privkey = subprocess.check_output(['wg', 'genkey']).decode('utf-8').strip()
+    pubkey = subprocess.check_output(['wg', 'pubkey'], input=privkey.encode()).decode('utf-8').strip()
+    return privkey, pubkey

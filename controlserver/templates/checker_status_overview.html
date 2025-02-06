@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Rounds{% endblock %}
+{% block title %}Ticks{% endblock %}
 
 {% block content %}
 	<style>
@@ -47,69 +47,69 @@
 			<th colspan="2">Checker Time</th>
 		</tr>
 		<tbody>
-		{% for i in range(current_round, first_round-1, -1) %}
+		{% for i in range(current_tick, first_tick-1, -1) %}
 			<tr>
 				<td>{{ i }}</td>
 				<td class="nowrap">
-					{{ rounds[i].start.strftime('%H:%M:%S') }} -
-					{{ rounds[i].end.strftime('%H:%M:%S') }}
-					<small>({{ rounds[i].time }} sec)</small>
+					{{ ticks[i].start.strftime('%H:%M:%S') }} -
+					{{ ticks[i].end.strftime('%H:%M:%S') }}
+					<small>({{ ticks[i].time }} sec)</small>
 				</td>
 				<td class="nowrap" style="min-width: 70%">
 					<div class="progress">
-						{% if rounds[i].dispatched > 0 %}
+						{% if ticks[i].dispatched > 0 %}
 							<div class="progress-bar progress-bar-success"
-								 style="width: {{ (100*rounds[i].tasks_ok/rounds[i].dispatched)|round|int }}%">
-								{% if rounds[i].tasks_ok %}{{ rounds[i].tasks_ok }} / {{ rounds[i].dispatched }}{% endif %}
+								 style="width: {{ (100*ticks[i].tasks_ok/ticks[i].dispatched)|round|int }}%">
+								{% if ticks[i].tasks_ok %}{{ ticks[i].tasks_ok }} / {{ ticks[i].dispatched }}{% endif %}
 							</div>
 							<div class="progress-bar progress-bar-info"
-								 style="width: {{ (100*rounds[i].tasks_toolate/rounds[i].dispatched)|round|int }}%">
-								{% if rounds[i].tasks_toolate %}{{ rounds[i].tasks_toolate }} / {{ rounds[i].dispatched }}{% endif %}
+								 style="width: {{ (100*ticks[i].tasks_toolate/ticks[i].dispatched)|round|int }}%">
+								{% if ticks[i].tasks_toolate %}{{ ticks[i].tasks_toolate }} / {{ ticks[i].dispatched }}{% endif %}
 							</div>
 							<div class="progress-bar progress-bar-warning"
-								 style="width: {{ (100*rounds[i].tasks_warn/rounds[i].dispatched)|round|int }}%">
-								{% if rounds[i].tasks_warn %}{{ rounds[i].tasks_warn }}{% endif %}
+								 style="width: {{ (100*ticks[i].tasks_warn/ticks[i].dispatched)|round|int }}%">
+								{% if ticks[i].tasks_warn %}{{ ticks[i].tasks_warn }}{% endif %}
 							</div>
 							<div class="progress-bar progress-bar-danger"
-								 style="width: {{ (100*rounds[i].tasks_error/rounds[i].dispatched)|round|int }}%">
-								{% if rounds[i].tasks_error %}{{ rounds[i].tasks_error }}{% endif %}
+								 style="width: {{ (100*ticks[i].tasks_error/ticks[i].dispatched)|round|int }}%">
+								{% if ticks[i].tasks_error %}{{ ticks[i].tasks_error }}{% endif %}
 							</div>
 							<div class="progress-bar progress-bar-disabled"
-								 style="width: {{ (100*rounds[i].tasks_revoked/rounds[i].dispatched)|round|int }}%">
-								{% if rounds[i].tasks_revoked %}{{ rounds[i].tasks_revoked }}{% endif %}
+								 style="width: {{ (100*ticks[i].tasks_revoked/ticks[i].dispatched)|round|int }}%">
+								{% if ticks[i].tasks_revoked %}{{ ticks[i].tasks_revoked }}{% endif %}
 							</div>
 						{% endif %}
 					</div>
 				</td>
 				<td class="nowrap">
-					{% if not rounds[i].last_finished %}
+					{% if not ticks[i].last_finished %}
 						<small class="text-muted">-</small>
-					{% elif rounds[i].last_finished > rounds[i].end %}
+					{% elif ticks[i].last_finished > ticks[i].end %}
 						<small class="text-danger">
-							{{ '{:.1f}'.format((rounds[i].last_finished - rounds[i].start).total_seconds()) }} sec
+							{{ '{:.1f}'.format((ticks[i].last_finished - ticks[i].start).total_seconds()) }} sec
 						</small>
-					{% elif rounds[i].last_finished.timestamp() > rounds[i].end.timestamp() - 10 %}
+					{% elif ticks[i].last_finished.timestamp() > ticks[i].end.timestamp() - 10 %}
 						<small class="text-warning">
-							{{ '{:.1f}'.format((rounds[i].last_finished - rounds[i].start).total_seconds()) }} sec
+							{{ '{:.1f}'.format((ticks[i].last_finished - ticks[i].start).total_seconds()) }} sec
 						</small>
 					{% else %}
 						<small>
-							{{ '{:.1f}'.format((rounds[i].last_finished - rounds[i].start).total_seconds()) }} sec
+							{{ '{:.1f}'.format((ticks[i].last_finished - ticks[i].start).total_seconds()) }} sec
 						</small>
 					{% endif %}
 				</td>
 				<td>
-					<a href="{{ url_for('endpoints.checker_status', roundnumber=i) }}" class="glyphicon glyphicon-search"></a>
+					<a href="{{ url_for('endpoints.checker_status', tick=i) }}" class="glyphicon glyphicon-search"></a>
 				</td>
 			</tr>
 		{% endfor %}
 		</tbody>
 	</table>
 
-	{% if first_round > 1 %}
+	{% if first_tick > 1 %}
 		<a href="{{ url_for('.checker_status_overview') }}/all">&rArr; Show all ...</a><br />
 	{% endif %}
-		<a href="{{ url_for('.checker_status') }}">&rArr; Inspect current round ...</a>
+		<a href="{{ url_for('.checker_status') }}">&rArr; Inspect current tick ...</a>
 {% endblock %}
 
 {% block footer %}

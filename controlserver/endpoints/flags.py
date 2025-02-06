@@ -34,14 +34,14 @@ def flags_index() -> ResponseReturnValue:
             if len(data) < 8:
                 raise Exception('Too short')
 
-            stored_round, teamid, serviceid, payload = struct.unpack('<HHHH', data[:8])
+            stored_tick, teamid, serviceid, payload = struct.unpack('<HHHH', data[:8])
             mac = binascii.hexlify(data[8:]).decode()
             real_mac_bin = hmac.HMAC(config.SECRET_FLAG_KEY, data[:8], hashlib.sha256).digest()[:MAC_LENGTH]
             real_mac = binascii.hexlify(real_mac_bin).decode()
             team = Team.query.filter(Team.id == teamid).first()
             service = Service.query.filter(Service.id == serviceid).first()
 
-            valid_except_mac = stored_round <= Timer.currentRound and team and service
+            valid_except_mac = stored_tick <= Timer.current_tick and team and service
             valid = valid_except_mac and mac == real_mac
             repaired_flag = ''
             if valid_except_mac and not valid:
@@ -49,20 +49,20 @@ def flags_index() -> ResponseReturnValue:
 
             if valid:
                 submissions = SubmittedFlag.query \
-                    .filter(SubmittedFlag.round_issued == stored_round, SubmittedFlag.team_id == teamid, SubmittedFlag.service_id == serviceid,
+                    .filter(SubmittedFlag.tick_issued == stored_tick, SubmittedFlag.team_id == teamid, SubmittedFlag.service_id == serviceid,
                             SubmittedFlag.payload == payload) \
                     .order_by(SubmittedFlag.ts).all()
             else:
                 submissions = []
 
-            result_store = CheckerResult.query.filter(CheckerResult.round == stored_round, CheckerResult.team_id == teamid,
+            result_store = CheckerResult.query.filter(CheckerResult.tick == stored_tick, CheckerResult.team_id == teamid,
                                                       CheckerResult.service_id == serviceid).first()
-            result_retrieve = CheckerResult.query.filter(CheckerResult.round == stored_round + 1, CheckerResult.team_id == teamid,
+            result_retrieve = CheckerResult.query.filter(CheckerResult.tick == stored_tick + 1, CheckerResult.team_id == teamid,
                                                          CheckerResult.service_id == serviceid).first()
 
             return render_template('flags.html', flag=flag, flag_regex=flag_regex,
-                                   stored_round=stored_round, teamid=teamid, serviceid=serviceid, payload=payload, mac=mac, real_mac=real_mac,
-                                   team=team, service=service, current_round=Timer.currentRound,
+                                   stored_tick=stored_tick, teamid=teamid, serviceid=serviceid, payload=payload, mac=mac, real_mac=real_mac,
+                                   team=team, service=service, current_round=Timer.current_tick,
                                    valid=valid, repaired_flag=repaired_flag, submissions=submissions,
                                    result_store=result_store, result_retrieve=result_retrieve)
         except Exception as e:

@@ -7,20 +7,26 @@ Script that periodically writes the network statistics into database.
 import ctypes
 import datetime
 import json
+import logging
 import os
 import sys
 import time
 from math import floor
-from typing import Iterable, Dict, List
-
-from controlserver.models import TeamTrafficStats, db_session, init_database, Team
-from saarctf_commons.redis import NamedRedisConnection, get_redis_connection
+from typing import Iterable, Dict, List, cast
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from saarctf_commons.config import config, load_default_config
+from saarctf_commons.logging_utils import setup_script_logging
+from saarctf_commons.redis import NamedRedisConnection, get_redis_connection
+from controlserver.models import TeamTrafficStats, db_session, init_database, Team, db_session_2, Service
 
 libbpf = ctypes.CDLL("libbpf.so")
+
+try:
+    BPF_ANY: int = cast(int, libbpf.BPF_ANY)
+except AttributeError:
+    BPF_ANY = 0  # from /usr/include/linux/bpf.h
 
 # how often you want results. Should be 60 for now, and must be a divisor or multiple of 60
 TICK_TIME = 60
@@ -52,7 +58,7 @@ def open_bpfmap(fname: str) -> int:
     global BPF_RETRY_COUNT
     fd = libbpf.bpf_obj_get(fname.encode())
     while fd < 0 and BPF_RETRY_COUNT > 0:
-        print('[-] BPF map not available, retry later ...')
+        logging.info(f'[-] BPF map {fname.split("/")[-1]!r} not available, retry later ...')
         BPF_RETRY_COUNT -= 1
         time.sleep(10)
         fd = libbpf.bpf_obj_get(fname.encode())
@@ -85,18 +91,18 @@ def read_team_infos(fd: int, team_ids: Iterable[int]) -> Dict[int, List[int]]:
     return result
 
 
-def wait_for_next_tick(offset: float = 1):
+def wait_for_next_tick(offset: float = 1) -> None:
     ts = time.time() % TICK_TIME
     waittime = TICK_TIME - (ts % TICK_TIME)
     if offset < 0 and waittime - offset > TICK_TIME:
         return
     if waittime < offset:
         waittime += TICK_TIME
-    print(f'...  next action in {waittime:.1f} sec')
+    logging.info(f'...  next action in {waittime:.1f} sec')
     time.sleep(waittime)
 
 
-def save_difference(timestamp: int, new_results: Dict[int, List[int]], last_minute_results: Dict[int, List[int]]):
+def save_difference(timestamp: int, new_results: Dict[int, List[int]], last_minute_results: Dict[int, List[int]]) -> None:
     stuff_to_save = {}
     for team_id, new_values in new_results.items():
         old_values = last_minute_results.get(team_id)
@@ -108,7 +114,7 @@ def save_difference(timestamp: int, new_results: Dict[int, List[int]], last_minu
     check_for_suspicious_numbers(new_results, last_minute_results)
 
 
-def check_for_suspicious_numbers(new_results: Dict[int, List[int]], traffic_last_tick: Dict[int, List[int]]):
+def check_for_suspicious_numbers(new_results: Dict[int, List[int]], traffic_last_tick: Dict[int, List[int]]) -> None:
     from controlserver.logger import log
     from controlserver.models import LogMessage
     for team_id, traffic in traffic_last_tick.items():
@@ -121,12 +127,44 @@ def check_for_suspicious_numbers(new_results: Dict[int, List[int]], traffic_last
             log('traffic-control', f'Team #{team_id} uploaded too much last minute ({team_upload / 1000000:.1f} MB)', level=LogMessage.IMPORTANT)
 
 
+def write_port_numbers(bpf_map: str, ports: list[tuple[int, int]]) -> None:
+    fd = open_bpfmap(bpf_map)
+    try:
+        entries = [(service_id << 16) | port for service_id, port in ports] + [0]
+        assert len(entries) <= 20
+        key = (ctypes.c_int32 * 1)(0)
+        value = (ctypes.c_int32 * 1)(0)
+        for i, entry in enumerate(entries):
+            key[0] = i
+            value[0] = entry
+            if libbpf.bpf_map_update_elem(fd, key, value, BPF_ANY) != 0:
+                raise Exception(f'cannot update port array element {i}')
+    finally:
+        os.close(fd)
+
+
+def update_service_ports() -> None:
+    tcp_ports = []
+    udp_ports = []
+    with db_session_2() as session:
+        for service in session.query(Service).all():
+            for proto, port in service.parse_ports():
+                if proto == 'tcp':
+                    tcp_ports.append((service.id, port))
+                elif proto == 'udp':
+                    udp_ports.append((service.id, port))
+    write_port_numbers('/sys/fs/bpf/tc/globals/service_ports_tcp', tcp_ports)
+    write_port_numbers('/sys/fs/bpf/tc/globals/service_ports_udp', udp_ports)
+    logging.info('[OK] Wrote service ports to bpf maps')
+
+
 def main():
+    update_service_ports()
     redis = get_redis_connection()
     fd = open_bpfmap('/sys/fs/bpf/tc/globals/counting_map')
     try:
         if not redis.get('network:state') == b'on':
-            print('[-]  VPN is offline, stats paused.')
+            logging.info('[-]  VPN is offline, stats paused.')
 
         loaded_data = None
         if os.path.exists('/tmp/vpn-stats-state.json'):
@@ -138,7 +176,7 @@ def main():
             last_minute_results = loaded_data['last_minute_results']
             old_vpn_status = loaded_data['old_vpn_status']
             last_minute_tick = loaded_data['last_minute_tick']
-            print(f'[OK] Initialized from saved state, {len(last_minute_results)} teams.')
+            logging.info(f'[OK] Initialized from saved state, {len(last_minute_results)} teams.')
 
         else:
             # Initially wait for the next minute to start
@@ -149,7 +187,7 @@ def main():
             last_minute_results = read_team_infos(fd, team_ids)
             old_vpn_status = redis.get('network:state') == b'on'
             last_minute_tick = round(time.time() / TICK_TIME) * TICK_TIME
-            print(f'[OK] Initialized, {len(team_ids)} teams.')
+            logging.info(f'[OK] Initialized, {len(team_ids)} teams.')
 
         try:
             while True:
@@ -158,7 +196,7 @@ def main():
                 t_display = datetime.datetime.utcfromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S')
 
                 # 1. Retrieve network status
-                print(f'...  Network status at {t_display}')
+                logging.info(f'...  Network status at {t_display}')
                 team_ids = [r[0] for r in db_session().query(Team.id).filter(Team.vpn_last_connect != None).all()]
                 new_results = read_team_infos(fd, team_ids)
                 new_vpn_status = redis.get('network:state') == b'on'
@@ -167,9 +205,9 @@ def main():
                 if old_vpn_status or new_vpn_status:
                     save_difference(round(t / TICK_TIME) * TICK_TIME, new_results, last_minute_results)
                     t = time.time() - t
-                    print(f'[OK] Saved stats of {len(team_ids)} teams in {t:.3f} seconds.')
+                    logging.info(f'[OK] Saved stats of {len(team_ids)} teams in {t:.3f} seconds.')
                 else:
-                    print(f'[-]  VPN is offline, no stats taken.')
+                    logging.info(f'[-]  VPN is offline, no stats taken.')
 
                 # 3. Save current results as base for next tick
                 last_minute_results = new_results
@@ -182,7 +220,10 @@ def main():
                     'old_vpn_status': old_vpn_status,
                     'last_minute_tick': last_minute_tick
                 }))
-            print('[Terminating]')
+            logging.info('[Terminating]')
+    except:
+        logging.exception('manage-trafficstats crashed')
+        raise
     finally:
         os.close(fd)
 
@@ -190,6 +231,7 @@ def main():
 if __name__ == '__main__':
     load_default_config()
     config.set_script()
+    setup_script_logging('manage-trafficstats')
     NamedRedisConnection.set_clientname('VPN-Stats')
     init_database()
     main()

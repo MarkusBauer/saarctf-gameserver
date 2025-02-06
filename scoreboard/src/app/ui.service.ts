@@ -1,7 +1,7 @@
 import {Injectable} from '@angular/core';
-import {SessionStorage} from "ngx-store";
 import {Subject} from "rxjs";
 import {setSchemeDarkmode} from "./chart-colorschemes";
+import {SessionStorage} from "@efaps/ngx-store";
 
 /**
  * Service storing user preferences (in session storage for persistence).

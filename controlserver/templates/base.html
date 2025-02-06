@@ -4,7 +4,7 @@
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>saarCTF Controller - {% block title %}{% endblock %}</title>
+	<title>{% block title %}{% endblock %} | saarCTF</title>
 	<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 </head>
 <body>
@@ -76,7 +76,7 @@
 				</ul>
 
 				<p class="navbar-text navbar-right">
-					Round: {{ current_round }}
+					Tick: {{ current_tick }}
 				</p>
 			</div>
 		</div>

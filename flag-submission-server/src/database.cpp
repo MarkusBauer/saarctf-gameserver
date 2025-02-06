@@ -9,8 +9,6 @@
 #include <catalog/pg_type.h>
 #include <unistd.h>
 
-using namespace std;
-
 // use async commits (makes inserts much faster)
 #define DB_USE_ASYNC_COMMIT
 
@@ -27,19 +25,19 @@ public:
 		if (conn) disconnect();
 		conn = PQconnectdb(Config::getPostgresConnectionString());
 		if (PQstatus(conn) != CONNECTION_OK) {
-			cerr << "[Postgres] Connection broken" << endl;
+			std::cerr << "[Postgres] Connection broken" << std::endl;
 			disconnect();
 			return;
 		}
 
-		cerr << "[Postgres] Connection established" << endl;
+		std::cerr << "[Postgres] Connection established" << std::endl;
 		prepareStatements();
 	}
 
 	void disconnect() {
 		if (conn) {
 			PQfinish(conn);
-			cerr << "[Postgres] Connection closed" << endl;
+			std::cerr << "[Postgres] Connection closed" << std::endl;
 		}
 		conn = nullptr;
 	}
@@ -55,17 +53,17 @@ private:
 		Oid params[6] = {INT2OID, INT2OID, INT2OID, INT2OID, INT4OID, INT2OID};
 		// Prepare statement (allows pre-planning)
 		PGresult *result = PQprepare(conn, "insert_flag",
-									 "INSERT INTO submitted_flags (submitted_by, team_id, service_id, round_issued, payload, round_submitted) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING;",
+									 "INSERT INTO submitted_flags (submitted_by, team_id, service_id, tick_issued, payload, tick_submitted) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING;",
 									 6, params);
 		if (PQresultStatus(result) != PGRES_COMMAND_OK) {
-			cerr << "[Postgres] Could not prepare statement: " << PQerrorMessage(conn);
+			std::cerr << "[Postgres] Could not prepare statement: " << PQerrorMessage(conn);
 		}
 		PQclear(result);
 
 #ifdef DB_USE_ASYNC_COMMIT
 		result = PQexec(conn, "SET SESSION synchronous_commit TO OFF;");
 		if (PQresultStatus(result) != PGRES_COMMAND_OK) {
-			cerr << "[Postgres] Could not enable asynchronous commits: " << PQerrorMessage(conn);
+			std::cerr << "[Postgres] Could not enable asynchronous commits: " << PQerrorMessage(conn);
 		}
 		PQclear(result);
 #endif
@@ -75,7 +73,7 @@ public:
 	int insertFlag(uint16_t team, FlagFormat &flag) {
 		if (!isConnected()) connect();
 		if (PQstatus(conn) == CONNECTION_BAD) {
-			cerr << "[Postgres] Connection lost" << endl;
+			std::cerr << "[Postgres] Connection lost" << std::endl;
 			usleep(10000);
 			PQreset(conn);
 			if (PQstatus(conn) == CONNECTION_BAD) {
@@ -85,19 +83,19 @@ public:
 		}
 
 		// prepare parameters - libpq wants an array of C-style strings
-		string submitting = std::to_string(team);
-		string team_id = std::to_string(flag.team_id);
-		string service_id = std::to_string(flag.service_id);
-		string round_issued = std::to_string((int32_t) flag.round);
-		string payload = std::to_string(flag.payload);
-		string current_round = std::to_string(Redis::current_round);
-		const char *const params[] = {submitting.c_str(), team_id.c_str(), service_id.c_str(), round_issued.c_str(),
+		std::string submitting = std::to_string(team);
+		std::string team_id = std::to_string(flag.team_id);
+		std::string service_id = std::to_string(flag.service_id);
+		std::string tick_issued = std::to_string((int32_t) flag.round);
+		std::string payload = std::to_string(flag.payload);
+		std::string current_round = std::to_string(Redis::current_round);
+		const char *const params[] = {submitting.c_str(), team_id.c_str(), service_id.c_str(), tick_issued.c_str(),
 									  payload.c_str(), current_round.c_str()};
 
 		// finally insert the flag
 		PGresult *result = PQexecPrepared(conn, "insert_flag", 6, params, nullptr, nullptr, 1);
 		if (PQresultStatus(result) != PGRES_COMMAND_OK) {
-			cerr << "[Postgres] INSERT " << PQerrorMessage(conn);
+			std::cerr << "[Postgres] INSERT " << PQerrorMessage(conn);
 			PQclear(result);
 			return -1;
 		}
@@ -115,15 +113,15 @@ public:
 
 		PGresult* result = PQexec(conn, "SELECT max(id) FROM teams");
 		if (PQresultStatus(result) != PGRES_TUPLES_OK) {
-			cerr << "[Postgres] SELECT " << PQerrorMessage(conn);
-			throw exception();
+			std::cerr << "[Postgres] SELECT " << PQerrorMessage(conn);
+			throw std::runtime_error(PQerrorMessage(conn));
 		}
 
 		if (PQgetisnull(result, 0, 0)){
 			return 0;
 		}else {
 			auto iptr = PQgetvalue(result, 0, 0);
-			int maxId = atoi(iptr);
+			int maxId = std::stoi(iptr);
 			PQclear(result);
 			return maxId;
 		}
@@ -134,15 +132,15 @@ public:
 
 		PGresult* result = PQexec(conn, "SELECT max(id) FROM services");
 		if (PQresultStatus(result) != PGRES_TUPLES_OK) {
-			cerr << "[Postgres] SELECT " << PQerrorMessage(conn);
-			throw exception();
+			std::cerr << "[Postgres] SELECT " << PQerrorMessage(conn);
+			throw std::runtime_error(PQerrorMessage(conn));
 		}
 
 		if (PQgetisnull(result, 0, 0)){
 			return 0;
 		}else {
 			auto iptr = PQgetvalue(result, 0, 0);
-			int maxId = atoi(iptr);
+			int maxId = std::stoi(iptr);
 			PQclear(result);
 			return maxId;
 		}

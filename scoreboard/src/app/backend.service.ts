@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import {RoundInformation, Team, TeamHistoryInformation} from "./models";
+import {RoundInformation, ServiceStat, ServiceStatsInformation, Team, TeamHistoryInformation} from "./models";
 import {HttpClient} from "@angular/common/http";
 import {map} from "rxjs/operators";
 import {BehaviorSubject, Observable, of, Subject} from "rxjs";
@@ -130,6 +130,15 @@ export class BackendService {
                     }
                 }
                 return result;
+            })
+        );
+    }
+
+    getServiceStatHistory(): Observable<ServiceStat[][]> {
+        return this.http.get<ServiceStatsInformation>(this.url_base + 'scoreboard_service_stats.json').pipe(
+            retryWithBackoff(1500, 3),
+            map(json => {
+                return json.stats;
             })
         );
     }

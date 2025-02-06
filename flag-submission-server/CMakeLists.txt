@@ -8,7 +8,7 @@ set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -flto")
 
 
 # WSL (Windows Subsystem for Linux) hacks
-EXEC_PROGRAM(uname ARGS -r OUTPUT_VARIABLE UNAME_RESULT)
+EXECUTE_PROCESS(COMMAND uname -r OUTPUT_VARIABLE UNAME_RESULT)
 if ("${UNAME_RESULT}" MATCHES "Microsoft")
 	message("Kernel ${UNAME_RESULT}, WSL fixes enabled")
 	set(SOURCE_FILES_FIX src/windows_fixes/fixes.cpp src/windows_fixes/hook.hpp)
@@ -42,17 +42,18 @@ find_package(PostgreSQL REQUIRED)
 include_directories(${PostgreSQL_INCLUDE_DIRS})
 
 
-# Download JSON library
+# Download YAML library
+set(YAML_BUILD_SHARED_LIBS, ON)
 include(FetchContent)
-#FetchContent_Declare(json GIT_REPOSITORY https://github.com/nlohmann/json.git GIT_TAG v3.7.3)
-FetchContent_Declare(json GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent.git GIT_TAG v3.9.1)
-FetchContent_GetProperties(json)
-if (NOT json_POPULATED)
-	FetchContent_Populate(json)
-	add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
-	message("Retrieved nlohmann::json to \"${json_SOURCE_DIR}\"")
-	include_directories("${json_SOURCE_DIR}/include")
-endif ()
+FetchContent_Declare(
+		yaml-cpp
+		GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+		GIT_TAG        0.8.0 # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
+)
+FetchContent_GetProperties(yaml-cpp)
+FetchContent_MakeAvailable(yaml-cpp)
+# set(YAML_LIBRARIES "yaml-cpp::yaml-cpp")
+set(YAML_LIBRARIES "yaml-cpp")
 
 
 # Download test library
@@ -76,6 +77,8 @@ set(SOURCE_FILES
 		src/config.h
 		src/redis.cpp
 		src/redis.h
+		src/periodic.cpp
+		src/periodic.h
 		src/libraries/base64.h
 		src/libraries/base64.c
 		src/statistics.cpp
@@ -83,7 +86,11 @@ set(SOURCE_FILES
 		)
 set(SOURCE_FILES ${SOURCE_FILES} ${SOURCE_FILES_FIX})
 add_executable(flag-submission-server ${SOURCE_FILES} src/main.cpp)
-target_link_libraries(flag-submission-server ${CMAKE_THREAD_LIBS_INIT} ${LIBEV_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${PostgreSQL_LIBRARIES} ${LIBHIREDIS_LIBRARIES} ${FIX_LIBRARIES})
+target_link_libraries(flag-submission-server PUBLIC ${CMAKE_THREAD_LIBS_INIT}
+		${LIBEV_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY}
+		${PostgreSQL_LIBRARIES} ${LIBHIREDIS_LIBRARIES}
+		${YAML_LIBRARIES}
+		${FIX_LIBRARIES})
 
 
 set(SOURCE_FILES_2 benchmark/benchmark_oldflags.cpp)
@@ -93,13 +100,18 @@ add_executable(benchmark-oldflags ${SOURCE_FILES_2})
 set(SOURCE_FILES_3
 		benchmark/benchmark_newflags.cpp
 		src/flagchecker.cpp
+		src/flagchecker.h
 		src/flagcache.cpp
+		src/flagcache.h
 		src/config.cpp
+		src/config.h
 		src/libraries/base64.h
 		src/libraries/base64.c
+		src/statistics.cpp
+		src/statistics.h
 		)
 add_executable(benchmark-newflags ${SOURCE_FILES_3})
-target_link_libraries(benchmark-newflags ${OPENSSL_CRYPTO_LIBRARY})
+target_link_libraries(benchmark-newflags ${OPENSSL_CRYPTO_LIBRARY} ${YAML_LIBRARIES})
 
 
 set(SOURCE_FILES_TEST
@@ -107,4 +119,7 @@ set(SOURCE_FILES_TEST
 		)
 add_library(Catch INTERFACE)
 add_executable(testsuite ${SOURCE_FILES_TEST} ${SOURCE_FILES})
-target_link_libraries(testsuite Catch2::Catch2WithMain ${CMAKE_THREAD_LIBS_INIT} ${LIBEV_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY} ${PostgreSQL_LIBRARIES} ${LIBHIREDIS_LIBRARIES})
+target_link_libraries(testsuite PUBLIC Catch2::Catch2WithMain ${CMAKE_THREAD_LIBS_INIT}
+		${LIBEV_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARY}
+		${PostgreSQL_LIBRARIES} ${YAML_LIBRARIES}
+		${LIBHIREDIS_LIBRARIES})

@@ -4,7 +4,7 @@ sqlalchemy<2
 alembic
 psycopg2-binary
 redis
-celery[ampq,redis]>=5.3, <6
+celery[amqp,redis]>=5.3, <6
 flower>=2, <3
 setproctitle
 filelock
@@ -12,5 +12,12 @@ ujson
 htmlmin
 requests
 Pillow
-influxdb
 hcloud>=1.16.0
+aiohttp>=3.11.7
+python-dotenv
+pyroute2
+cryptography>=43.0.3
+filelock
+ecs-logging
+pyyaml
+typing-extensions  # for typing.override - drop when we have min 3.12

@@ -64,7 +64,7 @@ class DBFilesystem:
                 file_information.append([path, hash])
 
         file_information.sort(key=lambda x: x[0])
-        package = hashlib.md5(json.dumps(file_information).encode('utf8')).hexdigest()
+        package = hashlib.md5(json.dumps(file_information).encode('utf8'), usedforsecurity=False).hexdigest()
         # package already exists?
         if CheckerFilesystem.query.filter(CheckerFilesystem.package == package).count() > 0:
             return (package, False)
@@ -76,22 +76,23 @@ class DBFilesystem:
         session.commit()
         return (package, True)
 
-    def move_single_file_to_package(self, fname: str) -> Tuple[str, bool]:
+    def move_single_files_to_package(self, fnames: list[Path]) -> tuple[str, bool]:
         """
-        Upload a package containing a single file in its root
-        :param fname:
+        Upload a package containing somes files in its root, no folders.
+        :param fnames:
         :return: (package, is_new)
         """
         filesystem: List[CheckerFilesystem] = []  # for the db
         file_information = []  # for hash calculation
         # add files
-        path = os.path.basename(fname)
-        hash = self.store_file_in_database(fname)
-        filesystem.append(CheckerFilesystem(path=path, file_hash=hash))
-        file_information.append([path, hash])
+        for fname in fnames:
+            path = fname.name
+            hash = self.store_file_in_database(str(fname))
+            filesystem.append(CheckerFilesystem(path=path, file_hash=hash))
+            file_information.append([path, hash])
 
         file_information.sort(key=lambda x: x[0])
-        package = hashlib.md5(json.dumps(file_information).encode('utf8')).hexdigest()
+        package = hashlib.md5(json.dumps(file_information).encode('utf8'), usedforsecurity=False).hexdigest()
         # package already exists?
         if CheckerFilesystem.query.filter(CheckerFilesystem.package == package).count() > 0:
             return (package, False)
@@ -111,7 +112,7 @@ class DBFilesystem:
         """
         with open(fname, 'rb') as f:
             data = f.read()
-        hash = hashlib.md5(data).hexdigest()
+        hash = hashlib.md5(data, usedforsecurity=False).hexdigest()
         if CheckerFile.query.filter(CheckerFile.file_hash == hash).count() == 0:
             session = db_session()
             session.add(CheckerFile(file_hash=hash, content=data))

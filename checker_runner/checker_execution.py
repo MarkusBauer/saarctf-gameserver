@@ -3,11 +3,14 @@ import os
 import subprocess
 import sys
 import traceback
-from typing import Type
+from typing import Type, ClassVar
 
 import requests
 from celery.exceptions import SoftTimeLimitExceeded
 
+from controlserver.models import db_session_2, Service
+from gamelib.exceptions import handle_checker_exceptions
+from saarctf_commons.db_utils import retry_on_sql_error
 from saarctf_commons.redis import NamedRedisConnection
 
 # Set environment for pwntools
@@ -17,7 +20,7 @@ os.environ['PWNLIB_NOTERM'] = '1'
 if __name__ == '__main__':
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from gamelib import gamelib, gamelogger
+from gamelib import gamelib, gamelogger, ServiceConfig
 from saarctf_commons.config import config
 
 SEPARATOR = "\n\n" + '-' * 72
@@ -36,6 +39,8 @@ def set_process_needs_restart() -> None:
 
 
 class CheckerRun:
+    _service_config_cache: ClassVar[dict[str, ServiceConfig]] = {}
+
     def __init__(self, package: str, script: str) -> None:
         """
         :param package:
@@ -54,6 +59,27 @@ class CheckerRun:
             module = importlib.import_module(fname)
         return getattr(module, clsname)
 
+    @retry_on_sql_error(attempts=2)
+    def get_service_config(self, service_id: int) -> ServiceConfig:
+        if self.package in self._service_config_cache:
+            cfg = self._service_config_cache[self.package]
+        else:
+            with db_session_2() as session:
+                service: Service | None = session.query(Service).get(service_id)
+                if service is None:
+                    raise Exception(f"Service {service_id} not found in DB")
+                fn, cl = service.checker_script.split(':', 1) if service.checker_script else ('', '')
+                cfg = ServiceConfig(
+                    name=service.name,
+                    service_id=service.id,
+                    flag_ids=service.flag_ids.split(',') if service.flag_ids else [],
+                    interface_file=fn,
+                    interface_class=cl
+                )
+            self._service_config_cache[self.package] = cfg
+        cfg.service_id = service_id
+        return cfg
+
     def _execute_checker_unchecked(self, service_id: int, team_id: int, tick: int) -> tuple[str, str | None]:
         """
         Run a given checker script against a single team.
@@ -63,8 +89,9 @@ class CheckerRun:
         :return: (db-status, message) The (db) status of this execution, and an error message (if applicable)
         """
         team = gamelib.Team(team_id, '#' + str(team_id), config.NETWORK.team_id_to_vulnbox_ip(team_id))
+        service_config = self.get_service_config(service_id)
         gamelogger.GameLogger.reset()
-        checker: gamelib.ServiceInterface = self.get_checker_class()(service_id)
+        checker: gamelib.ServiceInterface = self.get_checker_class()(service_config)
         checker.initialize_team(team)
         try:
             gamelogger.GameLogger.log('----- check_integrity -----')
@@ -87,46 +114,12 @@ class CheckerRun:
         return 'SUCCESS', None
 
     def execute_checker(self, service_id: int, team_id: int, tick: int) -> tuple[str, str | None]:
-        import pwnlib.exception
         try:
-
-            return self._execute_checker_unchecked(service_id, team_id, tick)
-
-        except gamelib.FlagMissingException as e:
-            traceback.print_exc()
-            return 'FLAGMISSING', e.message
-        except gamelib.MumbleException as e:
-            traceback.print_exc()
-            return 'MUMBLE', e.message
-        except AssertionError as e:
-            traceback.print_exc()
-            if len(e.args) == 1 and type(e.args[0]) == str:
-                return 'MUMBLE', e.args[0]
-            return 'MUMBLE', repr(e.args)
-        except requests.ConnectionError as e:
-            traceback.print_exc()
-            return 'OFFLINE', 'Connection timeout'
-        except requests.exceptions.Timeout as e:
-            traceback.print_exc()
-            return 'OFFLINE', 'Connection timeout'
-        except pwnlib.exception.PwnlibException as e:
-            if 'Could not connect to' in e.args[0]:
-                return 'OFFLINE', str(e.args[0])
-            return 'CRASHED', None
-        except gamelib.OfflineException as e:
-            traceback.print_exc()
-            return 'OFFLINE', e.message
-        except ConnectionError as e:
-            traceback.print_exc()
-            return 'OFFLINE', e.__class__.__name__
+            return handle_checker_exceptions(lambda: self._execute_checker_unchecked(service_id, team_id, tick))
+        # handle only celery-specific exceptions, and crashes
         except SoftTimeLimitExceeded:
             traceback.print_exc()
             return 'TIMEOUT', 'Timeout, service too slow'
-        except OSError as e:
-            traceback.print_exc()
-            if 'No route to host' in str(e):
-                return 'OFFLINE', 'no route to host'
-            return 'CRASHED', None
         except MemoryError:
             set_process_needs_restart()
             traceback.print_exc()
@@ -136,7 +129,7 @@ class CheckerRun:
             return 'CRASHED', None
 
     def execute_checker_subprocess(self, service_id: int, team_id: int, tick: int, timeout: int) \
-            -> tuple[str, str | None, str]:
+        -> tuple[str, str | None, str]:
         """
         Run a given checker script against a single team - in a discrete subprocess.
         :param self: (celery task instance)

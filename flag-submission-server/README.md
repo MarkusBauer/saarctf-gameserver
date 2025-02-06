@@ -37,7 +37,7 @@ Configure in [`flagchecker.h`](src/flagchecker.h) and [`flagchecker.cpp`](src/fl
 
 Configuration
 -------------
-In [`config.json`](../config.json): set everything you need (database, redis, secret key, ...)
+In [`config.yaml`](../config.sample.yaml): set everything you need (database, redis, secret key, ...). This should be enough for most purposes.
 
 In [`flagcache.cpp`](src/flagcache.cpp): Set flag rate and number of valid flags per service/team/round. 
 
@@ -50,4 +50,4 @@ Run `make` afterwards.
 
 Database
 --------
-This server needs the database layout from the `saarctf` gameserver.
+This server needs the database layout from the `saarctf` gameserver. It does not initialize the database itself.

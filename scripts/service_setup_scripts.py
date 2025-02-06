@@ -30,19 +30,34 @@ def run_service_setup_scripts(filters: List[str]) -> int:
         print(f'[{service.name}] Extracting script from package {setup_package} ...')
         path = Path('/tmp/setup_packages') / setup_package  # type: ignore[operator]
         dbfs.load_package_to_folder(setup_package, path, Path('/tmp/setup_packages/lfs'))
-        script = f'{path}/dependencies.sh'
-        if not os.path.exists(script):
-            print(f'[{service.name}] Script not found: "{script}"!')
+
+        dependencies_script = path / 'dependencies.sh'
+        if not dependencies_script.exists():
+            print(f'[{service.name}] Script not found: "{dependencies_script}"!')
             errors += 1
         else:
-            print(f'[{service.name}] Running script "{script}" ...')
-            os.system(f'chmod +x "{script}"')
-            result = subprocess.run([script])
+            print(f'[{service.name}] Running script "{dependencies_script}" ...')
+            subprocess.check_call(['chmod', '+x', str(dependencies_script)])
+            result = subprocess.run([str(dependencies_script)])
             if result.returncode != 0:
                 errors += 1
                 print(f'[{service.name}] Script failed with code {result.returncode}.')
             else:
                 print(f'[{service.name}] Script succeeded.')
+
+        requirements_file = path / 'checker-requirements.txt'
+        if not requirements_file.exists():
+            print(f'[{service.name}] Requirements file not found: "{requirements_file}"!')
+            errors += 1
+        else:
+            print(f'[{service.name}] Installing from "{requirements_file}" ...')
+            result = subprocess.run(['pip', 'install', '-r', str(requirements_file)])
+            if result.returncode != 0:
+                errors += 1
+                print(f'[{service.name}] Pip failed with code {result.returncode}.')
+            else:
+                print(f'[{service.name}] Pip succeeded.')
+
     return errors
 
 

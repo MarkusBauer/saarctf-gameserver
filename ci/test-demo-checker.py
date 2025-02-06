@@ -21,10 +21,10 @@ from pwnlib.tubes.process import process
 from ci import ctf
 from saarctf_commons.config import config, load_default_config
 
-# Number of rounds we want the game to last
-ROUND_COUNT = 7
-# Time for a single round in seconds
-ROUND_TIME = 5
+# Number of ticks we want the game to last
+TICK_COUNT = 7
+# Time for a single tick in seconds
+TICK_TIME = 5
 LOG_LEVEL_IMPORTANT = 10
 LOG_LEVEL_WARNING = 20
 
@@ -161,12 +161,12 @@ def check_log_messages(logs: t.List[t.Dict[str, t.Any]]) -> None:
     # assert_title_in_logs("Network closed")
     assert_title_in_logs("Network open within teams only")  # after the game teams should retain access to their vulnbox
     assert_title_in_logs("CTF stopped")
-    for i in range(ROUND_COUNT):
-        assert_title_in_logs(f"New round: {i + 1}")
+    for i in range(TICK_COUNT):
+        assert_title_in_logs(f"New tick: {i + 1}")
 
-    assert_title_count("Checker scripts dispatched", ROUND_COUNT)
-    assert_title_count("Collected checker script results", ROUND_COUNT)
-    assert_title_count("Ranking calculated", ROUND_COUNT)
+    assert_title_count("Checker scripts dispatched", TICK_COUNT)
+    assert_title_count("Collected checker script results", TICK_COUNT)
+    assert_title_count("Ranking calculated", TICK_COUNT)
 
 
 def get_logs() -> list[dict[str, t.Any]]:
@@ -204,12 +204,12 @@ def main() -> None:
         get_logs()
         logging.info('Starting CTF ...')
         # set roundtime, end round, start ctf
-        ctf.set_roundtime(ROUND_TIME)
-        ctf.set_lastround(ROUND_COUNT)
+        ctf.set_roundtime(TICK_TIME)
+        ctf.set_lastround(TICK_COUNT)
         ctf.start_ctf()
 
         # wait until CTF is over
-        time.sleep((ROUND_COUNT + 2) * ROUND_TIME)
+        time.sleep((TICK_COUNT + 2) * TICK_TIME)
         logging.info('CTF should now be over')
 
         # Download logs and check for errors
@@ -221,9 +221,9 @@ def main() -> None:
         output = handles[2].recvall(timeout=1)
         # The ] is important, as there are also "stderr-Test-2" messages, which otherwise would also match
         count = len(re.findall(br"\] stderr-Test", output))
-        if ROUND_COUNT != count:
+        if TICK_COUNT != count:
             raise Exception(
-                f"The celery worker executed the demo_checker {count} times, but we expect {ROUND_COUNT}"
+                f"The celery worker executed the demo_checker {count} times, but we expect {TICK_COUNT}"
             )
 
     except Exception as e:

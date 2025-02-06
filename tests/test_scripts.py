@@ -24,9 +24,9 @@ class ScriptsTests(DatabaseTestCase):
     def test_recreate_scoreboard(self) -> None:
         timer = init_mock_timer()
         timer.state = CTFState.RUNNING
-        timer.desiredState = CTFState.RUNNING
-        timer.currentRound = 2
-        timer.updateRedis()
+        timer.desired_state = CTFState.RUNNING
+        timer.current_tick = 2
+        timer.update_redis()
         self.demo_team_services()
         with TemporaryDirectory() as directory:
             config.current_config.SCOREBOARD_PATH = Path(directory)
@@ -38,9 +38,9 @@ class ScriptsTests(DatabaseTestCase):
     def test_recreate_ranking(self) -> None:
         timer = init_mock_timer()
         timer.state = CTFState.RUNNING
-        timer.desiredState = CTFState.RUNNING
-        timer.currentRound = 1
-        timer.updateRedis()
+        timer.desired_state = CTFState.RUNNING
+        timer.current_tick = 1
+        timer.update_redis()
         self.demo_team_services()
         result = ScriptRunner.run_script('scripts/recreate_ranking.py', [])
         ScriptRunner.assert_no_exception(result)
@@ -49,9 +49,9 @@ class ScriptsTests(DatabaseTestCase):
     def test_recreate_firstblood(self) -> None:
         timer = init_mock_timer()
         timer.state = CTFState.RUNNING
-        timer.desiredState = CTFState.RUNNING
-        timer.currentRound = 1
-        timer.updateRedis()
+        timer.desired_state = CTFState.RUNNING
+        timer.current_tick = 1
+        timer.update_redis()
         self.demo_team_services()
         result = ScriptRunner.run_script('scripts/recreate_firstblood.py', [])
         ScriptRunner.assert_no_exception(result)
@@ -96,9 +96,9 @@ class ScriptsTests(DatabaseTestCase):
     def test_scoreboard_daemon(self) -> None:
         timer = init_mock_timer()
         timer.state = CTFState.RUNNING
-        timer.desiredState = CTFState.RUNNING
-        timer.currentRound = 2
-        timer.updateRedis()
+        timer.desired_state = CTFState.RUNNING
+        timer.current_tick = 2
+        timer.update_redis()
         self.demo_team_services()
         with TemporaryDirectory() as directory:
             config.current_config.SCOREBOARD_PATH = Path(directory)

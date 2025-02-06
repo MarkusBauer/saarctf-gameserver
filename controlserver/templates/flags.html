@@ -35,7 +35,7 @@
 			<table class="table table-condensed table-striped">
 				<thead>
 				<tr>
-					<th>Stored in round</th>
+					<th>Stored in tick</th>
 					<th>From Team</th>
 					<th>From Service</th>
 					<th>Payload / Num.</th>
@@ -44,7 +44,7 @@
 				</thead>
 				<tbody>
 				<tr>
-					<td>{{ stored_round }}</td>
+					<td>{{ stored_tick }}</td>
 					<td>#{{ teamid }}</td>
 					<td>#{{ serviceid }}</td>
 					<td>{{ payload }}</td>
@@ -52,7 +52,7 @@
 				</tr>
 				<tr>
 					<td>
-						{% if stored_round > current_round %}<span class="label label-danger">Invalid</span>{% endif %}&nbsp;
+						{% if stored_tick > current_round %}<span class="label label-danger">Invalid</span>{% endif %}&nbsp;
 					</td>
 					<td>
 						{% if team %}{{ team.name }}{% else %}<span class="label label-danger">Invalid</span>{% endif %}
@@ -93,7 +93,7 @@
 						<tr>
 							<td>{{ loop.index }}</td>
 							<td>{{ submission.ts.strftime('%d.%m.%Y %H:%M:%S') }}</td>
-							<td>round {{ submission.round_submitted }}</td>
+							<td>tick {{ submission.tick_submitted }}</td>
 							<td>#{{ submission.submitted_by }}: {{ submission.submitted_by_team.name }}</td>
 						</tr>
 					{% endfor %}
@@ -107,7 +107,7 @@
 			<h3>Checker results</h3>
 			{% if result_store %}
 				<p>
-					<strong>Store round {{ result_store.round }}:</strong>
+					<strong>Store tick {{ result_store.tick }}:</strong>
 					{% if result_store.status == 'SUCCESS' %}
 						<span class="label label-success">ONLINE</span>
 					{% elif result_store.status == 'FLAGMISSING' or result_store.status == 'MUMBLE' or result_store.status == 'OFFLINE' %}
@@ -130,7 +130,7 @@
 
 			{% if result_retrieve %}
 				<p>
-					<strong>Retrieve round {{ result_retrieve.round }}:</strong>
+					<strong>Retrieve tick {{ result_retrieve.tick }}:</strong>
 					{% if result_retrieve.status == 'SUCCESS' %}
 						<span class="label label-success">ONLINE</span>
 					{% elif result_retrieve.status == 'FLAGMISSING' or result_retrieve.status == 'MUMBLE' or result_retrieve.status == 'OFFLINE' %}

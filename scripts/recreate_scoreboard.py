@@ -13,27 +13,36 @@ from controlserver.scoring.scoring import ScoringCalculation
 from saarctf_commons.debug_sql_timing import timing, print_query_stats
 
 """
-ARGUMENTS: start_round end_round (both optional)
+ARGUMENTS: start_tick end_tick (both optional)
 """
 
 
-def recreate_scoreboard(round_start: int, round_end: Optional[int]) -> None:
+def recreate_scoreboard(tick_start: int, tick_end: Optional[int]) -> None:
     init_database()
     from controlserver.timer import Timer, CTFState
     scoring = ScoringCalculation(config.SCORING)
     scoreboard = Scoreboard(scoring)
     scoreboard.check_scoreboard_prepared(force_recreate=True)
     scoreboard.update_team_info()
-    rn = round_start
-    round_end_game = Timer.currentRound if Timer.state != CTFState.RUNNING else Timer.currentRound - 1
-    scoreboard.create_scoreboard(0, False, False)
-    if round_start <= 1 and round_end_game > 0:
+    rn = tick_start
+    tick_end_game = Timer.current_tick if Timer.state != CTFState.RUNNING else Timer.current_tick - 1
+    if tick_end is None:
+        tick_end = tick_end_game
+    else:
+        tick_end = min(tick_end, tick_end_game)
+    if tick_start <= 1:
+        # tick "-1"
+        scoreboard.create_scoreboard(0, False, False)
+    if tick_start <= 1 and tick_end_game > 0:
+        # tick "0"
         scoreboard.create_scoreboard(0, True, False)
-    while rn <= (round_end or round_end_game):
-        scoreboard.create_scoreboard(rn, Timer.state != CTFState.STOPPED, rn == round_end_game)
-        print(f'- Scoreboard for round {rn} created')
+    if rn < 1:
+        rn = 1
+    while rn <= tick_end:
+        scoreboard.create_scoreboard(rn, Timer.state != CTFState.STOPPED, rn == tick_end_game)
+        print(f'- Scoreboard for tick {rn} created')
         rn += 1
-        round_end_game = Timer.currentRound if Timer.state != CTFState.RUNNING else Timer.currentRound - 1
+        tick_end_game = Timer.current_tick if Timer.state != CTFState.RUNNING else Timer.current_tick - 1
 
 
 if __name__ == '__main__':
@@ -43,13 +52,13 @@ if __name__ == '__main__':
     init_slave_timer()
 
     if len(sys.argv) <= 2:
-        round_start = 1
-        round_end = None
+        tick_start = 1
+        tick_end = None
     else:
-        round_start = int(sys.argv[1])
-        round_end = int(sys.argv[2]) if sys.argv[2] != 'current' else None
+        tick_start = int(sys.argv[1])
+        tick_end = int(sys.argv[2]) if sys.argv[2] != 'current' else None
     timing()
-    recreate_scoreboard(round_start, round_end)
+    recreate_scoreboard(tick_start, tick_end)
     timing('Scoreboard')
     print('Done.')
     if '--stats' in sys.argv:

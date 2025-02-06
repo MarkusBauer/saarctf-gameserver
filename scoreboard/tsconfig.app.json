@@ -7,8 +7,7 @@
   "angularCompilerOptions": {
   },
   "files": [
-    "src/main.ts",
-    "src/polyfills.ts"
+    "src/main.ts"
   ],
   "include": [
     "src/**/*.d.ts"

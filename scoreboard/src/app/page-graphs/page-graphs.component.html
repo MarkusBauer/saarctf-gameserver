@@ -2,10 +2,21 @@
     <span class="fas fa-spinner fa-spin"></span>
 </p>
 
-<div class="chart-group" *ngFor="let chart of chartDatas">
+<div class="chart-group" *ngFor="let chart of teamChartDatas">
     <h3>{{ chart.title }}</h3>
     <div class="chart-container">
-        <canvas baseChart #charts
+        <canvas baseChart #teamCharts
+                [data]="chart.chart"
+                [options]="chartOptions"
+                [type]="'line'">
+        </canvas>
+    </div>
+</div>
+
+<div class="chart-group" *ngFor="let chart of serviceChartDatas">
+    <h3>{{ chart.title }}</h3>
+    <div class="chart-container">
+        <canvas baseChart #serviceCharts
                 [data]="chart.chart"
                 [options]="chartOptions"
                 [type]="'line'">

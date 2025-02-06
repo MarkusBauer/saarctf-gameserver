@@ -9,61 +9,60 @@ import gamelib.gamelib
 
 class WorkingService(gamelib.gamelib.ServiceInterface):
 	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
-		return None
+		pass
 
-	def store_flags(self, team: gamelib.Team, tick: int):
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
 		print('stderr-Test', file=sys.stderr)
-		return 1
+		pass
 
-	def retrieve_flags(self, team: gamelib.Team, tick: int):
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
 		print('Test')
 		os.system('echo stdout-Test-2')
 		os.system('echo stderr-Test-2 1>&2')
-		return 1
 
 
 class FlagNotFoundService(gamelib.gamelib.ServiceInterface):
-	def check_integrity(self, team: gamelib.Team, tick: int):
-		return True
+	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
-	def store_flags(self, team: gamelib.Team, tick: int):
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
 		raise gamelib.FlagMissingException('Flag from tick {} not found!'.format(tick))
 
-	def retrieve_flags(self, team: gamelib.Team, tick: int):
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
 		print('Test')
-		return 1
+		pass
 
 
 class OfflineService(gamelib.gamelib.ServiceInterface):
-	def check_integrity(self, team: gamelib.Team, tick: int):
+	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
 		raise gamelib.OfflineException('IOError')
 
-	def store_flags(self, team: gamelib.Team, tick: int):
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
 		raise gamelib.OfflineException('IOError')
 
-	def retrieve_flags(self, team: gamelib.Team, tick: int):
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
 		raise gamelib.OfflineException('IOError')
 
 
 class TimeoutService(gamelib.gamelib.ServiceInterface):
-	def check_integrity(self, team: gamelib.Team, tick: int):
-		return True
+	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
-	def store_flags(self, team: gamelib.Team, tick: int):
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
 		time.sleep(20)
 		print('stderr-Test', file=sys.stderr)
-		return 1
+		pass
 
-	def retrieve_flags(self, team: gamelib.Team, tick: int):
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
 		print('Test')
-		return 1
+		pass
 
 
 class BlockingService(gamelib.gamelib.ServiceInterface):
-	def check_integrity(self, team: gamelib.Team, tick: int):
-		return True
+	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
-	def store_flags(self, team: gamelib.Team, tick: int):
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
 		try:
 			import pysigset
 			mask = pysigset.SIGSET()
@@ -79,71 +78,81 @@ class BlockingService(gamelib.gamelib.ServiceInterface):
 			except:
 				pass
 
-	def retrieve_flags(self, team: gamelib.Team, tick: int):
-		return 1
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
 
 class CrashingService(gamelib.gamelib.ServiceInterface):
-	def check_integrity(self, team: gamelib.Team, tick: int):
-		return True
+	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
-	def store_flags(self, team: gamelib.Team, tick: int):
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
 		raise Exception('Unhandled fun')
 
-	def retrieve_flags(self, team: gamelib.Team, tick: int):
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
 		print('Test')
-		return 1
+		pass
 
 
 class TempService(gamelib.gamelib.ServiceInterface):
-	def check_integrity(self, team: gamelib.Team, tick: int):
+	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
 		print('PID', os.getpid())
 		import requests
 		response = requests.get('http://192.168.178.94:12345/')
-		return response.status_code < 300
+		assert response.status_code < 300
 
-	def store_flags(self, team: gamelib.Team, tick: int):
-		return 1
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
-	def retrieve_flags(self, team: gamelib.Team, tick: int):
-		return 1
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
 
 class SegfaultService(gamelib.gamelib.ServiceInterface):
-	def check_integrity(self, team: gamelib.Team, tick: int):
+	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
 		import signal
 		os.kill(os.getpid(), signal.SIGSEGV)
 
-	def store_flags(self, team: gamelib.Team, tick: int):
-		return 1
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
-	def retrieve_flags(self, team: gamelib.Team, tick: int):
-		return 1
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
 
 class OOMService(gamelib.gamelib.ServiceInterface):
-	def check_integrity(self, team: gamelib.Team, tick: int):
+	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
 		data = list(range(1024*1024))
 		data2 = data * 1024
-		return sum(data2) == 12345
+		assert sum(data2) == 12345
 
-	def store_flags(self, team: gamelib.Team, tick: int):
-		return 1
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
-	def retrieve_flags(self, team: gamelib.Team, tick: int):
-		return 1
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
+		pass
 
 
 class BinaryService(gamelib.gamelib.ServiceInterface):
-	def check_integrity(self, team: gamelib.Team, tick: int):
+	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
 		print('Hello World!')
 		print(' >>> \x00 <<<')
-		return True
 
-	def store_flags(self, team: gamelib.Team, tick: int):
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
 		for i in range(256):
 			print(i, '=', chr(i))
-		return 1
+		pass
 
-	def retrieve_flags(self, team: gamelib.Team, tick: int):
-		return 1
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
+		pass
+
+
+class FlagIDService(gamelib.gamelib.ServiceInterface):
+	def check_integrity(self, team: gamelib.Team, tick: int) -> None:
+		pass
+
+	def store_flags(self, team: gamelib.Team, tick: int) -> None:
+		self.set_flag_id(team, tick, 0, f'flagid-{team.ip}-{tick}')
+
+	def retrieve_flags(self, team: gamelib.Team, tick: int) -> None:
+		self.get_flag_id(team, tick, 0)

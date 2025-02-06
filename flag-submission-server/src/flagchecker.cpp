@@ -18,6 +18,12 @@ uint32_t max_service_id = 10;
 FlagCache flag_cache;
 
 
+/**
+ * Might be called multiple times if services or teams are added.
+ * Each invocation resets the cache.
+ * @param _max_team_id
+ * @param _max_service_id
+ */
 void initModelSizes(uint32_t _max_team_id, uint32_t _max_service_id) {
 	max_team_id = _max_team_id;
 	max_service_id = _max_service_id;
@@ -170,12 +176,13 @@ const char *progress_flag(const char *flag, int len, struct sockaddr_in *addr, u
 }
 
 static EVP_MAC *mac = EVP_MAC_fetch(nullptr, "HMAC", nullptr);
+static char sha256[7] = "SHA256";
 
 bool verify_hmac(void *data_start, void *data_end, const char *hmac) {
 	EVP_MAC_CTX *ctx = EVP_MAC_CTX_new(mac);
 	OSSL_PARAM params[2];
-	params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA256", 0);
-    params[1] = OSSL_PARAM_construct_end();
+	params[0] = OSSL_PARAM_construct_utf8_string("digest", sha256, 0);
+	params[1] = OSSL_PARAM_construct_end();
 	EVP_MAC_init(ctx, Config::hmac_secret_key, sizeof Config::hmac_secret_key, params);
 
 	size_t length = ((char *) data_end) - ((char *) data_start);
@@ -193,8 +200,8 @@ bool verify_hmac(void *data_start, void *data_end, const char *hmac) {
 void create_hmac(void *data_start, void *data_end, char *hmac_out) {
 	EVP_MAC_CTX *ctx = EVP_MAC_CTX_new(mac);
 	OSSL_PARAM params[2];
-	params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA256", 0);
-    params[1] = OSSL_PARAM_construct_end();
+	params[0] = OSSL_PARAM_construct_utf8_string("digest", sha256, 0);
+	params[1] = OSSL_PARAM_construct_end();
 	EVP_MAC_init(ctx, Config::hmac_secret_key, sizeof Config::hmac_secret_key, params);
 
 	size_t length = ((char *) data_end) - ((char *) data_start);
