@@ -36,8 +36,8 @@ Run gameserver
 `export FLASK_APP=controlserver/app.py` is required for most commands. So is either `run.sh` or `. venv/bin/activate`.
 
 - Main server: `flask run --host=0.0.0.0`
+- Celery worker: `celery -A checker_runner.celery_cmd worker -Ofair -E -Q celery,tests,broadcast --concurrency=16 --hostname=ident@%h`
 - Celery control panel: `celery -A checker_runner.celery_cmd flower --port=5555`
-- Celery worker: `celery -A checker_runner.celery_cmd worker -Ofair -E -Q celery,broadcast --concurrency=16 --hostname=ident@%h`
 
 
 Setup RabbitMQ
@@ -52,6 +52,7 @@ rabbitmqctl set_user_tags saarctf administrator
 rabbitmq-plugins enable rabbitmq_management
 systemctl restart rabbitmq-server
 ```
+Repeat if necessary.
 
 
 Flags
@@ -90,11 +91,45 @@ On the gameserver side, there are several factors you can use to adjust scores (
   Note that the defensive score formula contains a reference to SLA points, thus, the `sla_factor` also influences defensive scores.
 
 Suggestions for saarCTF are default settings (1/10/1.0/1.0/1.0). 
-Suggestions for our small workshop are (0/20/2.5/1.5/1.0). 
+Suggestions for our small workshop are (0/20/2.5/1.5/1.0).
+
+
+ENOFLAG Service Interface
+-------------------------
+We support [enochecker services](https://github.com/enowars/specification) in alpha state.
+How? Configure a service like this:
+- `checker_timeout`: your tick time (at least 60 seconds with current code)
+- `checker_runner`: `eno:EnoCheckerRunner` or a subclass
+- `runner_config`: `{"url": "http://localhost:5008"}`
+- `checker_subprocess`: false
+- `checker_script_dir`: empty
+- `checker_script`: empty
+
+Set as usual:
+- `flag_ids`: `['custom', 'custom', ...]`  for every putflag that uses attack_info
+- `num_payloads`: number of flag variants
+- `flags_per_tick`: number of flag variants
+
+Checkout `config.sample.yaml`, section `runner`. 
+Please have enough celery workers available, we suggest teams*services.
+
+
+Developers
+----------
+For type checking do `make check`.
+
+To prepare unit tests, copy `config.sample.json` to `config.test.json` and configure:
+- an empty postgresql database (will be wiped during tests)
+- an empty redis database
+- a working rabbitmq connection
+
+Then you can do `make tests`.
+
+The docker setup is more or less proof-of-concept, we run things bare-metal.
 
 
 More
 ----
 There are many more things implemented here, for example VPN / network handling, which require additional setup.
-Also there are many utilities (in `/scripts`) which might help you with typical situations.
+Also, there are many utilities (in `/scripts`) which might help you with typical situations.
 Most of the stuff has little documentation so far.

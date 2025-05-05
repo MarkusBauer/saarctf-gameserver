@@ -59,7 +59,7 @@ def teams_index(page: int = 1) -> ResponseReturnValue:
 
     filter_online = request.args['filter_level'].split('|') if 'filter_level' in request.args else None
     if filter_online is not None:
-        conditions = []
+        conditions: list[Any] = []
         if 'online' in filter_online: conditions.append((Team.vpn_connected == True) | (Team.vpn2_connected == True) | (Team.wg_vulnbox_connected == True))
         if 'ever online' in filter_online: conditions.append(Team.vpn_last_connect != None)
         if 'offline' in filter_online: conditions.append((Team.vpn_connected == False) & (Team.vpn2_connected == False) & (Team.wg_vulnbox_connected == False))

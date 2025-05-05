@@ -11,20 +11,22 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 from flask import Flask, g
-from sqlalchemy import func, UniqueConstraint, ForeignKey, inspect, text, MetaData, create_engine, Column, Integer, \
+from sqlalchemy import func, UniqueConstraint, ForeignKey, inspect, text, create_engine, Column, Integer, \
     String, LargeBinary, TIMESTAMP, \
-    SmallInteger, BigInteger, Float, Boolean
+    SmallInteger, BigInteger, Float, Boolean, JSON
 from sqlalchemy.dialects.postgresql import insert, Insert
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import relationship, scoped_session, sessionmaker, Query, Session
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+from sqlalchemy.orm import relationship, scoped_session, sessionmaker, Query, Session, DeclarativeBase, Mapped
 import hashlib
 import io
 
+from sqlalchemy.orm._orm_constructors import mapped_column
+
 from saarctf_commons.config import config
 
-meta = MetaData()
-Base: DeclarativeMeta = declarative_base(metadata=meta)  # type: ignore
+
+class Base(DeclarativeBase):
+    pass
 
 
 class ModelMixin:
@@ -82,7 +84,9 @@ def db_session_2() -> typing.Generator[Session, None, None]:
 
 class Serializer(object):
     def serialize(self) -> dict[str, Any]:
-        return {c: getattr(self, c) for c in inspect(self).attrs.keys()}
+        i = inspect(self)
+        if not i: return {}
+        return {c: getattr(self, c) for c in i.attrs.keys()}
 
     @staticmethod
     def serialize_list(l: list) -> list[dict]:
@@ -91,22 +95,23 @@ class Serializer(object):
 
 class Team(Base, ModelMixin):
     __tablename__ = 'teams'
-    id = Column(Integer, primary_key=True)
-    name = Column(String(128), nullable=False)
-    affiliation = Column(String(128), nullable=True, server_default=text('NULL'))
-    website = Column(String(128), nullable=True, server_default=text('NULL'))
-    logo = Column(String(64), nullable=True, server_default=text('NULL'))  # reference to TeamLogo.hash
+    id = mapped_column(Integer, primary_key=True)
+    name = mapped_column(String(128), nullable=False)
+    affiliation = mapped_column(String(128), nullable=True, server_default=text('NULL'))
+    website = mapped_column(String(128), nullable=True, server_default=text('NULL'))
+    logo = mapped_column(String(64), nullable=True, server_default=text('NULL'))  # reference to TeamLogo.hash
     points = relationship("TeamPoints", back_populates="team")
-    vpn_connected = Column(Boolean, nullable=False, server_default=text('FALSE'))  # team-hosted VPN
-    vpn2_connected = Column(Boolean, nullable=False, server_default=text('FALSE'))  # cloud-hosted vulnbox VPN
-    vpn_connection_count = Column(Integer, nullable=False, server_default=text('0'))  # "cloud"-style VPN connections / wireguard active peers
+    vpn_connected = mapped_column(Boolean, nullable=False, server_default=text('FALSE'))  # team-hosted VPN
+    vpn2_connected = mapped_column(Boolean, nullable=False, server_default=text('FALSE'))  # cloud-hosted vulnbox VPN
+    vpn_connection_count = mapped_column(Integer, nullable=False, server_default=text('0'))  # "cloud"-style VPN connections / wireguard active peers
     # OpenVPN selfhosted connect/disconnect timestamp, or wireguard connect timestamp for vulnbox ip
-    vpn_last_connect = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
-    vpn_last_disconnect = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
-    wg_vulnbox_connected = Column(Boolean, nullable=False, server_default=text('FALSE'))  # team has a wireguard connection for vulnbox ip
-    wg_boxes_connected = Column(Boolean, nullable=False, server_default=text('FALSE'))  # team has a wg conn for router, vulnbox, or testbox ip
+    vpn_last_connect = mapped_column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
+    vpn_last_disconnect = mapped_column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
+    wg_vulnbox_connected = mapped_column(Boolean, nullable=False, server_default=text('FALSE'))  # team has a wireguard connection for vulnbox ip
+    wg_boxes_connected = mapped_column(Boolean, nullable=False, server_default=text('FALSE'))  # team has a wg conn for router, vulnbox, or testbox ip
 
-    query: 'Query[Team]'
+    if typing.TYPE_CHECKING:
+        query: 'Query[Team]'
 
     @property
     def vulnbox_ip(self) -> str:
@@ -119,13 +124,14 @@ class TeamLogo(Base):
     Each logo is keyed by the md5-hash of the original source image ("hash") before compression.
     """
     __tablename__ = 'team_logos'
-    id = Column(Integer, primary_key=True)
-    hash = Column(String(64), nullable=False, unique=True, index=True)
-    content = Column(LargeBinary, nullable=False)
+    id = mapped_column(Integer, primary_key=True)
+    hash = mapped_column(String(64), nullable=False, unique=True, index=True)
+    content = mapped_column(LargeBinary, nullable=False)
 
     target_size = 256
 
-    query: 'Query[TeamLogo]'
+    if typing.TYPE_CHECKING:
+        query: 'Query[TeamLogo]'
 
     @classmethod
     def store_logo_file(cls, fname: str) -> str:
@@ -179,25 +185,37 @@ class TeamLogo(Base):
 
 class Service(Base, ModelMixin):
     __tablename__ = 'services'
-    id = Column(Integer, primary_key=True)
-    name = Column(String(128), nullable=False)
-    checker_script_dir = Column(String, nullable=True,
-                                server_default=text('NULL'))  # path on the master server containing checker files
-    checker_script = Column(String, nullable=False)  # filename:classname (relative to the classpath)
-    checker_timeout = Column(Integer, nullable=False, server_default=text('30'))
-    checker_enabled = Column(Boolean, nullable=False, server_default=text('TRUE'))
-    checker_subprocess = Column(Boolean, nullable=False, server_default=text('FALSE'))
-    checker_route = Column(String(64), nullable=True, server_default=text('NULL'))
-    package = Column(String(32), nullable=True)  # package the checker files have been moved to
-    setup_package = Column(String(32), nullable=True, server_default=text('NULL'))  # package containing an init script
-    num_payloads = Column(Integer, nullable=False,
-                          server_default=text('0'))  # number of possible payloads. 0 = unlimited
-    flag_ids = Column(String(128), nullable=True, server_default=text('NULL'))  # flag id types, comma-separated
-    flags_per_tick = Column(Float, nullable=False,
-                            server_default=text('1'))  # number of issued flags per tick, used for scoring
-    ports = Column(String, nullable=False, server_default=text("''"))  # "tcp:123,tcp:124,udp:125"
+    id = mapped_column(Integer, primary_key=True)
+    name = mapped_column(String(128), nullable=False)
 
-    query: 'Query[Service]'
+    # generic checker runner settings
+    checker_timeout = mapped_column(Integer, nullable=False, server_default=text('30'))
+    checker_enabled = mapped_column(Boolean, nullable=False, server_default=text('TRUE'))
+    # format: "saarctf:SaarctfServiceRunner", imports from checker_runner.runners.<filename>:<class>
+    checker_runner = mapped_column(String, nullable=False, server_default=text("''"))
+
+    # these here configure checkerscript deployment with dbfs (saarctf standard).
+    # leave empty/NULL to disable this feature for a service
+    # path on the master server containing checker files
+    checker_script_dir = mapped_column(String, nullable=True, server_default=text('NULL'))
+    checker_script = mapped_column(String, nullable=False)  # filename:classname (relative to the classpath)
+    package = mapped_column(String(32), nullable=True)  # package the checker files have been moved to
+    setup_package = mapped_column(String(32), nullable=True, server_default=text('NULL'))  # package containing an init script
+
+    # checker details
+    checker_subprocess = mapped_column(Boolean, nullable=False, server_default=text('FALSE'))  # saarctf framework only
+    checker_route = mapped_column(String(64), nullable=True, server_default=text('NULL'))
+    runner_config = mapped_column(JSON, nullable=True, server_default=text('NULL'))  # additional properties for your custom runner
+
+    # service details
+    num_payloads = mapped_column(Integer, nullable=False, server_default=text('0'))  # number of possible payloads. 0 = unlimited
+    flag_ids = mapped_column(String(128), nullable=True, server_default=text('NULL'))  # flag id types, comma-separated
+    # number of issued flags per tick, used for scoring
+    flags_per_tick = mapped_column(Float, nullable=False, server_default=text('1'))
+    ports = mapped_column(String, nullable=False, server_default=text("''"))  # "tcp:123,tcp:124,udp:125"
+
+    if typing.TYPE_CHECKING:
+        query: 'Query[Service]'
 
     def parse_ports(self) -> list[tuple[str, int]]:
         result = []
@@ -216,24 +234,25 @@ class TeamPoints(Base, ModelMixin):
     """
     __tablename__ = 'team_points'
 
-    id = Column(Integer, primary_key=True)
-    tick = Column(Integer, nullable=False, index=True)
-    team_id = Column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
-    service_id = Column(SmallInteger, ForeignKey('services.id', ondelete="CASCADE"), nullable=False)
+    id = mapped_column(Integer, primary_key=True)
+    tick = mapped_column(Integer, nullable=False, index=True)
+    team_id = mapped_column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
+    service_id = mapped_column(SmallInteger, ForeignKey('services.id', ondelete="CASCADE"), nullable=False)
     team_points_unique_1 = UniqueConstraint('tick', 'team_id', 'service_id', name='team_points_unique_1')
     __table_args__ = (team_points_unique_1,)
 
     # modify these columns to fit your scoring scheme (and check the methods below)
-    flag_captured_count = Column(Integer, nullable=False)  # captured BY this team
-    flag_stolen_count = Column(Integer, nullable=False)  # stolen FROM this team
-    off_points = Column(Float, nullable=False)
-    def_points = Column(Float, nullable=False)
-    sla_points = Column(Float, nullable=False)
-    sla_delta = Column(Float, nullable=False)
+    flag_captured_count = mapped_column(Integer, nullable=False)  # captured BY this team
+    flag_stolen_count = mapped_column(Integer, nullable=False)  # stolen FROM this team
+    off_points = mapped_column(Float, nullable=False)
+    def_points = mapped_column(Float, nullable=False)
+    sla_points = mapped_column(Float, nullable=False)
+    sla_delta = mapped_column(Float, nullable=False)
 
     team = relationship("Team", back_populates="points")
 
-    query: 'Query[TeamPoints]'
+    if typing.TYPE_CHECKING:
+        query: 'Query[TeamPoints]'
 
     def props_dict(self) -> Dict:
         return {
@@ -304,8 +323,8 @@ class TeamPointsLite:
     @classmethod
     def query(cls, session: Session | None = None):
         if session is None:
-            session = db_session()
-        return session.query(TeamPoints.team_id, TeamPoints.service_id, TeamPoints.tick,
+            session = db_session()  # type: ignore
+        return session.query(TeamPoints.team_id, TeamPoints.service_id, TeamPoints.tick,  # type: ignore
                              TeamPoints.flag_captured_count, TeamPoints.flag_stolen_count,
                              TeamPoints.off_points, TeamPoints.def_points, TeamPoints.sla_points,
                              TeamPoints.sla_delta)
@@ -316,15 +335,16 @@ class TeamRanking(Base, ModelMixin):
     Scoreboard position of a team AFTER a tick
     """
     __tablename__ = 'team_rankings'
-    id = Column(Integer, primary_key=True)
-    tick = Column(Integer, nullable=False, index=True)
-    team_id = Column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
-    rank = Column(Integer, nullable=False)  # rank [1, ...]
-    points = Column(Float, nullable=False)  # total points
+    id = mapped_column(Integer, primary_key=True)
+    tick = mapped_column(Integer, nullable=False, index=True)
+    team_id = mapped_column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
+    rank = mapped_column(Integer, nullable=False)  # rank [1, ...]
+    points = mapped_column(Float, nullable=False)  # total points
     __table_args__ = (UniqueConstraint('tick', 'team_id', name='team_rankings_unique_1'),)
     team = relationship("Team")
 
-    query: 'Query[TeamRanking]'
+    if typing.TYPE_CHECKING:
+        query: 'Query[TeamRanking]'
 
 
 class TeamTrafficStats(Base, ModelMixin):
@@ -333,34 +353,35 @@ class TeamTrafficStats(Base, ModelMixin):
     """
     __tablename__ = 'team_traffic_stats'
 
-    id = Column(Integer, primary_key=True)
-    time = Column(TIMESTAMP(timezone=True), nullable=False, index=True)
-    team_id = Column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
+    id = mapped_column(Integer, primary_key=True)
+    time = mapped_column(TIMESTAMP(timezone=True), nullable=False, index=True)
+    team_id = mapped_column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
     __table_args__ = (UniqueConstraint('time', 'team_id', name='team_traffic_stats_unique_1'),)
 
     # what we save about traffic
-    down_teams_packets = Column(BigInteger, nullable=False)
-    down_teams_bytes = Column(BigInteger, nullable=False)
-    down_teams_syns = Column(BigInteger, nullable=False)
-    down_teams_syn_acks = Column(BigInteger, nullable=False)
-    down_game_packets = Column(BigInteger, nullable=False)
-    down_game_bytes = Column(BigInteger, nullable=False)
-    down_game_syns = Column(BigInteger, nullable=False)
-    down_game_syn_acks = Column(BigInteger, nullable=False)
-    up_teams_packets = Column(BigInteger, nullable=False)
-    up_teams_bytes = Column(BigInteger, nullable=False)
-    up_teams_syns = Column(BigInteger, nullable=False)
-    up_teams_syn_acks = Column(BigInteger, nullable=False)
-    up_game_packets = Column(BigInteger, nullable=False)
-    up_game_bytes = Column(BigInteger, nullable=False)
-    up_game_syns = Column(BigInteger, nullable=False)
-    up_game_syn_acks = Column(BigInteger, nullable=False)
-    forward_self_packets = Column(BigInteger, nullable=False)
-    forward_self_bytes = Column(BigInteger, nullable=False)
-    forward_self_syns = Column(BigInteger, nullable=False)
-    forward_self_syn_acks = Column(BigInteger, nullable=False)
+    down_teams_packets = mapped_column(BigInteger, nullable=False)
+    down_teams_bytes = mapped_column(BigInteger, nullable=False)
+    down_teams_syns = mapped_column(BigInteger, nullable=False)
+    down_teams_syn_acks = mapped_column(BigInteger, nullable=False)
+    down_game_packets = mapped_column(BigInteger, nullable=False)
+    down_game_bytes = mapped_column(BigInteger, nullable=False)
+    down_game_syns = mapped_column(BigInteger, nullable=False)
+    down_game_syn_acks = mapped_column(BigInteger, nullable=False)
+    up_teams_packets = mapped_column(BigInteger, nullable=False)
+    up_teams_bytes = mapped_column(BigInteger, nullable=False)
+    up_teams_syns = mapped_column(BigInteger, nullable=False)
+    up_teams_syn_acks = mapped_column(BigInteger, nullable=False)
+    up_game_packets = mapped_column(BigInteger, nullable=False)
+    up_game_bytes = mapped_column(BigInteger, nullable=False)
+    up_game_syns = mapped_column(BigInteger, nullable=False)
+    up_game_syn_acks = mapped_column(BigInteger, nullable=False)
+    forward_self_packets = mapped_column(BigInteger, nullable=False)
+    forward_self_bytes = mapped_column(BigInteger, nullable=False)
+    forward_self_syns = mapped_column(BigInteger, nullable=False)
+    forward_self_syn_acks = mapped_column(BigInteger, nullable=False)
 
-    query: 'Query[TeamTrafficStats]'
+    if typing.TYPE_CHECKING:
+        query: 'Query[TeamTrafficStats]'
 
     @classmethod
     def efficient_insert(cls, timestamp: int, items: Dict[int, List[int]]) -> None:
@@ -434,22 +455,23 @@ class SubmittedFlag(Base, ModelMixin):
     Stolen flags submitted to us. Filled by the submitter script. No foreign references for performance reasons.
     """
     __tablename__ = 'submitted_flags'
-    id = Column(Integer, primary_key=True)
-    submitted_by = Column(SmallInteger, nullable=False)  # references teams (attacking team)
-    team_id = Column(SmallInteger, nullable=False)  # references teams (exploited team)
-    service_id = Column(SmallInteger, nullable=False)  # references services
-    tick_issued = Column(SmallInteger, nullable=False)
-    payload = Column(Integer, nullable=False, server_default=text('0'))  # more or less random payload
-    tick_submitted = Column(SmallInteger, nullable=False, index=True)  # submitted in this tick
-    is_firstblood = Column(Boolean, nullable=False, server_default=text('FALSE'), index=True)
-    ts = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    id = mapped_column(Integer, primary_key=True)
+    submitted_by = mapped_column(SmallInteger, nullable=False)  # references teams (attacking team)
+    team_id = mapped_column(SmallInteger, nullable=False)  # references teams (exploited team)
+    service_id = mapped_column(SmallInteger, nullable=False)  # references services
+    tick_issued = mapped_column(SmallInteger, nullable=False)
+    payload = mapped_column(Integer, nullable=False, server_default=text('0'))  # more or less random payload
+    tick_submitted = mapped_column(SmallInteger, nullable=False, index=True)  # submitted in this tick
+    is_firstblood = mapped_column(Boolean, nullable=False, server_default=text('FALSE'), index=True)
+    ts = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     __table_args__ = (UniqueConstraint('submitted_by', 'team_id', 'service_id', 'tick_issued', 'payload',
                                        name='submitted_flags_unique_1'),)
     submitted_by_team = relationship('Team', foreign_keys=[submitted_by],
                                      primaryjoin='Team.id == SubmittedFlag.submitted_by')
     victim_team = relationship('Team', foreign_keys=[team_id], primaryjoin='Team.id == SubmittedFlag.team_id')
 
-    query: 'Query[SubmittedFlag]'
+    if typing.TYPE_CHECKING:
+        query: 'Query[SubmittedFlag]'
 
     @classmethod
     def efficient_insert(cls, items) -> None:
@@ -475,41 +497,32 @@ class CheckerResult(Base, ModelMixin):
     """
 
     __tablename__ = 'checker_results'
-    id = Column(Integer, primary_key=True)
-    tick = Column(Integer, nullable=False, index=True)
-    team_id = Column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
-    service_id = Column(SmallInteger, ForeignKey('services.id', ondelete="CASCADE"), nullable=False)
+    id = mapped_column(Integer, primary_key=True)
+    tick = mapped_column(Integer, nullable=False, index=True)
+    team_id = mapped_column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
+    service_id = mapped_column(SmallInteger, ForeignKey('services.id', ondelete="CASCADE"), nullable=False)
     checker_results_unique_1 = UniqueConstraint('tick', 'team_id', 'service_id', name='checker_results_unique_1')
     __table_args__ = (checker_results_unique_1,)
 
-    # status can be: SUCCESS, FLAGMISSING, MUMBLE, OFFLINE, TIMEOUT, REVOKED, CRASHED, PENDING (this one only for test runs)
-    status = Column(String(12), nullable=False, index=True)
-    message = Column(String, nullable=True, server_default=text('NULL'))
-    time = Column(Float, nullable=True, server_default=text('NULL'))
-    integrity = Column(Boolean, nullable=False,
-                       server_default=text('FALSE'))  # DEAD BY NOW - true if integrity check has been passed
-    stored = Column(Boolean, nullable=False, server_default=text('FALSE'))  # DEAD BY NOW - true if flag could be stored
-    retrieved = Column(Boolean, nullable=False,
-                       server_default=text('FALSE'))  # DEAD BY NOW - true if flag could be retrieved
-    celery_id = Column(String(40), nullable=False)
-    output = Column(String, nullable=True, server_default=text('NULL'))
-    finished = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
+    # status can be: SUCCESS, FLAGMISSING, MUMBLE, RECOVERING, OFFLINE, TIMEOUT, REVOKED, CRASHED, PENDING (this one only for test runs)
+    status = mapped_column(String(12), nullable=False, index=True)
+    message = mapped_column(String, nullable=True, server_default=text('NULL'))
+    time = mapped_column(Float, nullable=True, server_default=text('NULL'))
+    celery_id = mapped_column(String(40), nullable=False)
+    output = mapped_column(String, nullable=True, server_default=text('NULL'))
+    finished = mapped_column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
+    data = mapped_column(JSON, nullable=True, server_default=text('NULL'))
     # true if the task finished, but was too late (already revoked)
-    run_over_time = Column(Boolean, nullable=False, server_default=text('FALSE'), default=False)
+    run_over_time = mapped_column(Boolean, nullable=False, server_default=text('FALSE'), default=False)
 
     # Additional state: "PENDING" (only possible for test runs)
-    states = ['SUCCESS', 'FLAGMISSING', 'MUMBLE', 'OFFLINE', 'TIMEOUT', 'REVOKED', 'CRASHED']
+    states = ['SUCCESS', 'FLAGMISSING', 'MUMBLE', 'OFFLINE', 'TIMEOUT', 'RECOVERING', 'REVOKED', 'CRASHED']
 
     team = relationship("Team")
     service = relationship("Service")
 
-    query: 'Query[CheckerResult]'
-
-    def __init__(self, **kwargs) -> None:
-        super(CheckerResult, self).__init__(**kwargs)
-        if self.integrity is None: self.integrity = False
-        if self.stored is None: self.stored = False
-        if self.retrieved is None: self.retrieved = False
+    if typing.TYPE_CHECKING:
+        query: 'Query[CheckerResult]'
 
     def props_dict(self) -> dict[str, Any]:
         return {
@@ -519,13 +532,11 @@ class CheckerResult(Base, ModelMixin):
             'status': self.status,
             'message': self.message,
             'time': self.time,
-            'integrity': self.integrity,
-            'stored': self.stored,
-            'retrieved': self.retrieved,
             'celery_id': self.celery_id,
             'output': self.output,
             'run_over_time': self.run_over_time or False,
-            'finished': self.finished
+            'finished': self.finished,
+            'data': self.data,
         }
 
     @classmethod
@@ -539,11 +550,9 @@ class CheckerResult(Base, ModelMixin):
             'status': stmt.excluded.status,
             'message': stmt.excluded.message,
             'time': stmt.excluded.time,
-            'integrity': stmt.excluded.integrity,
-            'stored': stmt.excluded.stored,
-            'retrieved': stmt.excluded.retrieved,
             'celery_id': stmt.excluded.celery_id,
-            'output': stmt.excluded.output
+            'output': stmt.excluded.output,
+            'data': stmt.excluded.data,
         }
         if entry and entry.run_over_time is not None:
             data['run_over_time'] = stmt.excluded.run_over_time
@@ -589,12 +598,12 @@ class LogMessage(Base, Serializer, ModelMixin):
     Collected log information from all the pages
     """
     __tablename__ = 'logmessages'
-    id = Column(Integer, primary_key=True)
-    created = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
-    component = Column(String(128), nullable=False)
-    level = Column(SmallInteger, server_default=text('0'))
-    title = Column(String)
-    text = Column(String)
+    id = mapped_column(Integer, primary_key=True)
+    created = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    component = mapped_column(String(128), nullable=False)
+    level = mapped_column(SmallInteger, server_default=text('0'))
+    title = mapped_column(String)
+    text = mapped_column(String)
 
     # Log levels (higher = more important)
     DEBUG = 1
@@ -606,7 +615,8 @@ class LogMessage(Base, Serializer, ModelMixin):
 
     LEVELS = ['ERROR', 'WARNING', 'NOTIFICATION', 'IMPORTANT', 'INFO', 'DEBUG']
 
-    query: 'Query[LogMessage]'
+    if typing.TYPE_CHECKING:
+        query: 'Query[LogMessage]'
 
     @classmethod
     def level_to_python(cls, lvl: int) -> int:
@@ -624,13 +634,14 @@ class CheckerFilesystem(Base, ModelMixin):
     One line for each file/folder in a package. Files are identified by their hash.
     """
     __tablename__ = 'checker_filesystem'
-    id = Column(Integer, primary_key=True)
-    package = Column(String(32), nullable=False, index=True)
-    path = Column(String, nullable=False)
-    file_hash = Column(String(32), nullable=True)  # NULL = folder
+    id = mapped_column(Integer, primary_key=True)
+    package = mapped_column(String(32), nullable=False, index=True)
+    path = mapped_column(String, nullable=False)
+    file_hash = mapped_column(String(32), nullable=True)  # NULL = folder
     __table_args__ = (UniqueConstraint('package', 'path', name='checker_filesystem_unique_1'),)
 
-    query: 'Query[CheckerFilesystem]'
+    if typing.TYPE_CHECKING:
+        query: 'Query[CheckerFilesystem]'
 
 
 class CheckerFile(Base, ModelMixin):
@@ -638,20 +649,21 @@ class CheckerFile(Base, ModelMixin):
     Files in a package.
     """
     __tablename__ = 'checker_files'
-    id = Column(Integer, primary_key=True)
-    file_hash = Column(String(32), nullable=False, index=True)
-    content = Column(LargeBinary, nullable=False)
+    id = mapped_column(Integer, primary_key=True)
+    file_hash = mapped_column(String(32), nullable=False, index=True)
+    content = mapped_column(LargeBinary, nullable=False)
     __table_args__ = (UniqueConstraint('file_hash', name='checker_files_unique_1'),)
 
-    query: 'Query[CheckerFile]'
+    if typing.TYPE_CHECKING:
+        query: 'Query[CheckerFile]'
 
 
 class Tick(Base, ModelMixin):
     # we record some timing information in DB because Grafana requires this
     __tablename__ = 'ticks'
-    tick = Column(Integer, primary_key=True)
-    start = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
-    end = Column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
+    tick = mapped_column(Integer, primary_key=True)
+    start = mapped_column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
+    end = mapped_column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
 
     @classmethod
     def _set(cls, session: Session, tick: int, field: str, ts: datetime) -> None:

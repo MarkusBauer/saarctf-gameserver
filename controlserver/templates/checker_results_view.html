@@ -15,6 +15,8 @@
 		<dd>
 			{% if checker_result.status == 'SUCCESS' %}
 				<span class="label label-success">ONLINE</span>
+            {% elif checker_result.status == 'RECOVERING' %}
+                <span class="label label-info">RECOVERING</span>
 			{% elif checker_result.status == 'FLAGMISSING' or checker_result.status == 'MUMBLE' or checker_result.status == 'OFFLINE' %}
 				<span class="label label-warning">{{ checker_result.status }}</span>
 			{% elif checker_result.status == 'TIMEOUT' or checker_result.status == 'REVOKED' %}
@@ -53,6 +55,10 @@
 		</dd>
 		<dt>Run over time</dt>
 		<dd>{{ checker_result.run_over_time }}</dd>
+        <dt>Data</dt>
+        <dd>
+            <pre>{{ checker_result.data | tojson }}</pre>
+        </dd>
 		<dt>Output</dt>
 		<dd>
 			<pre>{{ checker_result.output }}</pre>

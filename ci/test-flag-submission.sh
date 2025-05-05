@@ -14,7 +14,7 @@ flask run --host=0.0.0.0 &
 # Build flag submission server
 mkdir flag-submission-server/build
 pushd flag-submission-server/build
-cmake -DCMAKE_BUILD_TYPE=Release -DPostgreSQL_ADDITIONAL_VERSIONS=15 ..
+cmake -DCMAKE_BUILD_TYPE=Release -DPostgreSQL_ADDITIONAL_VERSIONS=17 ..
 make
 popd
 

@@ -69,11 +69,13 @@ class Dispatcher:
             timeout = service.checker_timeout
         return run_func.signature(
             (
+                service.checker_runner,
                 service.package if not package else package,
                 service.checker_script,
                 service.id,
                 team.id,
-                tick
+                tick,
+                service.runner_config,
             ),
             time_limit=timeout + 5, soft_time_limit=timeout,
             countdown=150 if service.checker_script == 'pendingtest' else None,

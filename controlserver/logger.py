@@ -67,7 +67,7 @@ def log_exception(component: str, e: Exception, errormessage: str = '{}: {}') ->
     _log(component, msg, stacktrace, level=LogMessage.ERROR)
 
 
-def log_result_of_execution(component: str, function: Callable[P, Any], args: P.args = (),
+def log_result_of_execution(component: str, function: Callable[P, Any], args: P.args = (),  # type: ignore[valid-type]
                             success: str | None = None, successLevel: int = LogMessage.INFO,
                             error: str | None = None, reraise: bool = True) -> None:
     """

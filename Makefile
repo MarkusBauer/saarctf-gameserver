@@ -31,7 +31,7 @@ check-mypy: deps
 
 # run all the unittests
 .PHONY: test
-test: deps
+test: deps deps-script
 	$(IN_VENV) ; python3 -m unittest tests/test_*.py
 
 

@@ -9,6 +9,7 @@ __pycache__
 /tmp/
 /.mypy_cache/
 config*.json
+config*.yaml
 **/.env
 **/.env.*
 !**/.env.example

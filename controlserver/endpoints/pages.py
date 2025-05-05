@@ -399,6 +399,7 @@ def checker_status(tick: int | None = None) -> ResponseReturnValue:
         stats_time_count=stats_time_count, stats_toolate=stats_toolate, total_toolate=sum(stats_toolate.values()),
         total_time=total_time, total_time_count=total_time_count, total_status=total_status,
         status_format={'SUCCESS': 'success', 'FLAGMISSING': 'info', 'MUMBLE': 'info', 'OFFLINE': 'info',
+                       'RECOVERING': 'info',
                        'TIMEOUT': 'warning', 'REVOKED': 'danger',
                        'CRASHED': 'danger'},
         finished_per_tick=finished_per_tick, no_finished_timestamp=no_finished_timestamp,
@@ -424,7 +425,7 @@ def checker_status_overview() -> ResponseReturnValue:
                                func.sum(CheckerResult.run_over_time.cast(Integer))).group_by(
         CheckerResult.tick) \
         .filter(CheckerResult.tick >= first_tick).filter(CheckerResult.tick <= last_tick) \
-        .filter(CheckerResult.status.in_(['SUCCESS', 'FLAGMISSING', 'MUMBLE', 'OFFLINE'])).all()
+        .filter(CheckerResult.status.in_(['SUCCESS', 'FLAGMISSING', 'MUMBLE', 'OFFLINE', 'RECOVERING'])).all()
     results_warn = session.query(CheckerResult.tick, func.count(CheckerResult.id)).group_by(CheckerResult.tick) \
         .filter(CheckerResult.tick >= first_tick).filter(CheckerResult.tick <= last_tick) \
         .filter(CheckerResult.status == 'TIMEOUT').all()

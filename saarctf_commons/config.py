@@ -22,15 +22,34 @@ The file is looked up in this order, the first match is loaded:
 import binascii
 import json
 import os
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Self
 
 import yaml
 
 
 @dataclass
-class NetworkConfig:
+class ConfigSection:
+    @classmethod
+    def from_dict(cls, d: dict) -> Self:
+        for f in fields(cls):
+            if f.name in d and issubclass(f.type, ConfigSection):  # type: ignore
+                d[f.name] = f.type.from_dict(d[f.name])  # type: ignore
+        return cls(**d)
+
+    def to_dict(self) -> dict[str, Any]:
+        d = {}
+        for f in fields(self):
+            if issubclass(f.type, ConfigSection):  # type: ignore
+                d[f.name] = getattr(self, f.name).to_dict()
+            else:
+                d[f.name] = getattr(self, f.name)
+        return d
+
+
+@dataclass
+class NetworkConfig(ConfigSection):
     vulnbox_ip: list[tuple[int, int, int]]
     gateway_ip: list[tuple[int, int, int]]
     testbox_ip: list[tuple[int, int, int]]
@@ -136,45 +155,52 @@ class NetworkConfig:
 
 
 @dataclass
-class ScoringConfig:
+class ScoringConfig(ConfigSection):
     flags_rounds_valid: int = 10
     nop_team_id: int = 1
     off_factor: float = 1.0
     def_factor: float = 1.0
     sla_factor: float = 1.0
+    # custom algorithm name, if necessary
+    algorithm: str = 'saarctf:SaarctfScoreAlgorithm'
+    # additional data for custom algorithms
+    data: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, d: dict) -> 'ScoringConfig':
-        return cls(**d)
+        field_names = {f.name for f in fields(cls)}
+        params = {k: v for k, v in d.items() if k in field_names}
+        params['data'] = {k: v for k, v in d.items() if k not in field_names}
+        return cls(**params)
 
     def to_dict(self) -> dict:
         return {
+            'algorithm': self.algorithm,
             'flags_rounds_valid': self.flags_rounds_valid,
             'nop_team_id': self.nop_team_id,
             'off_factor': self.off_factor,
             'def_factor': self.def_factor,
             'sla_factor': self.sla_factor,
-        }
+        } | self.data
 
 
 @dataclass
-class WireguardSyncConfig:
+class EnoRunnerConfig(ConfigSection):
+    check_past_ticks: int = 5
+    timeout: float = 15
+
+
+@dataclass
+class RunnerConfig(ConfigSection):
+    eno: EnoRunnerConfig = field(default_factory=EnoRunnerConfig)
+
+
+@dataclass
+class WireguardSyncConfig(ConfigSection):
     api_server: str
     api_token: str
     api_base: str = "/api/router/"
     api_concurrency: int = 1
-
-    @classmethod
-    def from_dict(cls, d: dict) -> 'WireguardSyncConfig':
-        return cls(**d)
-
-    def to_dict(self) -> dict:
-        return {
-            'api_server': self.api_server,
-            'api_token': self.api_token,
-            'api_base': self.api_base,
-            'api_concurrency': self.api_concurrency,
-        }
 
 
 @dataclass
@@ -214,6 +240,7 @@ class Config:
 
     NETWORK: NetworkConfig
     WIREGUARD_SYNC: WireguardSyncConfig | None
+    RUNNER: RunnerConfig
 
     @classmethod
     def load_default(cls) -> 'Config':
@@ -287,6 +314,7 @@ class Config:
 
         NETWORK: NetworkConfig = NetworkConfig.from_dict(CONFIG['network'])
         WIREGUARD_SYNC = WireguardSyncConfig.from_dict(CONFIG['wireguard_sync']) if CONFIG.get('wireguard_sync', None) is not None else None
+        RUNNER: RunnerConfig = RunnerConfig.from_dict(CONFIG.get('runner', {}))
 
         return Config(
             basedir=basedir,
@@ -319,6 +347,7 @@ class Config:
             EXTERNAL_TIMER=EXTERNAL_TIMER,
             NETWORK=NETWORK,
             WIREGUARD_SYNC=WIREGUARD_SYNC,
+            RUNNER=RUNNER,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -348,6 +377,7 @@ class Config:
             'external_timer': self.EXTERNAL_TIMER,
             'network': self.NETWORK.to_dict(),
             'wireguard_sync': self.WIREGUARD_SYNC.to_dict() if self.WIREGUARD_SYNC else None,
+            'runner': self.RUNNER.to_dict(),
         }
 
     @classmethod

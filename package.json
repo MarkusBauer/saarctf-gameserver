@@ -9,7 +9,7 @@
     "copy": "copyfiles -u 3 \"node_modules/bootstrap/dist/*/**\" controlserver/static/vendor && copyfiles -u 3 \"node_modules/bootstrap/dist/fonts/**\" controlserver/static/ && copyfiles -u 2 node_modules/angular/angular.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/jquery/dist/jquery.js controlserver/static/vendor/js/ && copyfiles -u 3 \"node_modules/eonasdan-bootstrap-datetimepicker/build/*/**\" controlserver/static/vendor/ && copyfiles -u 3 node_modules/moment/min/moment-with-locales.min.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/moment-duration-format/lib/moment-duration-format.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/chart.js/dist/Chart.bundle.min.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/angular-chart.js/dist/angular-chart.min.js controlserver/static/vendor/js/",
     "build": "npm run copy && npm run less"
   },
-  "author": "Saarsec",
+  "author": "saarsec",
   "dependencies": {
     "angular": "^1.8.0",
     "angular-chart.js": "^1.1.1",

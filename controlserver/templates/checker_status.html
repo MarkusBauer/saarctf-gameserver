@@ -171,7 +171,7 @@
 						</small>
 					</td>
 					<td>
-						{% set finished_ok = stats['SUCCESS'] + stats['FLAGMISSING'] + stats['MUMBLE'] + stats['OFFLINE'] %}
+						{% set finished_ok = stats['SUCCESS'] + stats['FLAGMISSING'] + stats['MUMBLE'] + stats['OFFLINE'] + stats['RECOVERING'] %}
 						{% set finished_toolate = stats['TOOLATE'] %}
 						{% set finished_warning = stats['TIMEOUT'] %}
 						{% set finished_error = stats['CRASHED'] %}

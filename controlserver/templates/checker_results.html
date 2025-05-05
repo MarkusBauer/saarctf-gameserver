@@ -43,6 +43,8 @@
 						<span class="label label-success">ONLINE</span>
 					{% elif checker_result.status == 'FLAGMISSING' or checker_result.status == 'MUMBLE' or checker_result.status == 'OFFLINE' %}
 						<span class="label label-warning">{{ checker_result.status }}</span>
+                    {% elif checker_result.status == 'RECOVERING' %}
+                        <span class="label label-info">{{ checker_result.status }}</span>
 					{% elif checker_result.status == 'TIMEOUT' or checker_result.status == 'REVOKED' %}
 						<span class="label label-info">{{ checker_result.status }}</span>
 					{% elif checker_result.status == 'PENDING' %}

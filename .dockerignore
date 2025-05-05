@@ -1,0 +1,16 @@
+venv
+.git
+**/.idea
+**/*.log
+**/__pycache__
+**/node_modules
+**/cmake-build-*
+*/build
+
+scoreboard/node_modules
+scoreboard/.angular
+scoreboard/dist
+controlserver/static/fonts
+controlserver/static/vendor
+config.*
+

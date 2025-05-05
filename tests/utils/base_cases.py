@@ -1,13 +1,14 @@
-import json
 import os
 import unittest
 from pathlib import Path
 
+from sqlalchemy import text
+
 import saarctf_commons
-from controlserver.models import init_database, db_session, Team, Service, close_database, meta, Database, \
+from controlserver.models import init_database, db_session, Team, Service, close_database, Database, \
     SubmittedFlag, CheckerFilesystem, TeamLogo, \
-    LogMessage, db_session_2
-from saarctf_commons.config import config, Config, load_default_config_file
+    LogMessage, db_session_2, Base
+from saarctf_commons.config import config, load_default_config_file
 
 config_basis = {
     "scoreboard_path": "/dev/shm/scoreboard",
@@ -53,8 +54,8 @@ class DatabaseTestCase(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         init_database()
-        meta.drop_all(bind=Database.db_engine)
-        meta.create_all(bind=Database.db_engine)
+        Base.metadata.drop_all(bind=Database.db_engine)
+        Base.metadata.create_all(bind=Database.db_engine)
 
     def setUp(self):
         session = db_session()
@@ -71,8 +72,9 @@ class DatabaseTestCase(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        meta.drop_all(bind=Database.db_engine)
-        Database.db_engine.execute("DROP TABLE IF EXISTS alembic_version;")
+        Base.metadata.drop_all(bind=Database.db_engine)
+        with Database.db_engine.connect() as conn:
+            conn.execute(text("DROP TABLE IF EXISTS alembic_version;"))
         close_database()
 
     def demo_team_services(self) -> None:

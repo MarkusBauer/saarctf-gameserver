@@ -17,7 +17,8 @@ from celery.signals import celeryd_after_setup
 from kombu.common import Broadcast
 from sqlalchemy import func
 
-from checker_runner.checker_execution import process_needs_restart, set_process_needs_restart, CheckerRun
+from checker_runner.checker_execution import process_needs_restart, set_process_needs_restart, CheckerRunOutput
+from checker_runner.runners.factory import CheckerRunnerFactory
 from controlserver.models import CheckerResult, db_session, init_database, db_session_2
 from saarctf_commons.config import config, load_default_config
 from saarctf_commons.db_utils import retry_on_sql_error
@@ -63,24 +64,25 @@ def set_limits() -> None:
 
 @retry_on_sql_error(attempts=3)
 def save_checker_result(tick: int, service_id: int, team_id: int, celery_id: str,
-                        status: str, message: str | None,
-                        output: str, runtime: float) -> None:
-    result = CheckerResult(tick=tick, service_id=service_id, team_id=team_id, celery_id=celery_id)
-    result.time = runtime  # type: ignore[assignment]
-    result.status = status
-    result.message = message
-    result.output = output
-    result.finished = func.now()
+                        result: CheckerRunOutput, runtime: float) -> None:
+    dbresult = CheckerResult(tick=tick, service_id=service_id, team_id=team_id, celery_id=celery_id)
+    dbresult.time = runtime  # type: ignore[assignment]
+    dbresult.status = result.status
+    dbresult.message = result.message
+    dbresult.output = result.output
+    dbresult.data = result.data
+    dbresult.finished = func.now()
 
     with db_session_2() as session:
-        session.execute(CheckerResult.upsert(result).values(result.props_dict()))
+        session.execute(CheckerResult.upsert(dbresult).values(dbresult.props_dict()))
         session.commit()
 
 
-def run_checkerscript(self, package: str, script: str, service_id: int, team_id: int, tick: int) -> str:
+def run_checkerscript(self, runner_spec: str, package: str, script: str, service_id: int, team_id: int, tick: int, cfg: dict | None) -> str:
     """
     Run a given checker script against a single team.
     :param self: (celery task instance)
+    :param runner_spec: which runner to use
     :param package:
     :param script: Format: "<filename rel to package root>:<class name>"
     :param service_id:
@@ -109,16 +111,17 @@ def run_checkerscript(self, package: str, script: str, service_id: int, team_id:
     output = OutputHandler()
     getLogger().addHandler(output)
 
-    run = CheckerRun(package, script)
-    status, message = run.execute_checker(service_id, team_id, tick)
+    runner = CheckerRunnerFactory.build(runner_spec, service_id, package, script, cfg)
+    result = runner.execute_checker(team_id, tick)
     checker_output = '\n'.join(output.buffer).replace('\x00', '<0x00>')
+    if not result.output:
+        result.output = checker_output
 
     getLogger().removeHandler(output)
 
     # store result in database
     try:
-        save_checker_result(tick, service_id, team_id, self.request.id, status, message, checker_output,
-                            time.time() - start_time)
+        save_checker_result(tick, service_id, team_id, self.request.id, result, time.time() - start_time)
     except sqlalchemy.exc.InvalidRequestError as e:
         # This session is in 'prepared' state; no further SQL can be emitted within this transaction.
         if 'no further SQL can be emitted' in str(e):
@@ -128,14 +131,15 @@ def run_checkerscript(self, package: str, script: str, service_id: int, team_id:
     if process_needs_restart():
         print('RESTART')
         sys.exit(0)
-    return status
+    return result.status
 
 
-def run_checkerscript_external(self, package: str, script: str, service_id: int, team_id: int, tick: int) -> str:
+def run_checkerscript_external(self, runner_spec: str, package: str, script: str, service_id: int, team_id: int, tick: int, cfg: dict | None) -> str:
     """
     Run a given checker script against a single team - in a seperate process, decoupled from the celery worker.
     In case the checker script crashes the process, nobody is harmed.
     :param self: (celery task instance)
+    :param runner_spec: which runner to use
     :param package:
     :param script: Format: "<filename rel to package root>:<class name>"
     :param service_id:
@@ -146,11 +150,11 @@ def run_checkerscript_external(self, package: str, script: str, service_id: int,
     set_limits()
 
     start_time = time.time()
-    run = CheckerRun(package, script)
-    status, message, output = run.execute_checker_subprocess(service_id, team_id, tick, self.request.timelimit[0] - 5)
-    save_checker_result(tick, service_id, team_id, self.request.id, status, message, output, time.time() - start_time)
+    runner = CheckerRunnerFactory.build(runner_spec, service_id, package, script, cfg)
+    result = runner.execute_checker_subprocess(team_id, tick, self.request.timelimit[0] - 5)
+    save_checker_result(tick, service_id, team_id, self.request.id, result, time.time() - start_time)
 
-    return status
+    return result.status
 
 
 def preload_packages(packages: List[str] | None = None) -> bool:

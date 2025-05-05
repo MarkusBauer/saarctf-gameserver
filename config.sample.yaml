@@ -38,7 +38,7 @@ patches_path: "/dev/shm/patches"
 patches_public_path: "/dev/shm/patches-webroot"
 
 # Setup
-external_timer: false  # true for local test setup without dedicated ctftimer script
+external_timer: false  # false for local test setup without dedicated ctftimer script, true for production setup
 
 # Flags / scoring
 secret_flags: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -48,8 +48,14 @@ scoring:
   off_factor: 1
   def_factor: 1
   sla_factor: 1
+  # algorithm: "saarctf:SaarctfScoreAlgorithm"  # if you define alternate algorithms
 
-# List of services for auto-deployment on servers
+runner:
+  eno:
+    check_past_ticks: 5
+    timeout: 15  # in seconds
+
+# List of (saarctf-style) services for auto-deployment on servers
 service_remotes:
   - ssh://git@gitlab.saarsec.rocks:2222/...
 

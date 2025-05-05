@@ -1,6 +1,6 @@
-flask<3
+flask
 flask_admin
-sqlalchemy<2
+sqlalchemy[mypy]>=2, <3
 alembic
 psycopg2-binary
 redis
@@ -9,7 +9,7 @@ flower>=2, <3
 setproctitle
 filelock
 ujson
-htmlmin
+htmlmin2
 requests
 Pillow
 hcloud>=1.16.0
@@ -21,3 +21,7 @@ filelock
 ecs-logging
 pyyaml
 typing-extensions  # for typing.override - drop when we have min 3.12
+# for enochecker framework
+aiohttp
+enochecker_core
+jsons

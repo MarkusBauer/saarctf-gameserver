@@ -36,6 +36,8 @@ export class TableLineCellsComponent implements OnInit {
 			case 'TIMEOUT':
 			case 'CRASH':
 				return 'label-danger';
+			case 'RECOVERING':
+				return 'label-info';
 			case 'REVOKED':
 			case 'PENDING':
 			default:
@@ -54,6 +56,8 @@ export class TableLineCellsComponent implements OnInit {
 			case 'OFFLINE':
 			case 'TIMEOUT':
 				return 'Service unreachable';
+			case 'RECOVERING':
+				return 'Service online, but flags from previous ticks not found';
 			case 'CRASH':
 				return 'Checker crashed';
 			case 'REVOKED':
@@ -75,6 +79,8 @@ export class TableLineCellsComponent implements OnInit {
 			case 'OFFLINE':
 			case 'TIMEOUT':
 				return 'down';
+			case 'RECOVERING':
+				return 'rec';
 			case 'CRASH':
 			case 'REVOKED':
 			case 'PENDING':

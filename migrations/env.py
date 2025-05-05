@@ -27,7 +27,7 @@ logger = logging.getLogger('alembic.env')
 saarctf_commons.config.load_default_config()
 config.set_main_option('sqlalchemy.url', saarctf_commons.config.config.postgres_sqlalchemy())
 from controlserver import models
-target_metadata = models.meta
+target_metadata = models.Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

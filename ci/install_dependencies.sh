@@ -18,7 +18,7 @@ apt-get -y install --no-install-recommends \
     libpq-dev \
     libssl-dev \
     nodejs \
-    postgresql-client-15 \
+    postgresql-client-17 \
     postgresql-server-dev-all \
     psmisc \
     python3 \
