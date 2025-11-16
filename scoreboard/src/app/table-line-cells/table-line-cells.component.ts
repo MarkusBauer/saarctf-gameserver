@@ -70,10 +70,11 @@ export class StatusUtils {
 
 
 @Component({
-	//selector: 'app-table-line-cells',
-	selector: 'tablelinecells',
-	templateUrl: './table-line-cells.component.html',
-	styleUrls: ['./table-line-cells.component.less']
+    //selector: 'app-table-line-cells',
+    selector: 'tablelinecells',
+    templateUrl: './table-line-cells.component.html',
+    styleUrls: ['./table-line-cells.component.less'],
+    standalone: false
 })
 export class TableLineCellsComponent implements OnInit {
 

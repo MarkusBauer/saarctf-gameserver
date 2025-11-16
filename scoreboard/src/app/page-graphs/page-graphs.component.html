@@ -1,25 +1,31 @@
-<p *ngIf="currentTick === null || currentRoundInfo === null || loading > 0" class="lead">
+@if (currentTick === null || currentRoundInfo === null || loading > 0) {
+  <p class="lead">
     <span class="fas fa-spinner fa-spin"></span>
-</p>
+  </p>
+}
 
-<div class="chart-group" *ngFor="let chart of teamChartDatas">
+@for (chart of teamChartDatas; track chart) {
+  <div class="chart-group">
     <h3>{{ chart.title }}</h3>
     <div class="chart-container">
-        <canvas baseChart #teamCharts
-                [data]="chart.chart"
-                [options]="chartOptions"
-                [type]="'line'">
-        </canvas>
+      <canvas baseChart #teamCharts
+        [data]="chart.chart"
+        [options]="chartOptions"
+        [type]="'line'">
+      </canvas>
     </div>
-</div>
+  </div>
+}
 
-<div class="chart-group" *ngFor="let chart of serviceChartDatas">
+@for (chart of serviceChartDatas; track chart) {
+  <div class="chart-group">
     <h3>{{ chart.title }}</h3>
     <div class="chart-container">
-        <canvas baseChart #serviceCharts
-                [data]="chart.chart"
-                [options]="chartOptions"
-                [type]="'line'">
-        </canvas>
+      <canvas baseChart #serviceCharts
+        [data]="chart.chart"
+        [options]="chartOptions"
+        [type]="'line'">
+      </canvas>
     </div>
-</div>
+  </div>
+}

@@ -14,61 +14,62 @@ import { environment } from '../../environments/environment';
  * Notifications can be disabled in UiService.
  */
 @Component({
-	selector: 'app-notification-overlay',
-	templateUrl: './notification-overlay.component.html',
-	styleUrls: ['./notification-overlay.component.less', './pyro.less'],
-	animations: [
-		trigger('backdropAnimations', [
-			state('*', style({opacity: 1})),
-			transition(':enter', [
-				style({opacity: 0}),
-				animate(500),
-			]),
-			transition(':leave', [
-				animate("400ms 600ms", style({opacity: 0}))
-			])
-		]),
-		trigger('mainAnimations', [
-			state('*', style({opacity: 1})),
-			transition(':enter', [
-				query('.message-what, .message-service, .message-team', [
-					style({transform: 'scale(0)', opacity: 0})
-				]),
-				style({opacity: 0}),
-				animate('400ms 500ms'),
-				query('.message-what', [
-					animate("1500ms 400ms", keyframes([
-						style({transform: 'scale(0)', opacity: 0, offset: 0.0}),
-						style({transform: 'scale(1.1)', opacity: 0.75, offset: 0.6}),
-						style({transform: 'scale(0.9)', opacity: 1, offset: 0.8}),
-						style({transform: 'scale(1)', opacity: 1, offset: 1.0})
-					]))
-				]),
-				query('.message-service', [
-					animate('800ms 800ms', style({transform: 'scale(1)', opacity: 1}))
-				]),
-				query('.message-team', [
-					animate('800ms 800ms', style({transform: 'scale(1)', opacity: 1}))
-				])
-			]),
-			transition(':leave', [
-				animate(400, style({opacity: 0}))
-			])
-		]),
-		trigger('pyroAnimations', [
-			state('*', style({opacity: 1})),
-			transition(':enter', [
-				style({opacity: 0}),
-				animate(500),
-				transition(':leave', [
-					animate("400ms 600ms", style({opacity: 0}))
-				])
-			]),
-			transition(':leave', [
-				animate("400ms 600ms", style({opacity: 0}))
-			])
-		])
-	]
+    selector: 'app-notification-overlay',
+    templateUrl: './notification-overlay.component.html',
+    styleUrls: ['./notification-overlay.component.less', './pyro.less'],
+    animations: [
+        trigger('backdropAnimations', [
+            state('*', style({ opacity: 1 })),
+            transition(':enter', [
+                style({ opacity: 0 }),
+                animate(500),
+            ]),
+            transition(':leave', [
+                animate("400ms 600ms", style({ opacity: 0 }))
+            ])
+        ]),
+        trigger('mainAnimations', [
+            state('*', style({ opacity: 1 })),
+            transition(':enter', [
+                query('.message-what, .message-service, .message-team', [
+                    style({ transform: 'scale(0)', opacity: 0 })
+                ]),
+                style({ opacity: 0 }),
+                animate('400ms 500ms'),
+                query('.message-what', [
+                    animate("1500ms 400ms", keyframes([
+                        style({ transform: 'scale(0)', opacity: 0, offset: 0.0 }),
+                        style({ transform: 'scale(1.1)', opacity: 0.75, offset: 0.6 }),
+                        style({ transform: 'scale(0.9)', opacity: 1, offset: 0.8 }),
+                        style({ transform: 'scale(1)', opacity: 1, offset: 1.0 })
+                    ]))
+                ]),
+                query('.message-service', [
+                    animate('800ms 800ms', style({ transform: 'scale(1)', opacity: 1 }))
+                ]),
+                query('.message-team', [
+                    animate('800ms 800ms', style({ transform: 'scale(1)', opacity: 1 }))
+                ])
+            ]),
+            transition(':leave', [
+                animate(400, style({ opacity: 0 }))
+            ])
+        ]),
+        trigger('pyroAnimations', [
+            state('*', style({ opacity: 1 })),
+            transition(':enter', [
+                style({ opacity: 0 }),
+                animate(500),
+                transition(':leave', [
+                    animate("400ms 600ms", style({ opacity: 0 }))
+                ])
+            ]),
+            transition(':leave', [
+                animate("400ms 600ms", style({ opacity: 0 }))
+            ])
+        ])
+    ],
+    standalone: false
 })
 export class NotificationOverlayComponent implements OnInit, OnDestroy {
 

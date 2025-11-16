@@ -1,67 +1,83 @@
-<div class="chart-container" *ngIf="currentTick >= 0">
-	<canvas baseChart
-			[data]="chartData"
-			[options]="chartOptions"
-			[type]="'line'">
-	</canvas>
-</div>
+@if (currentTick >= 0) {
+  <div class="chart-container">
+    <canvas baseChart
+      [data]="chartData"
+      [options]="chartOptions"
+      [type]="'line'">
+    </canvas>
+  </div>
+}
 
 
 <table class="table table-bordered table-stickyhead" [class.hideHistory]="!ui.showHistory" [class.onlySums]="ui.showOnlySums">
-	<thead>
-	<tr>
-		<th colspan="3" class="headercell">
-			<div class="media-left team-logo-media" *ngIf="ui.showImages && backend.teams[teamId]">
-				<img class="media-object" [src]="'logos/'+backend.teams[teamId].logo" alt="" loading="lazy">
-			</div>
-			<div class="media-body">
-				<h4 class="team-name" *ngIf="backend.teams[teamId]">
-					{{backend.teams[teamId].name}}
-					<button type="button" *ngIf="backend.teams[teamId].aff || backend.teams[teamId].web"
-							class="btn btn-xs btn-link info-link" triggers="focus"
-							[popover]="'Affiliation: '+(backend.teams[teamId].aff||'-')+'; Website: '+(backend.teams[teamId].web || '-')"
-                            aria-label="Team Infos">
-						<span class="fas fa-info"></span>
-					</button>
-				</h4>
-				<span class="team-vulnbox" *ngIf="backend.teams[teamId]">{{backend.teams[teamId].vulnbox}}</span><br>
-				<span *ngIf="currentTick === null || currentRoundInfo === null || loading > 0" class="fas fa-spinner fa-spin"></span>
-				<a *ngIf="backend.bannedTeams[teamId]" class="label label-danger"
-				   title="Network access is currently blocked. Please contact the organizers in IRC!"
-				   popover="Network access is currently blocked. Please contact the organizers in IRC!"
-				>! network blocked !</a>
-			</div>
-		</th>
-		<!-- service cell -->
-		<app-table-service-header-cell [services]="currentRoundInfo.services" *ngIf="currentRoundInfo !== null"></app-table-service-header-cell>
-	</tr>
-	</thead>
-	<tbody>
-	<ng-container *ngFor="let item of tickInfos | keyvalue: keyDescOrder; trackBy keyTrackBy">
-		<tr>
-			<td class="rankcell"><h4>{{item.value.rank}}</h4></td>
-			<td class="teamcell">
-				<h4 class="team-name">Tick {{item.key}}</h4>
-				<span class="team-vulnbox"></span><br/>
-				<span class="team-total-points">
-					<i class="fas fa-chart-line"></i>&nbsp;{{item.value.points.toFixed(1)}}
-					<span class="delta"><small title="New points this tick">({{floatToString(item.value.do + item.value.dd + item.value.ds)}})</small></span>
-				</span>
-			</td>
-			<tablelinecells [rank]="item.value" [tick]="item.key"></tablelinecells>
-		</tr>
-	</ng-container>
-	</tbody>
-</table>
+  <thead>
+    <tr>
+      <th colspan="3" class="headercell">
+        @if (ui.showImages && backend.teams[teamId]) {
+          <div class="media-left team-logo-media">
+            <img class="media-object" [src]="'logos/'+backend.teams[teamId].logo" alt="" loading="lazy">
+          </div>
+        }
+        <div class="media-body">
+          @if (backend.teams[teamId]) {
+            <h4 class="team-name">
+              {{backend.teams[teamId].name}}
+              @if (backend.teams[teamId].aff || backend.teams[teamId].web) {
+                <button type="button"
+                  class="btn btn-xs btn-link info-link" triggers="focus"
+                  [popover]="'Affiliation: '+(backend.teams[teamId].aff||'-')+'; Website: '+(backend.teams[teamId].web || '-')"
+                  aria-label="Team Infos">
+                  <span class="fas fa-info"></span>
+                </button>
+              }
+            </h4>
+          }
+          @if (backend.teams[teamId]) {
+            <span class="team-vulnbox">{{backend.teams[teamId].vulnbox}}</span>
+            }<br>
+            @if (currentTick === null || currentRoundInfo === null || loading > 0) {
+              <span class="fas fa-spinner fa-spin"></span>
+            }
+            @if (backend.bannedTeams[teamId]) {
+              <a class="label label-danger"
+                title="Network access is currently blocked. Please contact the organizers in IRC!"
+                popover="Network access is currently blocked. Please contact the organizers in IRC!"
+              >! network blocked !</a>
+            }
+          </div>
+        </th>
+        <!-- service cell -->
+        @if (currentRoundInfo !== null) {
+          <app-table-service-header-cell [services]="currentRoundInfo.services"></app-table-service-header-cell>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (item of tickInfos | keyvalue: keyDescOrder; track item) {
+        <tr>
+          <td class="rankcell"><h4>{{item.value.rank}}</h4></td>
+          <td class="teamcell">
+            <h4 class="team-name">Tick {{item.key}}</h4>
+            <span class="team-vulnbox"></span><br/>
+            <span class="team-total-points">
+              <i class="fas fa-chart-line"></i>&nbsp;{{item.value.points.toFixed(1)}}
+              <span class="delta"><small title="New points this tick">({{floatToString(item.value.do + item.value.dd + item.value.ds)}})</small></span>
+            </span>
+          </td>
+          <tablelinecells [rank]="item.value" [tick]="item.key"></tablelinecells>
+        </tr>
+      }
+    </tbody>
+  </table>
 
-<div class="text-center">
-	<span #loadMoreSpinner [hidden]="tickInfosLength >= currentTick" class="fas fa-spinner fa-spin"></span>
-</div>
-<br/>
+  <div class="text-center">
+    <span #loadMoreSpinner [hidden]="tickInfosLength >= currentTick" class="fas fa-spinner fa-spin"></span>
+  </div>
+  <br/>
 
-<!--
-<div *ngFor="let item of ColorSchemes|keyvalue">
-	<h3>{{item.key}}</h3>
-	<div style="height: 35px; width: 80px; display: inline-block" [style.background-color]="color" *ngFor="let color of item.value">{{color}}</div>
-</div>
--->
+  <!--
+  <div *ngFor="let item of ColorSchemes|keyvalue">
+    <h3>{{item.key}}</h3>
+    <div style="height: 35px; width: 80px; display: inline-block" [style.background-color]="color" *ngFor="let color of item.value">{{color}}</div>
+  </div>
+  -->

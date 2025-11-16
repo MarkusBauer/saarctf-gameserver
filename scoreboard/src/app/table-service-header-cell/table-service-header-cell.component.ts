@@ -2,9 +2,10 @@ import {Component, Input, OnInit, ViewChild, ViewContainerRef} from '@angular/co
 import {Service} from "../models";
 
 @Component({
-	selector: 'app-table-service-header-cell',
-	templateUrl: './table-service-header-cell.component.html',
-	styleUrls: ['./table-service-header-cell.component.less']
+    selector: 'app-table-service-header-cell',
+    templateUrl: './table-service-header-cell.component.html',
+    styleUrls: ['./table-service-header-cell.component.less'],
+    standalone: false
 })
 export class TableServiceHeaderCellComponent implements OnInit {
 

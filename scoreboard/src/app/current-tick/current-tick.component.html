@@ -1,13 +1,25 @@
 <div class="current-tick">
-	<p class="tick" *ngIf="backend.currentState.current_tick >= 0">Tick {{backend.currentState.current_tick}}</p>
-	<p class="time">
-		&nbsp;
-		<span *ngIf="currentTime > 0 && (backend.currentState.state == GameStates.RUNNING || backend.currentState.current_tick < 0)">
-			{{formatRemainingTime(currentTime)}}
-		</span>
-		<span *ngIf="backend.currentState.frozen" class="label label-info" title="Points are no longer updated. You can still see your service status.">❄ frozen</span>
-		<span *ngIf="backend.currentState.state == GameStates.SUSPENDED" class="label label-warning">game suspended</span>
-		<span *ngIf="backend.currentState.state == GameStates.STOPPED && backend.currentState.current_tick > 0" class="label label-success">game is over</span>
-		<span *ngIf="backend.currentState.state == GameStates.STOPPED && backend.currentState.current_tick <= 0" class="label label-danger">not started</span>
-	</p>
+  @if (backend.currentState.current_tick >= 0) {
+    <p class="tick">Tick {{backend.currentState.current_tick}}</p>
+  }
+  <p class="time">
+    &nbsp;
+    @if (currentTime > 0 && (backend.currentState.state == GameStates.RUNNING || backend.currentState.current_tick < 0)) {
+      <span>
+        {{formatRemainingTime(currentTime)}}
+      </span>
+    }
+    @if (backend.currentState.frozen) {
+      <span class="label label-info" title="Points are no longer updated. You can still see your service status.">❄ frozen</span>
+    }
+    @if (backend.currentState.state == GameStates.SUSPENDED) {
+      <span class="label label-warning">game suspended</span>
+    }
+    @if (backend.currentState.state == GameStates.STOPPED && backend.currentState.current_tick > 0) {
+      <span class="label label-success">game is over</span>
+    }
+    @if (backend.currentState.state == GameStates.STOPPED && backend.currentState.current_tick <= 0) {
+      <span class="label label-danger">not started</span>
+    }
+  </p>
 </div>

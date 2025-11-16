@@ -8,6 +8,7 @@ import {StatusUtils} from "../table-line-cells/table-line-cells.component";
 
 @Component({
     template: '',
+    standalone: false
 })
 export abstract class RoundInfoListeningComponent implements OnInit, OnDestroy {
     protected shownTickIsRecent: boolean = true;
@@ -67,7 +68,8 @@ export abstract class RoundInfoListeningComponent implements OnInit, OnDestroy {
 @Component({
     selector: 'app-scoretable',
     templateUrl: './scoretable.component.html',
-    styleUrls: ['./scoretable.component.less']
+    styleUrls: ['./scoretable.component.less'],
+    standalone: false
 })
 export class ScoretableComponent extends RoundInfoListeningComponent implements OnInit, OnDestroy {
 

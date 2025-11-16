@@ -7,7 +7,8 @@ import {ServiceResult} from "../models";
 @Component({
     selector: 'app-page-dashboard',
     templateUrl: './page-dashboard.component.html',
-    styleUrl: './page-dashboard.component.less'
+    styleUrl: './page-dashboard.component.less',
+    standalone: false
 })
 export class PageDashboardComponent extends RoundInfoListeningComponent implements OnInit, OnDestroy {
     constructor(backend: BackendService, public ui: UiService) {

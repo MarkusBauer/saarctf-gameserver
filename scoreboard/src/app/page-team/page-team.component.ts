@@ -56,6 +56,7 @@ export abstract class StatisticsComponentBase implements OnInit, OnDestroy {
     selector: 'app-page-team',
     templateUrl: './page-team.component.html',
     styleUrls: ['./page-team.component.less'],
+    standalone: false
 })
 export class PageTeamComponent extends StatisticsComponentBase {
 

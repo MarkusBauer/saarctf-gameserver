@@ -1,41 +1,57 @@
 <div class="btn-group" dropdown placement="bottom right" container="body" [autoClose]="true">
-	<button id="settings-button" type="button" dropdownToggle class="btn btn-link dropdown-toggle" aria-controls="dropdown-settings" aria-label="Settings">
-		<i class="fas fa-cog"></i><span class="caret"></span>
-	</button>
-	<ul id="dropdown-settings" *dropdownMenu class="dropdown-menu dropdown-menu-right" role="menu" aria-labelledby="settings-button">
-		<li role="menuitem" *ngIf="!ui.showHistory">
-			<a class="dropdown-item href" (click)="ui.showHistory = true">Show differences to last tick</a>
-		</li>
-		<li role="menuitem" *ngIf="ui.showHistory">
-			<a class="dropdown-item href" (click)="ui.showHistory = false">Hide differences to last tick</a>
-		</li>
+  <button id="settings-button" type="button" dropdownToggle class="btn btn-link dropdown-toggle" aria-controls="dropdown-settings" aria-label="Settings">
+    <i class="fas fa-cog"></i><span class="caret"></span>
+  </button>
+  <ul id="dropdown-settings" *dropdownMenu class="dropdown-menu dropdown-menu-right" role="menu" aria-labelledby="settings-button">
+    @if (ui.showHistory) {
+      <li role="menuitem">
+        <a class="dropdown-item href" (click)="ui.showHistory = false">Hide differences to last tick</a>
+      </li>
+    } @else {
+      <li role="menuitem">
+        <a class="dropdown-item href" (click)="ui.showHistory = true">Show differences to last tick</a>
+      </li>
+    }
 
-		<li role="menuitem" *ngIf="!ui.showOnlySums">
-			<a class="dropdown-item href" (click)="ui.showOnlySums = true">Hide detailed scores (slim mode)</a>
-		</li>
-		<li role="menuitem" *ngIf="ui.showOnlySums">
-			<a class="dropdown-item href" (click)="ui.showOnlySums = false">Show detailed scores</a>
-		</li>
+    @if (ui.showOnlySums) {
+      <li role="menuitem">
+        <a class="dropdown-item href" (click)="ui.showOnlySums = false">Show detailed scores</a>
+      </li>
+    } @else {
+      <li role="menuitem">
+        <a class="dropdown-item href" (click)="ui.showOnlySums = true">Hide detailed scores (slim mode)</a>
+      </li>
+    }
 
-		<li role="menuitem" *ngIf="!ui.showImages">
-			<a class="dropdown-item href" (click)="ui.showImages = true">Show team logos</a>
-		</li>
-		<li role="menuitem" *ngIf="ui.showImages">
-			<a class="dropdown-item href" (click)="ui.showImages = false">Hide team logos</a>
-		</li>
+    @if (ui.showImages) {
+      <li role="menuitem">
+        <a class="dropdown-item href" (click)="ui.showImages = false">Hide team logos</a>
+      </li>
+    } @else {
+      <li role="menuitem">
+        <a class="dropdown-item href" (click)="ui.showImages = true">Show team logos</a>
+      </li>
+    }
 
-		<li role="menuitem" *ngIf="!ui.showNotifications">
-			<a class="dropdown-item href" (click)="ui.showNotifications = true">Show notifications</a>
-		</li>
-		<li role="menuitem" *ngIf="ui.showNotifications">
-			<a class="dropdown-item href" (click)="ui.showNotifications = false">Hide notifications</a>
-		</li>
+    @if (ui.showNotifications) {
+      <li role="menuitem">
+        <a class="dropdown-item href" (click)="ui.showNotifications = false">Hide notifications</a>
+      </li>
+    } @else {
+      <li role="menuitem">
+        <a class="dropdown-item href" (click)="ui.showNotifications = true">Show notifications</a>
+      </li>
+    }
 
-		<li role="menuitem" *ngIf="!ui.darkmode">
-			<a class="dropdown-item href" (click)="ui.setDarkmode(true)">Dark mode</a>
-		</li>
-		<li role="menuitem" *ngIf="ui.darkmode">
-			<a class="dropdown-item href" (click)="ui.setDarkmode(false)">Light mode</a>
-		</li>
-	</ul>
+    @if (ui.darkmode) {
+      <li role="menuitem">
+        <a class="dropdown-item href" (click)="ui.setDarkmode(false)">Light mode</a>
+      </li>
+    } @else {
+      <li role="menuitem">
+        <a class="dropdown-item href" (click)="ui.setDarkmode(true)">Dark mode</a>
+      </li>
+    }
+
+  </ul>
 </div>

@@ -2,9 +2,10 @@ import {Component, OnDestroy, OnInit} from '@angular/core';
 import {BackendService, GameStates} from "../backend.service";
 
 @Component({
-	selector: 'app-current-tick',
-	templateUrl: './current-tick.component.html',
-	styleUrls: ['./current-tick.component.less']
+    selector: 'app-current-tick',
+    templateUrl: './current-tick.component.html',
+    styleUrls: ['./current-tick.component.less'],
+    standalone: false
 })
 export class CurrentTickComponent implements OnInit, OnDestroy {
 

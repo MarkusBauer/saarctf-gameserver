@@ -1,43 +1,51 @@
 <ng-template #template>
-	<td *ngFor="let service of services; trackBy indexTrack" class="servicecell">
-		<p><strong>{{service.name}}</strong></p>
-		<p class="attacker-victim-count">
-			<i class="fas fa-crosshairs"></i>&nbsp;
-            @if (service.attackers === '?') {
-                <app-frozen-value/> attackers
-            } @else {
-                {{service.attackers + (service.attackers != 1 ? '  attackers' : '  attacker')}}
-            }
-            <br>
-			<i class="fas fa-shield-alt"></i>&nbsp;
-            @if (service.victims === '?') {
-                <app-frozen-value/> victims
-            } @else {
-                {{service.victims + (service.victims != 1 ? '  victims' : '  victim')}}
-            }
-			<span *ngIf="service.first_blood.length" title="First Blood">
-                <br/>
-                @if (service.first_blood[0].confirmed) {
-                    <i class="fas fa-tint"></i>
+  @for (service of services; track service) {
+    <td class="servicecell">
+      <p><strong>{{service.name}}</strong></p>
+      <p class="attacker-victim-count">
+        <i class="fas fa-crosshairs"></i>&nbsp;
+        @if (service.attackers === '?') {
+          <app-frozen-value/> attackers
+        } @else {
+          {{service.attackers + (service.attackers != 1 ? '  attackers' : '  attacker')}}
+        }
+        <br>
+          <i class="fas fa-shield-alt"></i>&nbsp;
+          @if (service.victims === '?') {
+            <app-frozen-value/> victims
+          } @else {
+            {{service.victims + (service.victims != 1 ? '  victims' : '  victim')}}
+          }
+          @if (service.first_blood.length) {
+            <span title="First Blood">
+              <br/>
+              @if (service.first_blood[0].confirmed) {
+                <i class="fas fa-tint"></i>
+              } @else {
+                <i class="fas fa-tint text-muted"></i>
+              }
+              @for (fb of service.first_blood; track $index) {
+                @if (fb.confirmed) {
+                  <span class="firstblood confirmed">{{fb.name}}</span>
                 } @else {
-                    <i class="fas fa-tint text-muted"></i>
+                  <span class="firstblood text-muted unconfirmed" title="Not confirmed until more teams get pwned.">{{fb.name}}?</span>
                 }
-                @for (fb of service.first_blood; track $index) {
-                    @if (fb.confirmed) {
-                        <span class="firstblood confirmed">{{fb.name}}</span>
-                    } @else {
-                        <span class="firstblood text-muted unconfirmed" title="Not confirmed until more teams get pwned.">{{fb.name}}?</span>
-                    }
-                }
+              }
             </span>
-            @if (service.flag_stores_exploited > 0 && service.flag_stores_exploited < service.flag_stores) {
-                <small [title]="'This services stores flags in '+service.flag_stores+' different locations or flags of '+service.flag_stores+' different types. Only '+service.flag_stores_exploited+' flag stores / types have been exploited so far.'">
-                    <br/>
-                    {{ service.flag_stores - service.flag_stores_exploited }}/{{ service.flag_stores }}
-                    flag store<ng-container *ngIf="service.flag_stores != 1">s</ng-container>
-                    unexploited
-                </small>
-            }
-		</p>
-	</td>
+          }
+          @if (service.flag_stores_exploited > 0 && service.flag_stores_exploited < service.flag_stores) {
+            <small [title]="'This services stores flags in '+service.flag_stores+' different locations or flags of '+service.flag_stores+' different types. Only '+service.flag_stores_exploited+' flag stores / types have been exploited so far.'">
+              <br/>
+              {{ service.flag_stores - service.flag_stores_exploited }}/{{ service.flag_stores }}
+              @if (service.flag_stores != 1) {
+                flag stores
+              } @else {
+                flag store
+              }
+            unexploited
+          </small>
+        }
+      </p>
+    </td>
+  }
 </ng-template>

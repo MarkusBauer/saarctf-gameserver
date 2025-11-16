@@ -1,66 +1,68 @@
 @if (info.tick !== shownTick) {
-    <div class="loading"><span class="fas fa-spinner fa-spin"></span> loading...</div>
+  <div class="loading"><span class="fas fa-spinner fa-spin"></span> loading...</div>
 }
 
 <table class="table table-bordered table-fixed">
-    <thead>
+  <thead>
     <tr>
-        <app-table-service-header-cell [services]="info.services"></app-table-service-header-cell>
+      <app-table-service-header-cell [services]="info.services"></app-table-service-header-cell>
     </tr>
-    </thead>
+  </thead>
 </table>
 
 <div class="teamgrid">
-    @for (rank of info.scoreboard; track teamTrackBy($index, rank)) {
-        @if (backend.teams[rank.team_id]) {
-            <div class="team">
-                <!-- Team cell -->
-                <h4 class="rank"
-                    [class.rank1]="rank.rank === 1 && rank.points > 0"
-                    [class.rank2]="rank.rank === 2 && rank.points > 0"
-                    [class.rank3]="rank.rank === 3 && rank.points > 0"
-                >{{ rank.rank }}</h4>
-                <div class="teamcell">
-                    <div class="media-left team-logo-media" *ngIf="ui.showImages">
-                        <a [routerLink]="['/team', rank.team_id]"
-                           [attr.aria-label]="backend.teams[rank.team_id].name + ' Details'">
-                            <img class="media-object" [src]="'logos/'+backend.teams[rank.team_id].logo" alt=""
-                                 loading="lazy">
-                        </a>
-                    </div>
-                    <div class="media-body">
-                        <h4 class="team-name" [class.blocked]="backend.bannedTeams[rank.team_id]">
-                            <a [routerLink]="['/team', rank.team_id]"
-                               [title]="backend.bannedTeams[rank.team_id] ? 'Network access is currently blocked. Please contact the organizers in IRC!' : backend.teams[rank.team_id].name + ' - See team\'s details'">{{ backend.teams[rank.team_id].name }}</a>
-                        </h4>
-                        <span class="team-total-points">
-						    <i class="fas fa-chart-line"></i>&nbsp;{{ rank.points.toFixed(1) }}
-                            <span class="delta">
-                                <small title="New points this tick">
-                                    ({{ floatToString(rank.do + rank.dd + rank.ds) }})
-                                </small>
-                            </span>
-					    </span>
-                        &nbsp;
-                        <!--<span class="team-flag-diff" title="Flags captured / stolen this tick">
-                            <i class="fas fa-flag"></i>
-                            +{{ sumCapturedDelta(rank.services) }} / -{{ sumStolenDelta(rank.services) }}
-                        </span>-->
-                        <div class="team-status-row">
-                            @for (svc of rank.services; track $index) {
-                                <span class="label"
-                                      [ngClass]="statusToClass(svc.c)"
-                                      [class.fresh]="svc.dcap >= svc.cap && svc.cap > 0"
-                                      [title]="(info.services[$index] || {}).name+': '+statusToTooltip(svc.c)+(svc.dcap > 0 ? ' ('+svc.dcap+' flags captured)' : '')">
-                                    @if (svc.dcap > 0) {
-                                        <i class="fas fa-flag"></i>
-                                    }
-                                </span>
-                            }
-                        </div>
-                    </div>
-                </div>
+  @for (rank of info.scoreboard; track teamTrackBy($index, rank)) {
+    @if (backend.teams[rank.team_id]) {
+      <div class="team">
+        <!-- Team cell -->
+        <h4 class="rank"
+          [class.rank1]="rank.rank === 1 && rank.points > 0"
+          [class.rank2]="rank.rank === 2 && rank.points > 0"
+          [class.rank3]="rank.rank === 3 && rank.points > 0"
+        >{{ rank.rank }}</h4>
+        <div class="teamcell">
+          @if (ui.showImages) {
+            <div class="media-left team-logo-media">
+              <a [routerLink]="['/team', rank.team_id]"
+                [attr.aria-label]="backend.teams[rank.team_id].name + ' Details'">
+                <img class="media-object" [src]="'logos/'+backend.teams[rank.team_id].logo" alt=""
+                  loading="lazy">
+              </a>
             </div>
-        }
-    }
+          }
+          <div class="media-body">
+            <h4 class="team-name" [class.blocked]="backend.bannedTeams[rank.team_id]">
+              <a [routerLink]="['/team', rank.team_id]"
+              [title]="backend.bannedTeams[rank.team_id] ? 'Network access is currently blocked. Please contact the organizers in IRC!' : backend.teams[rank.team_id].name + ' - See team\'s details'">{{ backend.teams[rank.team_id].name }}</a>
+            </h4>
+            <span class="team-total-points">
+              <i class="fas fa-chart-line"></i>&nbsp;{{ rank.points.toFixed(1) }}
+              <span class="delta">
+                <small title="New points this tick">
+                  ({{ floatToString(rank.do + rank.dd + rank.ds) }})
+                </small>
+              </span>
+            </span>
+            &nbsp;
+            <!--<span class="team-flag-diff" title="Flags captured / stolen this tick">
+            <i class="fas fa-flag"></i>
+            +{{ sumCapturedDelta(rank.services) }} / -{{ sumStolenDelta(rank.services) }}
+          </span>-->
+          <div class="team-status-row">
+            @for (svc of rank.services; track $index) {
+              <span class="label"
+                [ngClass]="statusToClass(svc.c)"
+                [class.fresh]="svc.dcap >= svc.cap && svc.cap > 0"
+                [title]="(info.services[$index] || {}).name+': '+statusToTooltip(svc.c)+(svc.dcap > 0 ? ' ('+svc.dcap+' flags captured)' : '')">
+                @if (svc.dcap > 0) {
+                  <i class="fas fa-flag"></i>
+                }
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+}
 </div>

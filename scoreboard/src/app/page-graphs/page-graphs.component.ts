@@ -11,7 +11,8 @@ import {RoundInformation, Service, ServiceStat, Team} from "../models";
 @Component({
     selector: 'app-page-graphs',
     templateUrl: './page-graphs.component.html',
-    styleUrls: ['./page-graphs.component.less']
+    styleUrls: ['./page-graphs.component.less'],
+    standalone: false
 })
 export class PageGraphsComponent extends StatisticsComponentBase {
 
