@@ -12,12 +12,13 @@ You can listen to all events emitted by this timer using:
 - Redis messages (subscribe "timing:*")
 
 """
+
 import threading
 import time
 from abc import ABC, abstractmethod
 from enum import IntEnum
 
-from redis import StrictRedis, client, Redis
+from redis import Redis, StrictRedis, client
 
 from controlserver.events import *
 from controlserver.events_impl import DatabaseTickRecording
@@ -33,14 +34,14 @@ class CTFState(IntEnum):
 
 
 def to_int(x: int | str | bytes | None) -> int | None:
-    if not x or x == b'None':
+    if not x or x == b"None":
         return None
     return int(x)
 
 
 def redis_set_and_publish(key: str, value: str | bytes | int | None, redis: StrictRedis | None = None) -> None:
     if value is None:
-        value = b'None'
+        value = b"None"
     elif isinstance(value, int):
         value = str(value)
     redis = redis or get_redis_connection()
@@ -56,9 +57,10 @@ class CTFTimerBase(ABC):
         self._current_tick: int = 0
         self._tick_start: int | None = None
         self._tick_end: int | None = None
-        self._tick_time: int = 120
+        self._tick_time: int = config.TICK_DURATION_DEFAULT
         self._stop_after_tick: int | None = None
         self._start_at: int | None = None  # timestamp in SECONDS after epoch
+        self._open_vulnbox_access_at: int | None = None
         self.redis_pubsub: client.PubSub | None = None
         self.listener: list[CTFEvents] = []
 
@@ -106,20 +108,32 @@ class CTFTimerBase(ABC):
             self._start_at = timestamp
             self.on_update_times()
 
+    @property
+    def open_vulnbox_access_at(self) -> int | None:
+        return self._open_vulnbox_access_at
+
+    @open_vulnbox_access_at.setter
+    def open_vulnbox_access_at(self, timestamp: int | None) -> None:
+        if self._open_vulnbox_access_at != timestamp:
+            self._open_vulnbox_access_at = timestamp
+            self.on_update_times()
+
     @abstractmethod
     def on_update_times(self) -> None:
         raise NotImplementedError
 
-    def init(self,
-             state: str | bytes,
-             desired_state: str | bytes,
-             current_tick: int | str | bytes | None,
-             tick_start: int | str | bytes | None,
-             tick_end: int | str | bytes | None,
-             tick_time: int | str | bytes | None,
-             stop_after_tick: int | str | bytes | None = None,
-             start_at: int | str | bytes | None = None
-             ) -> None:
+    def init(
+        self,
+        state: str | bytes,
+        desired_state: str | bytes,
+        current_tick: int | str | bytes | None,
+        tick_start: int | str | bytes | None,
+        tick_end: int | str | bytes | None,
+        tick_time: int | str | bytes | None,
+        stop_after_tick: int | str | bytes | None = None,
+        start_at: int | str | bytes | None = None,
+        open_vulnbox_access_at: int | str | bytes | None = None,
+    ) -> None:
         if state is None:
             return
         self.state = CTFState[state.decode('utf-8') if isinstance(state, bytes) else state]
@@ -130,62 +144,77 @@ class CTFTimerBase(ABC):
         self._tick_time = int(tick_time or self._tick_time)
         self._stop_after_tick = to_int(stop_after_tick)
         self._start_at = to_int(start_at)
+        self._open_vulnbox_access_at = to_int(open_vulnbox_access_at)
 
     def init_from_redis(self) -> None:
         redis = get_redis_connection()
         self.init(
-            state=redis.get('timing:state'),  # type: ignore
-            desired_state=redis.get('timing:desiredState'),  # type: ignore
-            current_tick=redis.get('timing:currentRound'),
-            tick_start=redis.get('timing:roundStart'),
-            tick_end=redis.get('timing:roundEnd'),
-            tick_time=redis.get('timing:roundTime'),
-            stop_after_tick=redis.get('timing:stopAfterRound'),
-            start_at=redis.get('timing:startAt')
+            state=redis.get("timing:state"),  # type: ignore
+            desired_state=redis.get("timing:desiredState"),  # type: ignore
+            current_tick=redis.get("timing:currentRound"),
+            tick_start=redis.get("timing:roundStart"),
+            tick_end=redis.get("timing:roundEnd"),
+            tick_time=redis.get("timing:roundTime"),
+            stop_after_tick=redis.get("timing:stopAfterRound"),
+            start_at=redis.get("timing:startAt"),
+            open_vulnbox_access_at=redis.get("timing:openVulnboxAccessAt"),
         )
 
     def __listen_for_redis_events(self) -> None:
         for item in self.redis_pubsub.listen():  # type: ignore
-            if item['type'] == 'message':
+            if item["type"] == "message":
                 # print('Redis message:', item)
-                if item['channel'] == b'timing:state':
-                    self.state = CTFState[item['data'].decode('utf-8')]
-                elif item['channel'] == b'timing:desiredState':
-                    self.desired_state = CTFState[item['data'].decode('utf-8')]
-                elif item['channel'] == b'timing:currentRound':
-                    self._current_tick = int(item['data'])
-                elif item['channel'] == b'timing:roundStart':
-                    self._tick_start = to_int(item['data'])
-                elif item['channel'] == b'timing:roundEnd':
-                    self._tick_end = to_int(item['data'])
-                elif item['channel'] == b'timing:roundTime':
-                    self._tick_time = int(item['data']) or self._tick_time
-                elif item['channel'] == b'timing:stopAfterRound':
-                    self._stop_after_tick = to_int(item['data'])
-                elif item['channel'] == b'timing:startAt':
-                    self._start_at = to_int(item['data'])
+                if item["channel"] == b"timing:state":
+                    self.state = CTFState[item["data"].decode("utf-8")]
+                elif item["channel"] == b"timing:desiredState":
+                    self.desired_state = CTFState[item["data"].decode("utf-8")]
+                elif item["channel"] == b"timing:currentRound":
+                    self._current_tick = int(item["data"])
+                elif item["channel"] == b"timing:roundStart":
+                    self._tick_start = to_int(item["data"])
+                elif item["channel"] == b"timing:roundEnd":
+                    self._tick_end = to_int(item["data"])
+                elif item["channel"] == b"timing:roundTime":
+                    self._tick_time = int(item["data"]) or self._tick_time
+                elif item["channel"] == b"timing:stopAfterRound":
+                    self._stop_after_tick = to_int(item["data"])
+                elif item["channel"] == b"timing:startAt":
+                    self._start_at = to_int(item["data"])
+                elif item["channel"] == b"timing:openVulnboxAccessAt":
+                    self._open_vulnbox_access_at = to_int(item["data"])
 
     def bind_to_redis(self) -> None:
         redis: StrictRedis = get_redis_connection()
         self.redis_pubsub = redis.pubsub()
         self.redis_pubsub.subscribe(
-            'timing:state', 'timing:desiredState', 'timing:currentRound', 'timing:roundStart', 'timing:roundEnd',
-            'timing:roundTime',
-            'timing:stopAfterRound', 'timing:startAt')
-        thread = threading.Thread(target=self.__listen_for_redis_events, name='Timer-Redis-Listener', daemon=True)
+            "timing:state",
+            "timing:desiredState",
+            "timing:currentRound",
+            "timing:roundStart",
+            "timing:roundEnd",
+            "timing:roundTime",
+            "timing:stopAfterRound",
+            "timing:startAt",
+            "timing:openVulnboxAccessAt",
+        )
+        thread = threading.Thread(
+            target=self.__listen_for_redis_events,
+            name="Timer-Redis-Listener",
+            daemon=True,
+        )
         thread.start()
 
     def count_master_timer(self) -> int:
-        return get_redis_connection().pubsub_numsub('timing:master')[0][1]
+        return get_redis_connection().pubsub_numsub("timing:master")[0][1]
 
     def start_ctf(self) -> None:
-        raise Exception('Not implemented')
+        raise Exception("Not implemented")
 
     def suspend_ctf_after_tick(self) -> None:
-        raise Exception('Not implemented')
+        raise Exception("Not implemented")
 
     def stop_ctf_after_tick(self) -> None:
-        raise Exception('Not implemented')
+        raise Exception("Not implemented")
 
     def check_time(self) -> None:
         pass
@@ -198,7 +227,7 @@ class CTFTimer(CTFTimerBase):
     @override
     def bind_to_redis(self) -> None:
         CTFTimerBase.bind_to_redis(self)
-        self.redis_pubsub.subscribe('timing:master')  # type: ignore
+        self.redis_pubsub.subscribe("timing:master")  # type: ignore
 
     @override
     def check_time(self) -> None:
@@ -229,6 +258,10 @@ class CTFTimer(CTFTimerBase):
         elif self.state != CTFState.RUNNING and self.start_at and self.start_at <= t <= self.start_at + 4:
             self._start_at = None
             self.start_ctf()
+        elif self.state != CTFState.RUNNING and self._open_vulnbox_access_at and self._open_vulnbox_access_at <= t <= self._open_vulnbox_access_at + 4:
+            self._open_vulnbox_access_at = None
+            self.on_open_vulnbox_access()
+            self.on_update_times()
 
     @override
     def start_ctf(self) -> None:
@@ -293,17 +326,23 @@ class CTFTimer(CTFTimerBase):
         for l in self.listener:
             l.on_end_ctf()
 
+    def on_open_vulnbox_access(self) -> None:
+        self.update_tick_times()
+        for l in self.listener:
+            l.on_open_vulnbox_access()
+
     @override
     def on_update_times(self) -> None:
         redis = get_redis_connection()
-        redis_set_and_publish('timing:state', self.state.name, redis)
-        redis_set_and_publish('timing:desiredState', self.desired_state.name, redis)
-        redis_set_and_publish('timing:currentRound', self._current_tick, redis)
-        redis_set_and_publish('timing:roundStart', self._tick_start, redis)
-        redis_set_and_publish('timing:roundEnd', self._tick_end, redis)
-        redis_set_and_publish('timing:roundTime', self._tick_time, redis)
-        redis_set_and_publish('timing:stopAfterRound', self._stop_after_tick, redis)
-        redis_set_and_publish('timing:startAt', self._start_at, redis)
+        redis_set_and_publish("timing:state", self.state.name, redis)
+        redis_set_and_publish("timing:desiredState", self.desired_state.name, redis)
+        redis_set_and_publish("timing:currentRound", self._current_tick, redis)
+        redis_set_and_publish("timing:roundStart", self._tick_start, redis)
+        redis_set_and_publish("timing:roundEnd", self._tick_end, redis)
+        redis_set_and_publish("timing:roundTime", self._tick_time, redis)
+        redis_set_and_publish("timing:stopAfterRound", self._stop_after_tick, redis)
+        redis_set_and_publish("timing:startAt", self._start_at, redis)
+        redis_set_and_publish("timing:openVulnboxAccessAt", self._open_vulnbox_access_at, redis)
         self.update_tick_times(redis)
         for l in self.listener:
             l.on_update_times()
@@ -311,9 +350,9 @@ class CTFTimer(CTFTimerBase):
     def update_tick_times(self, redis: Redis | None = None) -> None:
         if self.state == CTFState.RUNNING:
             redis = redis or get_redis_connection()
-            redis.set('round:{}:start'.format(self._current_tick), self._tick_start)  # type: ignore
-            redis.set('round:{}:end'.format(self._current_tick), self._tick_end)  # type: ignore
-            redis.set('round:{}:time'.format(self._current_tick), self._tick_time)  # type: ignore
+            redis.set("round:{}:start".format(self._current_tick), self._tick_start)  # type: ignore
+            redis.set("round:{}:end".format(self._current_tick), self._tick_end)  # type: ignore
+            redis.set("round:{}:time".format(self._current_tick), self._tick_time)  # type: ignore
 
 
 class CTFTimerSlave(CTFTimerBase):
@@ -331,8 +370,8 @@ class CTFTimerSlave(CTFTimerBase):
             self._tick_time = tick_time
             if self.tick_start:
                 self._tick_end = self.tick_start + self._tick_time
-                redis_set_and_publish('timing:roundEnd', self._tick_end)
-            redis_set_and_publish('timing:roundTime', self._tick_time)
+                redis_set_and_publish("timing:roundEnd", self._tick_end)
+            redis_set_and_publish("timing:roundTime", self._tick_time)
 
     @property
     def stop_after_tick(self) -> int | None:
@@ -342,7 +381,7 @@ class CTFTimerSlave(CTFTimerBase):
     def stop_after_tick(self, last_tick: int | None) -> None:
         if self._stop_after_tick != last_tick:
             self._stop_after_tick = last_tick
-            redis_set_and_publish('timing:stopAfterRound', self._stop_after_tick)
+            redis_set_and_publish("timing:stopAfterRound", self._stop_after_tick)
 
     @property
     def start_at(self) -> int | None:
@@ -352,7 +391,17 @@ class CTFTimerSlave(CTFTimerBase):
     def start_at(self, timestamp: int | None) -> None:
         if self._start_at != timestamp:
             self._start_at = timestamp
-            redis_set_and_publish('timing:startAt', self._start_at)
+            redis_set_and_publish("timing:startAt", self._start_at)
+
+    @property
+    def open_vulnbox_access_at(self) -> int | None:
+        return self._open_vulnbox_access_at
+
+    @open_vulnbox_access_at.setter
+    def open_vulnbox_access_at(self, timestamp: int | None) -> None:
+        if self._open_vulnbox_access_at != timestamp:
+            self._open_vulnbox_access_at = timestamp
+            redis_set_and_publish("timing:openVulnboxAccessAt", self._open_vulnbox_access_at)
 
     @override
     def start_ctf(self) -> None:
@@ -361,7 +410,7 @@ class CTFTimerSlave(CTFTimerBase):
         :return:
         """
         self.desired_state = CTFState.RUNNING
-        redis_set_and_publish('timing:desiredState', self.desired_state.name)
+        redis_set_and_publish("timing:desiredState", self.desired_state.name)
 
     @override
     def suspend_ctf_after_tick(self) -> None:
@@ -370,12 +419,12 @@ class CTFTimerSlave(CTFTimerBase):
         :return:
         """
         self.desired_state = CTFState.SUSPENDED
-        redis_set_and_publish('timing:desiredState', self.desired_state.name)
+        redis_set_and_publish("timing:desiredState", self.desired_state.name)
 
     @override
     def stop_ctf_after_tick(self) -> None:
         self.desired_state = CTFState.STOPPED
-        redis_set_and_publish('timing:desiredState', self.desired_state.name)
+        redis_set_and_publish("timing:desiredState", self.desired_state.name)
 
     @override
     def on_update_times(self) -> None:
@@ -390,16 +439,16 @@ class CTFTimerMock(CTFTimerBase):
     @current_tick.setter
     def current_tick(self, tick: int) -> None:
         self._current_tick = tick
-        redis_set_and_publish('timing:currentRound', self._current_tick)
+        redis_set_and_publish("timing:currentRound", self._current_tick)
 
     @override
     def on_update_times(self) -> None:
         pass
 
     def update_redis(self) -> None:
-        redis_set_and_publish('timing:state', self.state.name)
-        redis_set_and_publish('timing:desiredState', self.desired_state.name)
-        redis_set_and_publish('timing:currentRound', self._current_tick)
+        redis_set_and_publish("timing:state", self.state.name)
+        redis_set_and_publish("timing:desiredState", self.desired_state.name)
+        redis_set_and_publish("timing:currentRound", self._current_tick)
 
 
 # Singleton CTFTimer instance, and default listeners (either master=self-counting or slave=getting state from redis)
@@ -436,13 +485,14 @@ def run_master_timer() -> None:
     :return:
     """
     global Timer
-    from controlserver.events_impl import LogCTFEvents, DeferredCTFEvents, VPNCTFEvents
+    from controlserver.events_impl import DeferredCTFEvents, LogCTFEvents, VPNCTFEvents
+
     Timer.listener.append(LogCTFEvents())
     Timer.listener.append(DeferredCTFEvents())
     Timer.listener.append(VPNCTFEvents())
     Timer.listener.append(DatabaseTickRecording())
     Timer.initialized = True
-    print('Timer active...')
+    print("Timer active...")
     try:
         while True:
             try:
@@ -450,11 +500,18 @@ def run_master_timer() -> None:
             except KeyboardInterrupt:
                 raise
             except Exception as e:
-                log_exception('timer', e)
+                log_exception("timer", e)
                 raise
             time.sleep(1.0 - (time.time() % 1.0))
     except KeyboardInterrupt:
-        print('Timer stopped.')
+        print("Timer stopped.")
 
 
-__all__ = ['CTFTimer', 'CTFState', 'Timer', 'run_master_timer', 'init_slave_timer', 'init_cp_timer', 'run_master_timer']
+__all__ = [
+    "CTFTimer",
+    "CTFState",
+    "Timer",
+    "init_slave_timer",
+    "init_cp_timer",
+    "run_master_timer",
+]

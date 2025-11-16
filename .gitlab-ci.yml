@@ -8,10 +8,13 @@ variables:
   POSTGRES_USER: saarsec
   POSTGRES_PASSWORD: 123456789
   POSTGRES_DB: saarctf
+  POSTGRES_PORT: 5432
+  REDIS_PORT: 6379
   # https://hub.docker.com/_/rabbitmq#setting-default-user-and-password
   RABBITMQ_DEFAULT_USER: saarsec
   RABBITMQ_DEFAULT_PASS: 123456789
   RABBITMQ_DEFAULT_VHOST: saarctf
+  RABBITMQ_PORT: 5672
   # https://hub.docker.com/_/rabbitmq#memory-limits
   # RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 512MB  # not supported anymore
 
@@ -55,7 +58,7 @@ demo-checker:
   script:
     - set -euxo pipefail
     # Configure database credentials for container setup
-    - cp ./config.containers.json ./config.json
+    - cp ./ci-config.yaml ./config.yaml
     - ./ci/test-python-unittest.sh
     - ./run.sh ./ci/test-demo-checker.py
 

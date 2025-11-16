@@ -39,6 +39,11 @@ Configuration
 -------------
 In [`config.yaml`](../config.sample.yaml): set everything you need (database, redis, secret key, ...). This should be enough for most purposes.
 
+You can override some settings with environment variables:
+- general: `CONFIG_FLAG_PREFIX`, `CONFIG_FLAG_ROUNDS_VALID`, `CONFIG_SECRET_FLAGS`, `CONFIG_NOP_TEAM_ID`
+- postgresql: `POSTGRES_SERVER`, `POSTGRES_PORT`, `POSTGRES_USERNAME`, `POSTGRES_PASSWORD`, `POSTGRES_DATABASE`
+- redis: `REDIS_HOST`, `REDIS_PORT`, `REDIS_DATABASE`, `REDIS_PASSWORD`
+
 In [`flagcache.cpp`](src/flagcache.cpp): Set flag rate and number of valid flags per service/team/round. 
 
 In [`flagchecker.h`](src/flagchecker.h): Enable/disable what to check for. 

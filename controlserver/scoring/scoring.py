@@ -32,11 +32,27 @@ from sqlalchemy.orm import defer, Session, aliased
 from sqlalchemy.sql.functions import count
 
 from controlserver.logger import log_to_session
-from controlserver.models import Team, TeamPoints, TeamRanking, SubmittedFlag, Service, CheckerResult, TeamPointsLite, \
-    CheckerResultLite, LogMessage, expect, db_session_2
-from controlserver.scoring.algorithms.algorithm import FlagSet, StolenFlag, TeamServicePair, TickTeamPair
+from controlserver.models import (
+    Team,
+    TeamPoints,
+    TeamRanking,
+    SubmittedFlag,
+    Service,
+    CheckerResult,
+    TeamPointsLite,
+    CheckerResultLite,
+    LogMessage,
+    expect,
+    db_session_2,
+)
+from controlserver.scoring.algorithms.algorithm import (
+    FlagSet,
+    StolenFlag,
+    TeamServicePair,
+    TickTeamPair,
+)
 
-from controlserver.scoring.algorithms.factory import ScoreAlgorithmFactory
+from controlserver.scoring.algorithms.factory import ScoreAlgorithmFactory, FirstBloodAlgorithmFactory
 from saarctf_commons.config import ScoringConfig
 from saarctf_commons.db_utils import retry_on_sql_error
 
@@ -44,7 +60,19 @@ from saarctf_commons.db_utils import retry_on_sql_error
 class ScoringCalculation:
     def __init__(self, config: ScoringConfig) -> None:
         self.config = config
-        self.first_blood_cache_services: dict[int, set[int]] = defaultdict(set)  # service_id => {payload1, ...}
+        with db_session_2() as session:
+            # move to algorithm???
+            services = list(session.query(Service).all())
+            for service in services:
+                session.expunge(service)
+            self.first_blood = FirstBloodAlgorithmFactory.build(config, services)
+            self.first_blood.init_state(session)
+
+    def get_considered_teams(self, session: Session) -> list[Team]:
+        return list(session.query(Team).order_by(Team.id).all())
+
+    def get_considered_services(self, session: Session) -> list[Service]:
+        return list(session.query(Service).order_by(Service.id).all())
 
     def scoring_and_ranking(self, tick: int) -> None:
         self.calculate_scoring_for_tick(tick)
@@ -52,20 +80,37 @@ class ScoringCalculation:
 
     # ----- Results ---
 
-    def get_results_for_tick_lite(self, session: Session, tick: int, teams: list[int] | None = None, services: list[Service] | None = None) \
-        -> dict[TeamServicePair, TeamPointsLite]:
+    def get_results_for_tick_lite(
+        self,
+        session: Session,
+        tick: int,
+        teams: list[int] | None = None,
+        services: list[Service] | None = None,
+    ) -> dict[TeamServicePair, TeamPointsLite]:
         """
-        Get the results per team and service from a tick, calculate if not present in database
+        Get the results per team and service from a tick, calculate if not present in database.
+        This method might be overridden by subclasses.
         :param session:
         :param tick:
         :param teams: List of all team IDs
         :param services: List of all services
         :return: Dict mapping (team_id, service_id) to Result
         """
+        return self._get_results_for_tick_lite(session, tick, teams, services)
+
+    def _get_results_for_tick_lite(
+        self,
+        session: Session,
+        tick: int,
+        teams: list[int] | None = None,
+        services: list[Service] | None = None,
+    ) -> dict[TeamServicePair, TeamPointsLite]:
+        """do not override (computation should be unaffected)"""
         if teams is None:
-            teams = [team_id for team_id, in session.query(Team.id).all()]
+            teams = [team_id for (team_id,) in session.query(Team.id).all()]
         if services is None:
             services = session.query(Service).all()
+            assert services is not None
         if tick <= 0:
             results: dict[TeamServicePair, TeamPointsLite] = {}
             for id in teams:
@@ -84,8 +129,13 @@ class ScoringCalculation:
                 team_points = TeamPointsLite.query(session).filter(TeamPoints.tick == tick).all()
             return {(tp.team_id, tp.service_id): TeamPointsLite(*tp) for tp in team_points}
 
-    def _save_teampoints(self, session: Session, tick: int,
-                         teampoints: dict[TeamServicePair, TeamPoints] | dict[TeamServicePair, TeamPointsLite]) -> None:
+    def _save_teampoints(
+        self,
+        session: Session,
+        tick: int,
+        teampoints: dict[TeamServicePair, TeamPoints]
+                    | dict[TeamServicePair, TeamPointsLite],
+    ) -> None:
         session.query(TeamPoints).filter(TeamPoints.tick == tick).delete()
         TeamPoints.efficient_insert(tick, teampoints.values(), session=session)
 
@@ -117,34 +167,21 @@ class ScoringCalculation:
                 CheckerResultLite(team_id, service_id, tick, status, run_over_time, message)
         return result
 
-    def _is_first_blood(self, session: Session, flag: SubmittedFlag, service: Service) -> bool:
-        # check cache if we already found a first blood for this service/payload
-        if service.num_payloads > 0 and flag.payload in self.first_blood_cache_services[service.id]:
-            return False
-        if service.num_payloads == 0 and service.id in self.first_blood_cache_services:
-            return False
-        # Check database if we already have a first blood flag
-        query = session.query(SubmittedFlag).filter(SubmittedFlag.service_id == flag.service_id,
-                                                    SubmittedFlag.is_firstblood == True,
-                                                    SubmittedFlag.ts <= flag.ts)
-        if service.num_payloads > 0:
-            query = query.filter(SubmittedFlag.payload == flag.payload)
-        return query.count() == 0
-
-    def _first_blood(self, session: Session, flag: SubmittedFlag, service: Service, write_log: bool = True) -> None:
+    def _record_first_blood(self, session: Session, flag: SubmittedFlag, service: Service, level: int = 1, write_log: bool = True) -> None:
         if write_log:
             submitted_by_team: Team = expect(session.get(Team, flag.submitted_by))
             victim_team: Team = expect(session.get(Team, flag.team_id))
-            log_to_session(session, 'scoring',
-                           f'First Blood: "{submitted_by_team.name}" on "{service.name}" (flag {flag.payload})',
-                           f'Time: {flag.ts.strftime("%H:%M:%S")}\nStolen from: {victim_team.name}\n'
-                           f'Submitted by: {submitted_by_team.name}\n'
-                           f'Flag #{flag.id}, payload {flag.payload}, issued in tick {flag.tick_issued}.',
-                           level=LogMessage.NOTIFICATION)
+            log_to_session(
+                session,
+                "scoring",
+                f'First Blood: "{submitted_by_team.name}" on "{service.name}" (flag {flag.payload})',
+                f"Time: {flag.ts.strftime('%H:%M:%S')}\nStolen from: {victim_team.name}\n"
+                f"Submitted by: {submitted_by_team.name}\n"
+                f"Flag #{flag.id}, payload {flag.payload}, issued in tick {flag.tick_issued}.",
+                level=LogMessage.NOTIFICATION,
+            )
 
-        session.query(SubmittedFlag).filter(SubmittedFlag.id == flag.id).update({'is_firstblood': True})
-
-        self.first_blood_cache_services[service.id].add(flag.payload)
+        session.query(SubmittedFlag).filter(SubmittedFlag.id == flag.id).update({'is_firstblood': level})
 
     @retry_on_sql_error(attempts=2)
     def recompute_first_blood_flags(self) -> None:
@@ -154,26 +191,13 @@ class ScoringCalculation:
         """
         # Remove all previous first blood flags
         with db_session_2() as session:
-            session.query(SubmittedFlag).filter(SubmittedFlag.is_firstblood == True).update({SubmittedFlag.is_firstblood: False})
-            self.first_blood_cache_services.clear()
-            services: list[Service] = session.query(Service).all()
-            for service in services:
-                if service.num_payloads == 0:
-                    flags: Sequence[SubmittedFlag] = session.query(SubmittedFlag) \
-                                                         .filter(SubmittedFlag.service_id == service.id) \
-                                                         .order_by(SubmittedFlag.ts, SubmittedFlag.id)[:1]
-                else:
-                    data = session.execute(text('''
-                    WITH summary AS (
-                        SELECT *, ROW_NUMBER() OVER(PARTITION BY payload, service_id ORDER BY ts, tick_submitted, id) AS rk
-                        FROM submitted_flags WHERE service_id=:serviceid
-                    ) SELECT s.id FROM summary s WHERE s.rk = 1'''), {'serviceid': service.id})
-                    flags = session.query(SubmittedFlag) \
-                        .filter(SubmittedFlag.id.in_([d.id for d in data])) \
-                        .order_by(SubmittedFlag.ts).all()
-                for flag in flags:
-                    if self._is_first_blood(session, flag, service):
-                        self._first_blood(session, flag, service, write_log=False)
+            session.query(SubmittedFlag).filter(SubmittedFlag.is_firstblood > 0).update({SubmittedFlag.is_firstblood: 0})
+            self.first_blood.reset_caches()
+            for service in self.first_blood.services.values():
+                print(f'recompute firstbloods for {service.name}...')
+                flags_with_fp = self.first_blood.get_firstbloods_for_recomputation(session, service)
+                for flag, fp_value in flags_with_fp:
+                    self._record_first_blood(session, flag, service, level=fp_value, write_log=False)
             session.commit()
 
     def _ranking_for_last_ticks(self, session: Session, tick: int) -> dict[TickTeamPair, int]:
@@ -240,11 +264,11 @@ class ScoringCalculation:
             self._calculate_scoring_for_tick(session, tick)
 
     def _calculate_scoring_for_tick(self, session: Session, tick: int) -> None:
-        teams: list[int] = [id for id, in session.query(Team.id).all()]
+        teams: list[int] = [id for (id,) in session.query(Team.id).all()]
         services: list[Service] = session.query(Service).all()
         algo = ScoreAlgorithmFactory.build(self.config, teams, services)
 
-        last_tick_points = self.get_results_for_tick_lite(session, tick - 1, teams, services)
+        last_tick_points = self._get_results_for_tick_lite(session, tick - 1, teams, services)
         team_rank_in_tick = self._ranking_for_last_ticks(session, tick)
         checker_results = self._get_checker_results(session, tick)
         flags = self._get_submitted_flags(session, tick)
@@ -254,22 +278,24 @@ class ScoringCalculation:
             if key not in algo.sla_delta_for:
                 algo.sla_delta_for[key] = self._sla_delta_for(session, flag.flag.service_id, flag.flag.tick_issued)
 
-        first_blood_candidates = FlagSet()
-        for flag in flags:
-            # check if we have new first bloods
-            if flag.num_previous_submissions == 0 and first_blood_candidates.is_new(flag.flag):
-                if flag.flag.service_id in algo.services_by_id:
-                    service = algo.services_by_id[flag.flag.service_id]
-                    if self._is_first_blood(session, flag.flag, service):
-                        self._first_blood(session, flag.flag, service)
+        try:
+            self.compute_firstblood_incremental(session, [sf.flag for sf in flags])
 
-        team_points = \
-            algo.calculate_scoring_for_tick(tick, checker_results, last_tick_points, team_rank_in_tick, flags)
+            team_points = \
+                algo.calculate_scoring_for_tick(tick, checker_results, last_tick_points, team_rank_in_tick, flags)
 
-        # 5. Finally - save the new results
-        self._save_teampoints(session, tick, team_points)
-        # Commit everything
-        session.commit()
+            # 5. Finally - save the new results
+            self._save_teampoints(session, tick, team_points)
+            # Commit everything
+            session.commit()
+        except:
+            self.first_blood.reset_caches()  # if anything goes wrong, we should recreate our caches!
+            raise
+
+    def compute_firstblood_incremental(self, session: Session, flags: list[SubmittedFlag]) -> None:
+        firstbloods = self.first_blood.get_firstbloods(session, flags)
+        for fp_flag, fp_value in firstbloods:
+            self._record_first_blood(session, fp_flag, self.first_blood.services[fp_flag.service_id], level=fp_value, write_log=True)
 
     # ----- Ranking ---
 
@@ -282,18 +308,24 @@ class ScoringCalculation:
         """
         if tick <= 0:
             teams: list[Team] = session.query(Team).order_by(Team.id).all()
-            return [TeamRanking(team_id=team.id, team=team, tick=0, points=0.0, rank=1)  # type: ignore[misc]
-                    for team in teams]
-        ranking = session.query(TeamRanking) \
-            .filter(TeamRanking.tick == tick) \
-            .order_by(TeamRanking.rank, TeamRanking.team_id) \
+            return [
+                TeamRanking(team_id=team.id, team=team, tick=0, points=0.0, rank=1)  # type: ignore[misc]
+                for team in teams
+            ]
+        ranking = (
+            session.query(TeamRanking)
+            .filter(TeamRanking.tick == tick)
+            .order_by(TeamRanking.rank, TeamRanking.team_id)
             .all()
+        )
         if not ranking:
             self.calculate_ranking_per_tick(tick)
-            ranking = session.query(TeamRanking) \
-                .filter(TeamRanking.tick == tick) \
-                .order_by(TeamRanking.rank, TeamRanking.team_id) \
+            ranking = (
+                session.query(TeamRanking)
+                .filter(TeamRanking.tick == tick)
+                .order_by(TeamRanking.rank, TeamRanking.team_id)
                 .all()
+            )
         return ranking
 
     def calculate_ranking_per_tick(self, tick: int) -> None:
@@ -305,8 +337,8 @@ class ScoringCalculation:
         with db_session_2() as session:
             session.query(TeamRanking).filter(TeamRanking.tick == tick).delete()
             session.commit()
-            teams: list[int] = [id for id, in session.query(Team.id).all()]
-            results = self.get_results_for_tick_lite(session, tick, teams)
+            teams: list[int] = [id for (id,) in session.query(Team.id).all()]
+            results = self._get_results_for_tick_lite(session, tick, teams)
             ranking: dict[int, TeamRanking] = {
                 id: TeamRanking(tick=tick, team_id=id, points=0.0) for id in teams  # type: ignore[misc]
             }

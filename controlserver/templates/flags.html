@@ -154,6 +154,21 @@
 		{% endif %}
 	{% endif %}
 
+    <br/>
+    <br/>
+    <div class="section">
+        <h3>Service Check Flags</h3>
+        <ul>
+            {% for what, demo, flg in demo_flags %}
+            	<li>
+                    <strong><code>{{ flg }}</code></strong> ({{ what }})<br/>
+                    Demo output: <code>{{ demo }}</code><br/>
+                    &nbsp;
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
 {% endblock %}
 
 {% block footer %}

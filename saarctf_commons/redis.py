@@ -6,7 +6,7 @@ from saarctf_commons.config import config
 class NamedRedisConnection(redis.Connection):
     name: str = ''
 
-    def on_connect(self):
+    def on_connect(self) -> None:
         redis.Connection.on_connect(self)
         if self.name:
             self.send_command("CLIENT SETNAME", self.name.replace(' ', '_'))

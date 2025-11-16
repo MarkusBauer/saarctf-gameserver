@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import sys
-from typing import List
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -17,7 +16,7 @@ ARGUMENTS: none
 BASEPORT = 10000
 
 
-def build_team_config(team: Team, client_root: Path, secret_root: Path):
+def build_team_config(team: Team, client_root: Path, secret_root: Path) -> None:
     secret_file = secret_root / f'team{team.id}.key'
 
     # Create config
@@ -57,7 +56,7 @@ def build_team_config(team: Team, client_root: Path, secret_root: Path):
     print(f'[OK] Wrote team #{team.id} client configuration.')
 
 
-def build_server_config(team: Team, server_root: Path, secret_root: Path):
+def build_server_config(team: Team, server_root: Path, secret_root: Path) -> None:
     secret_file = secret_root / f'team{team.id}.key'
 
     # Create secret
@@ -123,7 +122,7 @@ def build_server_config(team: Team, server_root: Path, secret_root: Path):
     print(f'[OK] Created team #{team.id} server config')
 
 
-def build_systemd_file(teams: List[Team]):
+def build_systemd_file(teams: list[Team]) -> None:
     prefix = '''
     [Unit]
     After=network.target
@@ -149,7 +148,7 @@ def build_systemd_file(teams: List[Team]):
     print('[OK] Systemd service generated.')
 
 
-def main():
+def main() -> None:
     server_root = config.VPN_BASE_DIR / 'config-server'  # output: server config
     client_root = config.VPN_BASE_DIR / 'config-client'  # output: team config
     secret_root = config.VPN_BASE_DIR / 'secrets'

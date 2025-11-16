@@ -30,6 +30,9 @@ struct __attribute__((__packed__)) FlagFormat {
 
 #define FLAG_LENGTH_B64 32
 #define FLAG_LENGTH_FULL 38
+#define FLAG_SERVICE_CHECK_LIMIT 0xfffe
+#define FLAG_SERVICE_TEAMCHECK 0xfffe
+#define FLAG_SERVICE_STATUSCHECK 0xffff
 
 
 /*

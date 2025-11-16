@@ -2,24 +2,25 @@ from checker_runner.runner import *
 from saarctf_commons.debug_sql_timing import timing, print_query_stats
 
 
-def main():
-	from controlserver.dispatcher import Dispatcher
-	dispatcher = Dispatcher()
+def main() -> None:
+    from controlserver.dispatcher import DispatcherFactory
 
-	for rn in range(505, 507):
-		timing()
-		dispatcher.dispatch_checker_scripts(rn)
-		timing('dispatch')
+    dispatcher = DispatcherFactory.build(config.RUNNER.dispatcher)
 
-		time.sleep(2)
+    for rn in range(505, 507):
+        timing()
+        dispatcher.dispatch_checker_scripts(rn)
+        timing("dispatch")
 
-		timing()
-		# print(dispatcher.get_round_taskgroup(rn).get())
-		dispatcher.collect_checker_results(rn)
-		timing('collect')
+        time.sleep(2)
 
-	print_query_stats()
+        timing()
+        # print(dispatcher.get_round_taskgroup(rn).get())
+        dispatcher.collect_checker_results(rn)
+        timing("collect")
+
+    print_query_stats()
 
 
-if __name__ == '__main__':
-	main()
+if __name__ == "__main__":
+    main()

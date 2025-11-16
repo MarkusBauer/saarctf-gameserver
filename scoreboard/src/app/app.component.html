@@ -5,8 +5,10 @@
             <app-settings class="pull-right"></app-settings>
             <div class="container-fluid">
                 <h1 class="page-header">
-                    saarCTF Scoreboard
+                    &nbsp;{{ ctfName }} Scoreboard
                     <small>
+                        <a routerLink="/dashboard" title="Dashboard"><span class="fas fa-th"></span></a>
+                        &nbsp;
                         <a routerLink="/graphs" title="Graphs"><span class="fas fa-chart-line"></span></a>
                     </small>
                     <app-current-tick class="pull-right"></app-current-tick>

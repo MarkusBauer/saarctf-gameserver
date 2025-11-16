@@ -13,7 +13,7 @@ def read(fname: str | Path) -> str:
         return f.read()
 
 
-def write(fname: str | Path, content: str):
+def write(fname: str | Path, content: str) -> None:
     with open(fname, 'w') as f:
         f.write(content)
 
@@ -23,7 +23,7 @@ def readb(fname: str | Path) -> bytes:
         return f.read()
 
 
-def writeb(fname: str | Path, content: bytes):
+def writeb(fname: str | Path, content: bytes) -> None:
     with open(fname, 'wb') as f:
         f.write(content)
 

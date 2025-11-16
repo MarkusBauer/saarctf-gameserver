@@ -4,8 +4,8 @@ from functools import wraps
 from typing import Callable, TypeVar, ParamSpec
 from sqlalchemy.exc import SQLAlchemyError
 
-T = TypeVar('T')
-P = ParamSpec('P')
+T = TypeVar("T")
+P = ParamSpec("P")
 
 
 def retry_on_sql_error(attempts: int = 3, sleeptime: float = 0.5) -> Callable[[Callable[P, T]], Callable[P, T]]:
@@ -17,13 +17,13 @@ def retry_on_sql_error(attempts: int = 3, sleeptime: float = 0.5) -> Callable[[C
                 try:
                     result: T = func(*args, **kwargs)
                     if failures > 0:
-                        logging.warning(f'Retry of {func.__name__} succeeded (attempt {failures + 1}/{attempts}).')
+                        logging.warning(f"Retry of {func.__name__} succeeded (attempt {failures + 1}/{attempts}).")
                     return result
                 except (SQLAlchemyError, ConnectionResetError) as e:
                     failures += 1
                     if failures < attempts:
                         logging.warning(
-                            f'Retrying {func.__name__} (attempt {failures + 1}/{attempts}) after SQL error {str(e)}'
+                            f"Retrying {func.__name__} (attempt {failures + 1}/{attempts}) after SQL error {str(e)}"
                         )
                         time.sleep(sleeptime)
                     else:

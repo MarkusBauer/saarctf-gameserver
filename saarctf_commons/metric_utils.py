@@ -2,26 +2,25 @@ import json
 import os
 import sys
 import time
-import typing
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TypeAlias
+from typing import TypeAlias, Any, BinaryIO
 
 Value: TypeAlias = str | int | float | bool
 Timestamp: TypeAlias = int | float | datetime
 
 
 class MetricRecorder(ABC):
-    def record(self, metric: str, value_name: str, value: Value, ts: Timestamp | None = None, **attributes) -> None:
+    def record(self, metric: str, value_name: str, value: Value, ts: Timestamp | None = None, **attributes: Any) -> None:
         self.record_many(metric, {value_name: value}, ts, **attributes)
 
     @abstractmethod
-    def record_many(self, metric: str, values: dict[str, Value], ts: Timestamp | None = None, **attributes) -> None:
+    def record_many(self, metric: str, values: dict[str, Value], ts: Timestamp | None = None, **attributes: Any) -> None:
         raise NotImplementedError()
 
 
 class InfluxLineProtocolMetricsRecorder(MetricRecorder, ABC):
-    def record_many(self, metric: str, values: dict[str, Value], ts: Timestamp | None = None, **attributes) -> None:
+    def record_many(self, metric: str, values: dict[str, Value], ts: Timestamp | None = None, **attributes: Any) -> None:
         if len(values) == 0:
             return
         if ts is None:
@@ -48,26 +47,26 @@ class InfluxLineProtocolMetricsRecorder(MetricRecorder, ABC):
         return str(value)
 
     @abstractmethod
-    def get_writer(self) -> typing.BinaryIO:
+    def get_writer(self) -> BinaryIO:
         raise NotImplementedError()
 
 
 class TelegrafTailMetricsRecorder(InfluxLineProtocolMetricsRecorder):
     def __init__(self, filename: str) -> None:
         self.filename = filename
-        self.file: typing.BinaryIO | None = None
+        self.file: BinaryIO | None = None
 
-    def get_writer(self) -> typing.BinaryIO:
+    def get_writer(self) -> BinaryIO:
         if self.file is None:
             self.file = open(self.filename, 'ab')
         return self.file
 
 
 class TelegrafBufferMetricsRecorder(InfluxLineProtocolMetricsRecorder):
-    def __init__(self, writer: typing.BinaryIO) -> None:
+    def __init__(self, writer: BinaryIO) -> None:
         self.file = writer
 
-    def get_writer(self) -> typing.BinaryIO:
+    def get_writer(self) -> BinaryIO:
         return self.file
 
 
@@ -78,7 +77,7 @@ class MetricsProxy(MetricRecorder):
     def set_recorder(self, recorder: MetricRecorder) -> None:
         self._recorder = recorder
 
-    def record_many(self, metric: str, values: dict[str, Value], ts: Timestamp | None = None, **attributes) -> None:
+    def record_many(self, metric: str, values: dict[str, Value], ts: Timestamp | None = None, **attributes: Any) -> None:
         if self._recorder is not None:
             self._recorder.record_many(metric, values, ts, **attributes)
 

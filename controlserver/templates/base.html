@@ -28,13 +28,13 @@
 					<li {{ 'class="active"'|safe if request.endpoint == 'endpoints.frontpage' else '' }}>
 						<a href="{{ url_for('endpoints.frontpage') }}">Dashboard</a>
 					</li>
-					<li {{ 'class="active"'|safe if request.endpoint == 'endpoints.packages' else '' }}>
-						<a href="{{ url_for('endpoints.packages') }}">Scripts</a>
+					<li {{ 'class="active"'|safe if request.endpoint == 'services.services_index' else '' }}>
+						<a href="{{ url_for('services.services_index') }}">Services</a>
 					</li>
 					<li {{ 'class="active"'|safe if request.endpoint in ['endpoints.checker_status', 'endpoints.checker_status_overview'] else '' }}>
 						<a href="{{ url_for('endpoints.checker_status_overview') }}">Checker Status</a>
 					</li>
-					<li class="dropdown {{ 'active'|safe if request.endpoint in ['checker_results.checker_results_index', 'log_messages.log_messages_index', 'teams.teams_index', 'services.services_index', 'flags.flags_index', 'patches.patches_index'] else '' }}">
+					<li class="dropdown {{ 'active'|safe if request.endpoint in ['checker_results.checker_results_index', 'log_messages.log_messages_index', 'teams.teams_index', 'endpoints.package', 'flags.flags_index', 'patches.patches_index'] else '' }}">
 						<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Data <span
 								class="caret"></span></a>
 						<ul class="dropdown-menu">
@@ -47,15 +47,15 @@
 							<li {{ 'class="active"'|safe if request.endpoint == 'teams.teams_index' else '' }}>
 								<a href="{{ url_for('teams.teams_index') }}">Teams</a>
 							</li>
-							<li {{ 'class="active"'|safe if request.endpoint == 'services.services_index' else '' }}>
-								<a href="{{ url_for('services.services_index') }}">Services</a>
-							</li>
 							<li {{ 'class="active"'|safe if request.endpoint == 'flags.flags_index' else '' }}>
 								<a href="{{ url_for('flags.flags_index') }}">Check Flags</a>
 							</li>
 							<li class="divider"></li>
 							<li {{ 'class="active"'|safe if request.endpoint == 'patches.patches_index' else '' }}>
 								<a href="{{ url_for('patches.patches_index') }}">Patches</a>
+							</li>
+                            <li {{ 'class="active"'|safe if request.endpoint == 'endpoints.packages' else '' }}>
+								<a href="{{ url_for('endpoints.packages') }}">Checkers (legacy)</a>
 							</li>
 							<li class="divider"></li>
 							<li>

@@ -4,8 +4,9 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build --configuration production --aot",
-    "build-gzip": "ng build --configuration production --aot && gzip-all \"dist/scoreboard/*.{css,js,html,svg,woff,woff2,eot,ttf}\"",
+    "environment": "if [ -z \"$SAARCTF_ENVIRONMENT\" ]; then ../run.sh saarctf_commons/config.py get environment || echo None ; else echo $SAARCTF_ENVIRONMENT ; fi",
+    "environment_config": "e=$(npm run -s environment) ; if [ \"$e\" = \"intern\" ]; then echo ,intern ; elif [ \"$e\" = \"dev\" ] ; then echo ,dev ; fi",
+    "build": "ng build -c \"production$(npm run -s environment_config)\" --aot",
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e"

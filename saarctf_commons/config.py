@@ -16,17 +16,23 @@ The file is looked up in this order, the first match is loaded:
 - <repo-root>/config_test.yaml
 - <repo-root>/config2.yaml
 - <repo-root>/config.yaml
-
 """
 
 import binascii
 import json
 import os
-from dataclasses import dataclass, fields, field
+from dataclasses import dataclass, field, fields
+from os import environ
 from pathlib import Path
-from typing import Optional, Any, Self
+from typing import Any, Optional, Self
 
 import yaml
+
+
+def opt_path(s: str | None) -> Path | None:
+    if s:
+        return Path(s)
+    return None
 
 
 @dataclass
@@ -56,6 +62,7 @@ class NetworkConfig(ConfigSection):
     network_ip: list[tuple[int, int, int]]
     vpn_peer_ip: list[tuple[int, int, int]]
     network_size: int
+    gameserver_ip: str | None = None
 
     @classmethod
     def parse_network_def(cls, x: list[Any]) -> list[tuple[int, int, int]]:
@@ -71,59 +78,63 @@ class NetworkConfig(ConfigSection):
         network_size: int = d['team_range'][4]
         if network_size not in (8, 16, 24, 32):
             raise ValueError(f'Team network size {network_size} unsupported')
+        gameserver_ip = d.get("gameserver_ip", None)
         return NetworkConfig(
             vulnbox_ip=vulnbox_ip,
             gateway_ip=gateway_ip,
             testbox_ip=testbox_ip,
             network_ip=network_ip,
             vpn_peer_ip=vpn_peer_ip,
-            network_size=network_size
+            network_size=network_size,
+            gameserver_ip=gameserver_ip,
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            'vulnbox_ip': [list(x) for x in self.vulnbox_ip],
-            'gateway_ip': [list(x) for x in self.gateway_ip],
-            'testbox_ip': [list(x) for x in self.testbox_ip],
-            'vpn_peer_ips': [list(x) for x in self.vpn_peer_ip],
-            'team_range': [list(x) for x in self.network_ip] + [self.network_size]
+        d = {
+            "vulnbox_ip": [list(x) for x in self.vulnbox_ip],
+            "gateway_ip": [list(x) for x in self.gateway_ip],
+            "testbox_ip": [list(x) for x in self.testbox_ip],
+            "vpn_peer_ips": [list(x) for x in self.vpn_peer_ip],
+            "team_range": [list(x) for x in self.network_ip] + [self.network_size],
         }
+        if self.gameserver_ip:
+            d["gameserver_ip"] = self.gameserver_ip
+        return d
 
-    def team_id_to_vulnbox_ip(self, id: int) -> str:
+    def team_id_to_vulnbox_ip(self, team_id: int) -> str:
         """
         Calculates the IP of the vulnbox of a team.
         :param id:
         :return:
         """
-        return '.'.join([str(((id // a) % b) + c) for a, b, c in self.vulnbox_ip])
+        return ".".join([str(((team_id // a) % b) + c) for a, b, c in self.vulnbox_ip])
 
-    def team_id_to_gateway_ip(self, id: int) -> str:
+    def team_id_to_gateway_ip(self, team_id: int) -> str:
         """
         Calculates the IP of the gateway of a team.
         :param id:
         :return:
         """
-        return '.'.join([str(((id // a) % b) + c) for a, b, c in self.gateway_ip])
+        return ".".join([str(((team_id // a) % b) + c) for a, b, c in self.gateway_ip])
 
-    def team_id_to_testbox_ip(self, id: int) -> str:
+    def team_id_to_testbox_ip(self, team_id: int) -> str:
         """
         Calculates the IP of the testbox of a team.
         :param id:
         :return:
         """
-        global testbox_ip
-        return '.'.join([str(((id // a) % b) + c) for a, b, c in self.testbox_ip])
+        return ".".join([str(((team_id // a) % b) + c) for a, b, c in self.testbox_ip])
 
-    def team_id_to_network_range(self, id: int) -> str:
-        return '.'.join([str(((id // a) % b) + c) for a, b, c in self.network_ip]) + '/' + str(self.network_size)
+    def team_id_to_network_range(self, team_id: int) -> str:
+        return '.'.join([str(((team_id // a) % b) + c) for a, b, c in self.network_ip]) + "/" + str(self.network_size)
 
-    def team_id_to_vpn_peers(self, id: int) -> tuple[str, str]:
+    def team_id_to_vpn_peers(self, team_id: int) -> tuple[str, str]:
         vpn_peer_ip_2 = list(self.vpn_peer_ip)
         a, b, c = vpn_peer_ip_2[-1]
         vpn_peer_ip_2[-1] = (a, b, c + 1)
         return (
-            '.'.join([str(((id // a) % b) + c) for a, b, c in self.vpn_peer_ip]),
-            '.'.join([str(((id // a) % b) + c) for a, b, c in vpn_peer_ip_2])
+            ".".join([str(((team_id // a) % b) + c) for a, b, c in self.vpn_peer_ip]),
+            ".".join([str(((team_id // a) % b) + c) for a, b, c in vpn_peer_ip_2]),
         )
 
     def network_ip_to_id(self, ip: str) -> Optional[int]:
@@ -132,7 +143,7 @@ class NetworkConfig(ConfigSection):
         # <=> id/ai = di-ci + ki*bi
         # <=> id >= (di-ci + ki*bi)*ai  &&  id < (di-ci + ki*bi)*(a1+1)
         # --> Intervals: offset (d-c)*a, size a, interval a*b
-        ip_split = ip.split('.')
+        ip_split = ip.split(".")
         a = []
         b = []
         pos = []
@@ -145,7 +156,7 @@ class NetworkConfig(ConfigSection):
         while True:
             smallest = max(pos)
             largest = min((pos_i + a_i for pos_i, a_i in zip(pos, a)))
-            if smallest >= 0xffff:
+            if smallest >= 0xFFFF:
                 return None
             if smallest < largest:
                 return smallest
@@ -161,26 +172,28 @@ class ScoringConfig(ConfigSection):
     off_factor: float = 1.0
     def_factor: float = 1.0
     sla_factor: float = 1.0
-    # custom algorithm name, if necessary
-    algorithm: str = 'saarctf:SaarctfScoreAlgorithm'
+    # custom algorithms name, if necessary
+    algorithm: str = "saarctf:SaarctfScoreAlgorithm"
+    firstblood_algorithm: str = "firstblood:DefaultFirstBloodAlgorithm"
     # additional data for custom algorithms
     data: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, d: dict) -> 'ScoringConfig':
+    def from_dict(cls, d: dict) -> "ScoringConfig":
         field_names = {f.name for f in fields(cls)}
         params = {k: v for k, v in d.items() if k in field_names}
-        params['data'] = {k: v for k, v in d.items() if k not in field_names}
+        params["data"] = {k: v for k, v in d.items() if k not in field_names}
         return cls(**params)
 
     def to_dict(self) -> dict:
         return {
-            'algorithm': self.algorithm,
-            'flags_rounds_valid': self.flags_rounds_valid,
-            'nop_team_id': self.nop_team_id,
-            'off_factor': self.off_factor,
-            'def_factor': self.def_factor,
-            'sla_factor': self.sla_factor,
+            "algorithm": self.algorithm,
+            "firstblood_algorithm": self.firstblood_algorithm,
+            "flags_rounds_valid": self.flags_rounds_valid,
+            "nop_team_id": self.nop_team_id,
+            "off_factor": self.off_factor,
+            "def_factor": self.def_factor,
+            "sla_factor": self.sla_factor,
         } | self.data
 
 
@@ -192,6 +205,7 @@ class EnoRunnerConfig(ConfigSection):
 
 @dataclass
 class RunnerConfig(ConfigSection):
+    dispatcher: str = "dispatcher:CeleryDispatcher"
     eno: EnoRunnerConfig = field(default_factory=EnoRunnerConfig)
 
 
@@ -215,14 +229,17 @@ class Config:
     POSTGRES_USE_SOCKET: bool
     REDIS: dict
     RABBITMQ: dict | None
+    METRICS: dict[str, Any]
 
+    TICK_DURATION_DEFAULT: int
     SCOREBOARD_PATH: Path
+    SCOREBOARD_PATH_INTERNAL: Path | None
     VPNBOARD_PATH: Path
     CHECKER_PACKAGES_PATH: Path
     CHECKER_PACKAGES_LFS: Path | None
     SERVICES_PATH: Path
     PATCHES_PATH: Path
-    PATCHES_PUBLIC_PATH: Path
+    PATCHES_PUBLIC_PATH: Path | None
     FLOWER_URL: str
     FLOWER_INTERNAL_URL: str
     FLOWER_AJAX_URL: str
@@ -232,6 +249,7 @@ class Config:
     PATCHES_URL: str | None
 
     SECRET_FLAG_KEY: bytes
+    FLAG_PREFIX: str
     DISPATCHER_CHECK_VPN_STATUS: bool
     SCORING: ScoringConfig
     SERVICE_REMOTES: list[str]
@@ -242,142 +260,215 @@ class Config:
     WIREGUARD_SYNC: WireguardSyncConfig | None
     RUNNER: RunnerConfig
 
+    CTFROUTE_NAMESPACE: str
+    SCOREBOARD_FREEZE: int | None
+
+    def interpolate_env(self) -> Self:
+        """
+        Environment variables have precedence over config.yaml entries.
+        """
+        if "RABBITMQ_HOST" in environ and not self.RABBITMQ:
+            self.RABBITMQ = {}
+        for d, k, e in [
+            (self.POSTGRES, "server", "POSTGRES_SERVER"),
+            (self.POSTGRES, "port", "POSTGRES_PORT"),
+            (self.POSTGRES, "username", "POSTGRES_USERNAME"),
+            (self.POSTGRES, "password", "POSTGRES_PASSWORD"),
+            (self.POSTGRES, "database", "POSTGRES_DATABASE"),
+            (self.REDIS, "host", "REDIS_HOST"),
+            (self.REDIS, "port", "REDIS_PORT"),
+            (self.REDIS, "db", "REDIS_DB"),
+            (self.REDIS, "password", "REDIS_PASSWORD"),
+            (self.RABBITMQ, "host", "RABBITMQ_HOST"),
+            (self.RABBITMQ, "vhost", "RABBITMQ_VHOST"),
+            (self.RABBITMQ, "port", "RABBITMQ_PORT"),
+            (self.RABBITMQ, "username", "RABBITMQ_USERNAME"),
+            (self.RABBITMQ, "password", "RABBITMQ_PASSWORD"),
+            (self.METRICS, "server", "METRICS_SERVER"),
+            (self.METRICS, "port", "METRICS_PORT"),
+            (self.METRICS, "username", "METRICS_USERNAME"),
+            (self.METRICS, "password", "METRICS_PASSWORD"),
+            (self.METRICS, "database", "METRICS_DATABASE"),
+        ]:
+            if e in environ:
+                d[k] = environ[e]  # type: ignore
+
+        if isinstance(self.REDIS["db"], str):
+            self.REDIS["db"] = int(self.REDIS["db"])
+        if "SECRET_FLAG_KEY" in environ:
+            self.SECRET_FLAG_KEY: bytes = binascii.unhexlify(environ["SECRET_FLAG_KEY"])
+        if "SCOREBOARD_PATH" in environ:
+            self.SCOREBOARD_PATH = Path(environ["SCOREBOARD_PATH"])
+        if "SCOREBOARD_PATH_INTERNAL" in environ:
+            self.SCOREBOARD_PATH_INTERNAL = Path(environ["SCOREBOARD_PATH_INTERNAL"])
+        return self
+
     @classmethod
     def load_default(cls) -> 'Config':
+        if "CONFIG_FILE" in os.environ:  # ECSC stuff, don't ask
+            config_file = Path(os.environ["CONFIG_FILE"])
+            if not config_file.exists():
+                raise ValueError(f"{config_file} does not exist")
+            return cls.load_from_file(config_file)
         if 'SAARCTF_CONFIG_DIR' in os.environ:
-            basedir = os.path.abspath(os.environ['SAARCTF_CONFIG_DIR'])
+            basedir = Path(os.environ['SAARCTF_CONFIG_DIR']).absolute()
         else:
-            basedir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            basedir = Path(__file__).absolute().parent.parent
         possible_config_files = [
-            basedir + '/config_test.yaml',
-            basedir + '/config_test.json',
-            basedir + '/config2.yaml',
-            basedir + '/config2.json',
-            basedir + '/config.yaml',
-            basedir + '/config.json'
+            basedir / 'config_test.yaml',
+            basedir / 'config_test.json',
+            basedir / 'config2.yaml',
+            basedir / 'config2.json',
+            basedir / 'config.yaml',
+            basedir / 'config.json'
         ]
         if 'SAARCTF_CONFIG' in os.environ:
-            possible_config_files = [os.environ['SAARCTF_CONFIG']] + possible_config_files
+            possible_config_files = [Path(os.environ['SAARCTF_CONFIG'])] + possible_config_files
         for configfile in possible_config_files:
-            if os.path.exists(configfile):
+            if configfile.exists():
                 return cls.load_from_file(configfile)
-        raise Exception('No config file found! Candidates: ' + ', '.join(possible_config_files))
+        raise Exception('No config file found! Candidates: ' + ', '.join(map(str, possible_config_files)))
 
     @classmethod
-    def load_from_file(cls, filename: str | Path) -> 'Config':
-        with open(filename, 'r') as f:
-            if Path(filename).suffix == '.json':
-                return cls.from_dict(filename, json.load(f))
-            else:
-                return cls.from_dict(filename, yaml.safe_load(f))
+    def load_from_file(cls, filename: Path, interpolate_env: bool = True) -> Self:
+        with filename.open() as f:
+            if filename.suffix == ".json":
+                return cls.from_dict(filename, json.load(f), interpolate_env=interpolate_env)
+            return cls.from_dict(filename, yaml.safe_load(f), interpolate_env=interpolate_env)
 
     @classmethod
-    def from_dict(cls, filename: str | Path, CONFIG: dict) -> 'Config':
-        cls._clean_comments(CONFIG)
+    def from_dict(cls, filename: Path, initial_config: dict, interpolate_env: bool = True) -> Self:
+        cls._clean_comments(initial_config)
 
-        filename = Path(filename)
         basedir: Path = filename.absolute().parent
-        VPN_BASE_DIR = basedir / 'vpn'
-        CLOUDCONFIG_FILE = basedir / 'cloud-status.json'
+        vpn_base_dir = basedir / "vpn"
+        cloudconfig_file = basedir / "cloud-status.json"
 
-        POSTGRES: dict = CONFIG['databases']['postgres']
-        POSTGRES_USE_SOCKET = os.environ.get('SAARCTF_POSTGRES_USE_SOCKET', 'False').lower() == 'true'
-        REDIS: dict = CONFIG['databases']['redis']
-        RABBITMQ: dict | None = CONFIG['databases']['rabbitmq'] if 'rabbitmq' in CONFIG['databases'] else None
+        postgres: dict = initial_config["databases"]["postgres"] or {}
+        postgres_use_socket = os.environ.get("SAARCTF_POSTGRES_USE_SOCKET", "False").lower() == "true"
+        redis: dict = initial_config["databases"]["redis"] or {}
+        rabbitmq: dict | None = initial_config["databases"]["rabbitmq"] if "rabbitmq" in initial_config["databases"] else None
+        metrics: dict = postgres | {"database": postgres["database"] + "_metrics"} | initial_config["databases"].get("metrics", {})
 
-        SCOREBOARD_PATH: Path = Path(CONFIG['scoreboard_path'])
-        VPNBOARD_PATH: Path = Path(CONFIG.get('vpnboard_path', SCOREBOARD_PATH))
-        CHECKER_PACKAGES_PATH: Path = Path(CONFIG['checker_packages_path'])
-        CHECKER_PACKAGES_LFS: Path | None = CHECKER_PACKAGES_PATH / 'lfs' if os.name != 'nt' else None
-        PATCHES_PATH: Path = Path(CONFIG.get('patches_path', CHECKER_PACKAGES_PATH / 'patches'))
-        PATCHES_PUBLIC_PATH: Path = Path(CONFIG.get('patches_public_path', SCOREBOARD_PATH / 'patches'))
-        SERVICES_PATH: Path = Path(CONFIG.get('services_path', CHECKER_PACKAGES_PATH / 'services'))
-        FLOWER_URL: str = CONFIG['flower_url']
-        FLOWER_INTERNAL_URL: str = CONFIG.get('flower_internal_url', FLOWER_URL)
-        FLOWER_AJAX_URL: str = CONFIG.get('flower_ajax_url', FLOWER_URL)
-        CODER_URL: Optional[str] = CONFIG.get('coder_url', False) or None
-        SCOREBOARD_URL: Optional[str] = CONFIG.get('scoreboard_url', False) or None
-        GRAFANA_URL: Optional[str] = CONFIG.get('grafana_url', False) or None
-        PATCHES_URL: Optional[str] = CONFIG.get('patches_url', False) or (SCOREBOARD_URL.rstrip('/') + '/patches' if SCOREBOARD_URL else None)
+        tick_duration_default = int(initial_config.get("tick_duration_default", 120))
+        scoreboard_path: Path = Path(initial_config.get("scoreboard_path", ""))
+        scoreboard_path_internal: Path | None = opt_path(initial_config.get("scoreboard_path_internal"))
+        vpnboard_path: Path = Path(initial_config.get("vpnboard_path", scoreboard_path))  # type: ignore
+        checker_packages_path: Path = Path(initial_config["checker_packages_path"])
+        checker_packages_lfs: Path | None = checker_packages_path / "lfs" if os.name != "nt" else None
+        patches_path: Path = Path(initial_config.get("patches_path", checker_packages_path / "patches"))
+        patches_public_path: Path | None = opt_path(initial_config.get("patches_public_path"))
+        services_path: Path = Path(initial_config.get("services_path", checker_packages_path / "services"))
+        flower_url: str = initial_config.get("flower_url", "")
+        flower_internal_url: str = initial_config.get("flower_internal_url", flower_url)
+        flower_ajax_url: str = initial_config.get("flower_ajax_url", flower_url)
+        coder_url: Optional[str] = initial_config.get("coder_url", False) or None
+        scoreboard_url: Optional[str] = initial_config.get("scoreboard_url", False) or None
+        grafana_url: Optional[str] = initial_config.get("grafana_url", False) or None
+        patches_url: Optional[str] = initial_config.get("patches_url", False) or scoreboard_url.rstrip("/") + "/patches" if scoreboard_url else None
 
-        SECRET_FLAG_KEY: bytes = binascii.unhexlify(CONFIG['secret_flags'])
-        DISPATCHER_CHECK_VPN_STATUS: bool = CONFIG.get('dispatcher_check_vpn_status', False)
-        SCORING = CONFIG.get('scoring', {})
-        if 'nop_team_id' in CONFIG and 'nop_team_id' not in SCORING:
-            SCORING['nop_team_id'] = CONFIG['nop_team_id']
-        if 'flags_rounds_valid' in CONFIG and 'flags_rounds_valid' not in SCORING:
-            SCORING['flags_rounds_valid'] = CONFIG['flags_rounds_valid']
+        flag_prefix: str = initial_config.get("flag_prefix", "SAAR")
+        secret_flag_key: bytes = binascii.unhexlify(initial_config.get("secret_flags", ""))
+        dispatcher_check_vpn_status: bool = initial_config.get("dispatcher_check_vpn_status", False)
+        scoring = initial_config.get("scoring", {})
+        if "nop_team_id" in initial_config and "nop_team_id" not in scoring:
+            scoring["nop_team_id"] = initial_config["nop_team_id"]
+        if "flags_rounds_valid" in initial_config and "flags_rounds_valid" not in scoring:
+            scoring["flags_rounds_valid"] = initial_config["flags_rounds_valid"]
 
-        SERVICE_REMOTES: list[str] = CONFIG.get('service_remotes', [])
+        service_remotes: list[str] = initial_config.get("service_remotes", [])
 
-        EXTERNAL_TIMER: bool = 'external_timer' in CONFIG and CONFIG['external_timer']
+        external_timer: bool = "external_timer" in initial_config and initial_config["external_timer"]
 
-        NETWORK: NetworkConfig = NetworkConfig.from_dict(CONFIG['network'])
-        WIREGUARD_SYNC = WireguardSyncConfig.from_dict(CONFIG['wireguard_sync']) if CONFIG.get('wireguard_sync', None) is not None else None
-        RUNNER: RunnerConfig = RunnerConfig.from_dict(CONFIG.get('runner', {}))
-
-        return Config(
-            basedir=basedir,
-            VPN_BASE_DIR=VPN_BASE_DIR,
-            CLOUDCONFIG_FILE=CLOUDCONFIG_FILE,
-            CONFIG=CONFIG,
-            CONFIG_FILE=filename,
-            POSTGRES=POSTGRES,
-            POSTGRES_USE_SOCKET=POSTGRES_USE_SOCKET,
-            REDIS=REDIS,
-            RABBITMQ=RABBITMQ,
-            SCOREBOARD_PATH=SCOREBOARD_PATH,
-            VPNBOARD_PATH=VPNBOARD_PATH,
-            CHECKER_PACKAGES_PATH=CHECKER_PACKAGES_PATH,
-            CHECKER_PACKAGES_LFS=CHECKER_PACKAGES_LFS,
-            SERVICES_PATH=SERVICES_PATH,
-            PATCHES_PATH=PATCHES_PATH,
-            PATCHES_PUBLIC_PATH=PATCHES_PUBLIC_PATH,
-            FLOWER_URL=FLOWER_URL,
-            FLOWER_INTERNAL_URL=FLOWER_INTERNAL_URL,
-            FLOWER_AJAX_URL=FLOWER_AJAX_URL,
-            CODER_URL=CODER_URL,
-            SCOREBOARD_URL=SCOREBOARD_URL,
-            GRAFANA_URL=GRAFANA_URL,
-            PATCHES_URL=PATCHES_URL,
-            SECRET_FLAG_KEY=SECRET_FLAG_KEY,
-            SCORING=ScoringConfig.from_dict(SCORING),
-            SERVICE_REMOTES=SERVICE_REMOTES,
-            DISPATCHER_CHECK_VPN_STATUS=DISPATCHER_CHECK_VPN_STATUS,
-            EXTERNAL_TIMER=EXTERNAL_TIMER,
-            NETWORK=NETWORK,
-            WIREGUARD_SYNC=WIREGUARD_SYNC,
-            RUNNER=RUNNER,
+        network: NetworkConfig = NetworkConfig.from_dict(initial_config["network"])
+        wireguard_sync = (
+            WireguardSyncConfig.from_dict(initial_config["wireguard_sync"])
+            if initial_config.get("wireguard_sync", None) is not None
+            else None
         )
+        ctfroute_namespace = initial_config.get("ctfroute_namespace", "")
+        runner: RunnerConfig = RunnerConfig.from_dict(initial_config.get("runner", {}))
+
+        scoreboard_freeze = initial_config["scoreboard_freeze"] if "scoreboard_freeze" in initial_config else None
+
+        result = cls(
+            basedir=basedir,
+            VPN_BASE_DIR=vpn_base_dir,
+            CLOUDCONFIG_FILE=cloudconfig_file,
+            CONFIG=initial_config,
+            CONFIG_FILE=filename,
+            POSTGRES=postgres,
+            POSTGRES_USE_SOCKET=postgres_use_socket,
+            REDIS=redis,
+            RABBITMQ=rabbitmq,
+            METRICS=metrics,
+            TICK_DURATION_DEFAULT=tick_duration_default,
+            VPNBOARD_PATH=vpnboard_path,
+            CHECKER_PACKAGES_PATH=checker_packages_path,
+            CHECKER_PACKAGES_LFS=checker_packages_lfs,
+            SERVICES_PATH=services_path,
+            PATCHES_PATH=patches_path,
+            PATCHES_PUBLIC_PATH=patches_public_path,
+            FLOWER_URL=flower_url,
+            FLOWER_INTERNAL_URL=flower_internal_url,
+            FLOWER_AJAX_URL=flower_ajax_url,
+            CODER_URL=coder_url,
+            SCOREBOARD_URL=scoreboard_url,
+            GRAFANA_URL=grafana_url,
+            PATCHES_URL=patches_url,
+            SECRET_FLAG_KEY=secret_flag_key,
+            FLAG_PREFIX=flag_prefix,
+            SCORING=ScoringConfig.from_dict(scoring),
+            SERVICE_REMOTES=service_remotes,
+            DISPATCHER_CHECK_VPN_STATUS=dispatcher_check_vpn_status,
+            EXTERNAL_TIMER=external_timer,
+            NETWORK=network,
+            WIREGUARD_SYNC=wireguard_sync,
+            RUNNER=runner,
+            SCOREBOARD_FREEZE=scoreboard_freeze,
+            SCOREBOARD_PATH=scoreboard_path,
+            SCOREBOARD_PATH_INTERNAL=scoreboard_path_internal,
+            CTFROUTE_NAMESPACE=ctfroute_namespace,
+        )
+        if interpolate_env:
+            result = result.interpolate_env()
+        return result
 
     def to_dict(self) -> dict[str, Any]:
         return self.CONFIG | {
-            'databases': self.CONFIG['databases'] | {
-                'postgres': self.POSTGRES,
-                'redis': self.REDIS,
-                'rabbitmq': self.RABBITMQ,
-            },
-            'scoreboard_path': str(self.SCOREBOARD_PATH),
-            'vpnboard_path': str(self.VPNBOARD_PATH),
-            'checker_packages_path': str(self.CHECKER_PACKAGES_PATH),
-            'services_path': str(self.SERVICES_PATH),
-            'patches_path': str(self.PATCHES_PATH),
-            'patches_public_path': str(self.PATCHES_PUBLIC_PATH),
-            'flower_url': self.FLOWER_URL,
-            'flower_internal_url': self.FLOWER_INTERNAL_URL,
-            'flower_ajax_url': self.FLOWER_AJAX_URL,
-            'coder_url': self.CODER_URL,
-            'scoreboard_url': self.SCOREBOARD_URL,
-            'grafana_url': self.GRAFANA_URL,
-            'patches_url': self.PATCHES_URL,
-            'secret_flags': binascii.hexlify(self.SECRET_FLAG_KEY).decode('ascii'),
-            'scoring': self.SCORING.to_dict(),
-            'service_remotes': self.SERVICE_REMOTES,
-            'dispatcher_check_vpn_status': self.DISPATCHER_CHECK_VPN_STATUS,
-            'external_timer': self.EXTERNAL_TIMER,
-            'network': self.NETWORK.to_dict(),
-            'wireguard_sync': self.WIREGUARD_SYNC.to_dict() if self.WIREGUARD_SYNC else None,
-            'runner': self.RUNNER.to_dict(),
+            "databases": self.CONFIG["databases"]
+                         | {
+                             "postgres": self.POSTGRES,
+                             "redis": self.REDIS,
+                             "rabbitmq": self.RABBITMQ,
+                             "metrics": self.METRICS,
+                         },
+            "tick_duration_default": self.TICK_DURATION_DEFAULT,
+            "vpnboard_path": str(self.VPNBOARD_PATH),
+            "checker_packages_path": str(self.CHECKER_PACKAGES_PATH),
+            "services_path": str(self.SERVICES_PATH),
+            "patches_path": str(self.PATCHES_PATH),
+            "patches_public_path": str(self.PATCHES_PUBLIC_PATH) if self.PATCHES_PUBLIC_PATH else None,
+            "flower_url": self.FLOWER_URL,
+            "flower_internal_url": self.FLOWER_INTERNAL_URL,
+            "flower_ajax_url": self.FLOWER_AJAX_URL,
+            "coder_url": self.CODER_URL,
+            "scoreboard_url": self.SCOREBOARD_URL,
+            "grafana_url": self.GRAFANA_URL,
+            "patches_url": self.PATCHES_URL,
+            "secret_flags": binascii.hexlify(self.SECRET_FLAG_KEY).decode("ascii"),
+            "flag_prefix": self.FLAG_PREFIX,
+            "scoring": self.SCORING.to_dict(),
+            "service_remotes": self.SERVICE_REMOTES,
+            "dispatcher_check_vpn_status": self.DISPATCHER_CHECK_VPN_STATUS,
+            "external_timer": self.EXTERNAL_TIMER,
+            "network": self.NETWORK.to_dict(),
+            "wireguard_sync": self.WIREGUARD_SYNC.to_dict() if self.WIREGUARD_SYNC else None,
+            "runner": self.RUNNER.to_dict(),
+            "scoreboard_freeze": self.SCOREBOARD_FREEZE,
+            "scoreboard_path": str(self.SCOREBOARD_PATH),
+            "scoreboard_path_internal": str(self.SCOREBOARD_PATH_INTERNAL) if self.SCOREBOARD_PATH_INTERNAL else None,
+            "ctfroute_namespace": self.CTFROUTE_NAMESPACE,
         }
 
     @classmethod
@@ -385,67 +476,84 @@ class Config:
         for k, v in list(d.items()):
             if k.startswith("__"):
                 del d[k]
-            elif type(v) is dict:
+            elif isinstance(v, dict):
                 cls._clean_comments(v)
 
     def postgres_sqlalchemy(self) -> str:
-        conn = 'postgresql+psycopg2://'
-        if self.POSTGRES['username']:
-            conn += self.POSTGRES['username']
-            if self.POSTGRES['password']:
-                conn += ':' + self.POSTGRES['password']
-            conn += '@'
-        if self.POSTGRES['server'] and not self.POSTGRES_USE_SOCKET:
+        conn = "postgresql+psycopg2://"
+        if self.POSTGRES["username"]:
+            conn += self.POSTGRES["username"]
+            if self.POSTGRES["password"]:
+                conn += ":" + self.POSTGRES["password"]
+            conn += "@"
+        if self.POSTGRES["server"] and not self.POSTGRES_USE_SOCKET:
             conn += f"{self.POSTGRES['server']}:{self.POSTGRES['port']}"
-        return conn + '/' + self.POSTGRES['database']
+        return conn + "/" + self.POSTGRES["database"]
 
     def postgres_psycopg2(self) -> str:
-        conn = "host='{}' port={} dbname='{}'".format(self.POSTGRES['server'], self.POSTGRES['port'],
-                                                      self.POSTGRES['database'])
-        if self.POSTGRES['username']:
-            conn += " user='{}'".format(self.POSTGRES['username'])
-            if self.POSTGRES['password']:
-                conn += " password='{}'".format(self.POSTGRES['password'])
+        db_host = self.POSTGRES["server"]
+        db_port = self.POSTGRES["port"]
+        db_name = self.POSTGRES["database"]
+        conn = f"host='{db_host}' port={db_port} dbname='{db_name}'"
+        if db_username := self.POSTGRES["username"]:
+            conn += f" user='{db_username}'"
+            if db_password := self.POSTGRES["password"]:
+                conn += f" password='{db_password}'"
         return conn
 
     # --- Celery connections ---
     # Message broker: RabbitMQ (redis fallback), result storage: Redis
+    # Celery is in redis DB +1 (so we have separated DBs for celery and gameserver)
 
     def celery_redis_url(self) -> str:
-        if 'password' in self.REDIS:
-            return 'redis://:{}@{}:{}/{}'.format(self.REDIS['password'], self.REDIS['host'], self.REDIS['port'],
-                                                 self.REDIS['db'] + 1)
-        return 'redis://{}:{}/{}'.format(self.REDIS['host'], self.REDIS['port'], self.REDIS['db'] + 1)
+        redis_host = self.REDIS["host"]
+        redis_port = self.REDIS["port"]
+        redis_db = self.REDIS["db"] + 1  # db = gameserver, db+1 = celery
+        if "password" in self.REDIS:
+            redis_password = self.REDIS["password"]
+            return f"redis://:{redis_password}@{redis_host}:{redis_port}/{redis_db}"
+        return f"redis://{redis_host}:{redis_port}/{redis_db}"
 
     def celery_rabbitmq_url(self) -> str:
         if not self.RABBITMQ:
-            raise ValueError('RabbitMQ not configured')
-        return 'amqp://{}:{}@{}:{}/{}'.format(self.RABBITMQ['username'], self.RABBITMQ['password'],
-                                              self.RABBITMQ['host'], self.RABBITMQ['port'],
-                                              self.RABBITMQ['vhost'])
+            raise ValueError("RabbitMQ not configured")
+        rabbitmq_username = self.RABBITMQ["username"]
+        rabbitmq_password = self.RABBITMQ["password"]
+        rabbitmq_host = self.RABBITMQ["host"]
+        rabbitmq_port = self.RABBITMQ["port"]
+        rabbitmq_vhost = self.RABBITMQ["vhost"]
+        return f"amqp://{rabbitmq_username}:{rabbitmq_password}@{rabbitmq_host}:{rabbitmq_port}/{rabbitmq_vhost}"
 
     def celery_url(self) -> str:
         if self.RABBITMQ:
             return self.celery_rabbitmq_url()
-        else:
-            return self.celery_redis_url()
+        return self.celery_redis_url()
 
     def set_script(self) -> None:
         """We're currently in a script instance, disable some features"""
         self.EXTERNAL_TIMER = False
+
+    def validate(self) -> None:
+        """Check for the most severe fuckups that you might have."""
+        if not self.SCOREBOARD_PATH.name:
+            raise ValueError("SCOREBOARD_PATH not configured")
+        if len(self.SECRET_FLAG_KEY) < 16:
+            raise ValueError("SECRET_FLAG_KEY not configured or too short")
+        if len(self.FLAG_PREFIX) != 4:
+            raise ValueError("FLAG_PREFIX must be exactly 4 characters long")
 
 
 class CurrentConfigProxy:
     def __getattr__(self, item: str) -> Any:
         global current_config
         if not current_config:
-            raise Exception('Config not initialized')
+            raise ValueError("Config not initialized")
         return getattr(current_config, item)
 
     def __setattr__(self, key: str, value: Any) -> None:
         global current_config
         if not current_config:
-            raise Exception('Config not initialized')
+            raise ValueError("Config not initialized")
         setattr(current_config, key, value)
 
 
@@ -458,26 +566,49 @@ def load_default_config() -> None:
     current_config = Config.load_default()
 
 
-def load_default_config_file(filename: str | Path, additional: dict[str, Any] | None = None) -> None:
+def load_default_config_file(filename: Path, additional: dict[str, Any] | None = None) -> None:
     global current_config
-    with open(filename, 'r') as f:
-        d: dict[str, Any] = json.loads(f.read())  # type: ignore
+    with filename.open("rb") as f:
+        if f.name.endswith(".json"):
+            d: dict[str, Any] = json.load(f)  # type: ignore
+        else:
+            d = yaml.safe_load(f)
     if additional:
         d = d | additional
     current_config = Config.from_dict(filename, d)
 
 
-if __name__ == '__main__':
+def get_by_names(config: Any, names: list[str]) -> Any:
+    for name in names:
+        if isinstance(config, dict):
+            config = config.get(name)
+        elif isinstance(config, Config) or isinstance(config, ConfigSection):
+            if name.upper() in config.__dict__:
+                config = getattr(config, name.upper())
+            elif name.lower() in config.__dict__:
+                config = getattr(config, name.lower())
+            elif hasattr(config, name):
+                config = getattr(config, name)
+            elif isinstance(config, Config) and name in config.CONFIG:
+                config = config.CONFIG[name]
+            else:
+                raise KeyError(name)
+        else:
+            raise ValueError(f"Invalid config type: {type(config)} {config}")
+        if callable(config):
+            config = config()
+    return config
+
+
+if __name__ == "__main__":
     import sys
 
     # print a config option (can be used in bash scripts etc)
-    if sys.argv[1] == 'get':
+    if sys.argv[1] == "get":
         load_default_config()
-        x: Any = config.CONFIG
-        for arg in sys.argv[2:]:
-            x = x.get(arg)
+        x = get_by_names(current_config, sys.argv[2:])
         print(str(x))
         sys.exit(0)
     else:
-        print('Invalid command')
+        print("Invalid command")
         sys.exit(1)

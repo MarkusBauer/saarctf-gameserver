@@ -3,6 +3,7 @@ ORM wrappers for all database tables (using SQLAlchemy).
 For a database connection, Flask is needed (import controlserver.app).
 
 """
+
 import logging
 import typing
 from contextlib import contextmanager
@@ -85,7 +86,8 @@ def db_session_2() -> typing.Generator[Session, None, None]:
 class Serializer(object):
     def serialize(self) -> dict[str, Any]:
         i = inspect(self)
-        if not i: return {}
+        if not i:
+            return {}
         return {c: getattr(self, c) for c in i.attrs.keys()}
 
     @staticmethod
@@ -94,7 +96,7 @@ class Serializer(object):
 
 
 class Team(Base, ModelMixin):
-    __tablename__ = 'teams'
+    __tablename__ = "teams"
     id = mapped_column(Integer, primary_key=True)
     name = mapped_column(String(128), nullable=False)
     affiliation = mapped_column(String(128), nullable=True, server_default=text('NULL'))
@@ -111,7 +113,7 @@ class Team(Base, ModelMixin):
     wg_boxes_connected = mapped_column(Boolean, nullable=False, server_default=text('FALSE'))  # team has a wg conn for router, vulnbox, or testbox ip
 
     if typing.TYPE_CHECKING:
-        query: 'Query[Team]'
+        query: "Query[Team]"
 
     @property
     def vulnbox_ip(self) -> str:
@@ -123,7 +125,8 @@ class TeamLogo(Base):
     Team logos stored in database.
     Each logo is keyed by the md5-hash of the original source image ("hash") before compression.
     """
-    __tablename__ = 'team_logos'
+
+    __tablename__ = "team_logos"
     id = mapped_column(Integer, primary_key=True)
     hash = mapped_column(String(64), nullable=False, unique=True, index=True)
     content = mapped_column(LargeBinary, nullable=False)
@@ -131,7 +134,7 @@ class TeamLogo(Base):
     target_size = 256
 
     if typing.TYPE_CHECKING:
-        query: 'Query[TeamLogo]'
+        query: "Query[TeamLogo]"
 
     @classmethod
     def store_logo_file(cls, fname: str) -> str:
@@ -140,7 +143,7 @@ class TeamLogo(Base):
         :param fname:
         :return: md5-hash that identifies this image later.
         """
-        with open(fname, 'rb') as f:
+        with open(fname, "rb") as f:
             return cls.store_logo_bytes(f.read())
 
     @classmethod
@@ -155,15 +158,16 @@ class TeamLogo(Base):
             return imghash
         # load, resize and pad logo image
         from PIL import Image
+
         img: Image.Image = Image.open(io.BytesIO(data))
         w = round(img.width * cls.target_size / max(img.width, img.height))
         h = round(img.height * cls.target_size / max(img.width, img.height))
         img = img.resize((w, h), Image.Resampling.BICUBIC)
-        new_img = Image.new('RGBA', (cls.target_size, cls.target_size), (0, 0, 0, 0))
+        new_img = Image.new("RGBA", (cls.target_size, cls.target_size), (0, 0, 0, 0))
         new_img.paste(img, ((cls.target_size - w) // 2, (cls.target_size - h) // 2))
         # save
         image_bytes = io.BytesIO()
-        new_img.save(image_bytes, format='PNG')
+        new_img.save(image_bytes, format="PNG")
         db_session().add(TeamLogo(hash=imghash, content=image_bytes.getvalue()))
         db_session().commit()
         return imghash
@@ -178,13 +182,13 @@ class TeamLogo(Base):
         """
         img = cls.query.filter(cls.hash == imghash).first()
         if not img:
-            raise Exception(f'Image missing: {imghash}')
-        with open(fname, 'wb') as f:
+            raise Exception(f"Image missing: {imghash}")
+        with open(fname, "wb") as f:
             f.write(img.content)
 
 
 class Service(Base, ModelMixin):
-    __tablename__ = 'services'
+    __tablename__ = "services"
     id = mapped_column(Integer, primary_key=True)
     name = mapped_column(String(128), nullable=False)
 
@@ -215,14 +219,14 @@ class Service(Base, ModelMixin):
     ports = mapped_column(String, nullable=False, server_default=text("''"))  # "tcp:123,tcp:124,udp:125"
 
     if typing.TYPE_CHECKING:
-        query: 'Query[Service]'
+        query: "Query[Service]"
 
     def parse_ports(self) -> list[tuple[str, int]]:
         result = []
-        for x in self.ports.split(','):
+        for x in self.ports.split(","):
             x = x.strip()
             if x:
-                proto, port = x.split(':')
+                proto, port = x.split(":")
                 result.append((proto, int(port)))
         return result
 
@@ -232,7 +236,8 @@ class TeamPoints(Base, ModelMixin):
     The points a team has per service AFTER tick has been counted.
     Includes the incremental points from previous ticks.
     """
-    __tablename__ = 'team_points'
+
+    __tablename__ = "team_points"
 
     id = mapped_column(Integer, primary_key=True)
     tick = mapped_column(Integer, nullable=False, index=True)
@@ -252,19 +257,19 @@ class TeamPoints(Base, ModelMixin):
     team = relationship("Team", back_populates="points")
 
     if typing.TYPE_CHECKING:
-        query: 'Query[TeamPoints]'
+        query: "Query[TeamPoints]"
 
     def props_dict(self) -> Dict:
         return {
-            'tick': self.tick,
-            'team_id': self.team_id,
-            'service_id': self.service_id,
-            'flag_captured_count': self.flag_captured_count,
-            'flag_stolen_count': self.flag_stolen_count,
-            'off_points': self.off_points,
-            'def_points': self.def_points,
-            'sla_points': self.sla_points,
-            'sla_delta': self.sla_delta,
+            "tick": self.tick,
+            "team_id": self.team_id,
+            "service_id": self.service_id,
+            "flag_captured_count": self.flag_captured_count,
+            "flag_stolen_count": self.flag_stolen_count,
+            "off_points": self.off_points,
+            "def_points": self.def_points,
+            "sla_points": self.sla_points,
+            "sla_delta": self.sla_delta,
         }
 
     @classmethod
@@ -276,11 +281,14 @@ class TeamPoints(Base, ModelMixin):
         stmt = insert(TeamPoints)
         stmt = stmt.on_conflict_do_update(
             constraint=cls.team_points_unique_1,
-            set_={'flag_captured_count': stmt.excluded.flag_captured_count,
-                  'flag_stolen_count': stmt.excluded.flag_stolen_count,
-                  'off_points': stmt.excluded.off_points, 'def_points': stmt.excluded.def_points,
-                  'sla_points': stmt.excluded.sla_points,
-                  'sla_delta': stmt.excluded.sla_delta}
+            set_={
+                "flag_captured_count": stmt.excluded.flag_captured_count,
+                "flag_stolen_count": stmt.excluded.flag_stolen_count,
+                "off_points": stmt.excluded.off_points,
+                "def_points": stmt.excluded.def_points,
+                "sla_points": stmt.excluded.sla_points,
+                "sla_delta": stmt.excluded.sla_delta,
+            },
         )
         return stmt
 
@@ -321,7 +329,7 @@ class TeamPointsLite:
         self.sla_delta: float = sla_delta
 
     @classmethod
-    def query(cls, session: Session | None = None):
+    def query(cls, session: Session | None = None) -> Query:
         if session is None:
             session = db_session()  # type: ignore
         return session.query(TeamPoints.team_id, TeamPoints.service_id, TeamPoints.tick,  # type: ignore
@@ -334,7 +342,8 @@ class TeamRanking(Base, ModelMixin):
     """
     Scoreboard position of a team AFTER a tick
     """
-    __tablename__ = 'team_rankings'
+
+    __tablename__ = "team_rankings"
     id = mapped_column(Integer, primary_key=True)
     tick = mapped_column(Integer, nullable=False, index=True)
     team_id = mapped_column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
@@ -344,14 +353,15 @@ class TeamRanking(Base, ModelMixin):
     team = relationship("Team")
 
     if typing.TYPE_CHECKING:
-        query: 'Query[TeamRanking]'
+        query: "Query[TeamRanking]"
 
 
 class TeamTrafficStats(Base, ModelMixin):
     """
     The points a team has per service AFTER tick has been counted
     """
-    __tablename__ = 'team_traffic_stats'
+
+    __tablename__ = "team_traffic_stats"
 
     id = mapped_column(Integer, primary_key=True)
     time = mapped_column(TIMESTAMP(timezone=True), nullable=False, index=True)
@@ -381,37 +391,37 @@ class TeamTrafficStats(Base, ModelMixin):
     forward_self_syn_acks = mapped_column(BigInteger, nullable=False)
 
     if typing.TYPE_CHECKING:
-        query: 'Query[TeamTrafficStats]'
+        query: "Query[TeamTrafficStats]"
 
     @classmethod
     def efficient_insert(cls, timestamp: int, items: Dict[int, List[int]]) -> None:
         assert type(timestamp) is int
         cursor = db_session().connection().connection.cursor()
-        sql = 'INSERT INTO team_traffic_stats ("time", team_id, ' \
-              'down_game_packets, down_game_bytes, down_game_syns, down_game_syn_acks, ' \
-              'down_teams_packets, down_teams_bytes, down_teams_syns, down_teams_syn_acks, ' \
-              'up_game_packets, up_game_bytes, up_game_syns, up_game_syn_acks, ' + \
-              'up_teams_packets, up_teams_bytes, up_teams_syns, up_teams_syn_acks, ' \
-              'forward_self_packets, forward_self_bytes, forward_self_syns, forward_self_syn_acks) ' \
-              f'SELECT to_timestamp({timestamp}), unnest(%(teams)s), ' \
-              'unnest(%(v0)s), unnest(%(v1)s), unnest(%(v2)s), unnest(%(v3)s), ' \
-              'unnest(%(v4)s), unnest(%(v5)s), unnest(%(v6)s), unnest(%(v7)s), ' \
-              'unnest(%(v8)s), unnest(%(v9)s), unnest(%(v10)s), unnest(%(v11)s), ' \
-              'unnest(%(v12)s), unnest(%(v13)s), unnest(%(v14)s), unnest(%(v15)s), ' \
-              'unnest(%(v16)s), unnest(%(v17)s), unnest(%(v18)s), unnest(%(v19)s)'
-        data: Dict[str, List[int]] = {
-            'teams': []
-        }
+        sql = (
+            'INSERT INTO team_traffic_stats ("time", team_id, '
+            "down_game_packets, down_game_bytes, down_game_syns, down_game_syn_acks, "
+            "down_teams_packets, down_teams_bytes, down_teams_syns, down_teams_syn_acks, "
+            "up_game_packets, up_game_bytes, up_game_syns, up_game_syn_acks, "
+            + "up_teams_packets, up_teams_bytes, up_teams_syns, up_teams_syn_acks, "
+            "forward_self_packets, forward_self_bytes, forward_self_syns, forward_self_syn_acks) "
+            f"SELECT to_timestamp({timestamp}), unnest(%(teams)s), "
+            "unnest(%(v0)s), unnest(%(v1)s), unnest(%(v2)s), unnest(%(v3)s), "
+            "unnest(%(v4)s), unnest(%(v5)s), unnest(%(v6)s), unnest(%(v7)s), "
+            "unnest(%(v8)s), unnest(%(v9)s), unnest(%(v10)s), unnest(%(v11)s), "
+            "unnest(%(v12)s), unnest(%(v13)s), unnest(%(v14)s), unnest(%(v15)s), "
+            "unnest(%(v16)s), unnest(%(v17)s), unnest(%(v18)s), unnest(%(v19)s)"
+        )
+        data: Dict[str, List[int]] = {"teams": []}
         for i in range(20):
-            data[f'v{i}'] = []
+            data[f"v{i}"] = []
         for team_id, values in items.items():
-            data['teams'].append(team_id)
+            data["teams"].append(team_id)
             for i, v in enumerate(values):
-                data['v' + str(i)].append(v)
+                data["v" + str(i)].append(v)
         cursor.execute(sql, data)
 
     @classmethod
-    def query_sum(cls):
+    def query_sum(cls) -> Query:
         return db_session().query(
             func.sum(cls.down_teams_packets),
             func.sum(cls.down_teams_bytes),
@@ -432,11 +442,11 @@ class TeamTrafficStats(Base, ModelMixin):
             func.sum(cls.forward_self_packets),
             func.sum(cls.forward_self_bytes),
             func.sum(cls.forward_self_syns),
-            func.sum(cls.forward_self_syn_acks)
+            func.sum(cls.forward_self_syn_acks),
         )
 
     @classmethod
-    def query_sum_lite(cls):
+    def query_sum_lite(cls) -> Query:
         return db_session().query(
             cls.time,
             func.sum(cls.down_teams_bytes),
@@ -454,7 +464,8 @@ class SubmittedFlag(Base, ModelMixin):
     """
     Stolen flags submitted to us. Filled by the submitter script. No foreign references for performance reasons.
     """
-    __tablename__ = 'submitted_flags'
+
+    __tablename__ = "submitted_flags"
     id = mapped_column(Integer, primary_key=True)
     submitted_by = mapped_column(SmallInteger, nullable=False)  # references teams (attacking team)
     team_id = mapped_column(SmallInteger, nullable=False)  # references teams (exploited team)
@@ -462,7 +473,7 @@ class SubmittedFlag(Base, ModelMixin):
     tick_issued = mapped_column(SmallInteger, nullable=False)
     payload = mapped_column(Integer, nullable=False, server_default=text('0'))  # more or less random payload
     tick_submitted = mapped_column(SmallInteger, nullable=False, index=True)  # submitted in this tick
-    is_firstblood = mapped_column(Boolean, nullable=False, server_default=text('FALSE'), index=True)
+    is_firstblood = mapped_column(SmallInteger, nullable=False, server_default=text('0'), index=True)
     ts = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     __table_args__ = (UniqueConstraint('submitted_by', 'team_id', 'service_id', 'tick_issued', 'payload',
                                        name='submitted_flags_unique_1'),)
@@ -471,10 +482,10 @@ class SubmittedFlag(Base, ModelMixin):
     victim_team = relationship('Team', foreign_keys=[team_id], primaryjoin='Team.id == SubmittedFlag.team_id')
 
     if typing.TYPE_CHECKING:
-        query: 'Query[SubmittedFlag]'
+        query: "Query[SubmittedFlag]"
 
     @classmethod
-    def efficient_insert(cls, items) -> None:
+    def efficient_insert(cls, items: list["SubmittedFlag"]) -> None:
         if len(items) == 0:
             return
         cursor = db_session().connection().connection.cursor()
@@ -496,7 +507,7 @@ class CheckerResult(Base, ModelMixin):
     Results of each checkerscript invocation. Created by the script runner (or the dispatcher if the runner crashed).
     """
 
-    __tablename__ = 'checker_results'
+    __tablename__ = "checker_results"
     id = mapped_column(Integer, primary_key=True)
     tick = mapped_column(Integer, nullable=False, index=True)
     team_id = mapped_column(SmallInteger, ForeignKey('teams.id', ondelete="CASCADE"), nullable=False)
@@ -506,61 +517,69 @@ class CheckerResult(Base, ModelMixin):
 
     # status can be: SUCCESS, FLAGMISSING, MUMBLE, RECOVERING, OFFLINE, TIMEOUT, REVOKED, CRASHED, PENDING (this one only for test runs)
     status = mapped_column(String(12), nullable=False, index=True)
-    message = mapped_column(String, nullable=True, server_default=text('NULL'))
-    time = mapped_column(Float, nullable=True, server_default=text('NULL'))
+    message = mapped_column(String, nullable=True, server_default=text("NULL"))
+    time = mapped_column(Float, nullable=True, server_default=text("NULL"))
     celery_id = mapped_column(String(40), nullable=False)
-    output = mapped_column(String, nullable=True, server_default=text('NULL'))
-    finished = mapped_column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
-    data = mapped_column(JSON, nullable=True, server_default=text('NULL'))
+    output = mapped_column(String, nullable=True, server_default=text("NULL"))
+    finished = mapped_column(TIMESTAMP(timezone=True), nullable=True, server_default=text("NULL"))
+    data = mapped_column(JSON, nullable=True, server_default=text("NULL"))
     # true if the task finished, but was too late (already revoked)
-    run_over_time = mapped_column(Boolean, nullable=False, server_default=text('FALSE'), default=False)
+    run_over_time = mapped_column(Boolean, nullable=False, server_default=text("FALSE"), default=False)
 
     # Additional state: "PENDING" (only possible for test runs)
-    states = ['SUCCESS', 'FLAGMISSING', 'MUMBLE', 'OFFLINE', 'TIMEOUT', 'RECOVERING', 'REVOKED', 'CRASHED']
+    states = [
+        "SUCCESS",
+        "FLAGMISSING",  # not for "eno" checkers
+        "MUMBLE",
+        "OFFLINE",
+        "TIMEOUT",
+        "RECOVERING",  # only in "eno" checkers
+        "REVOKED",
+        "CRASHED",
+    ]
 
     team = relationship("Team")
     service = relationship("Service")
 
     if typing.TYPE_CHECKING:
-        query: 'Query[CheckerResult]'
+        query: "Query[CheckerResult]"
 
     def props_dict(self) -> dict[str, Any]:
         return {
-            'tick': self.tick,
-            'team_id': self.team_id,
-            'service_id': self.service_id,
-            'status': self.status,
-            'message': self.message,
-            'time': self.time,
-            'celery_id': self.celery_id,
-            'output': self.output,
-            'run_over_time': self.run_over_time or False,
-            'finished': self.finished,
-            'data': self.data,
+            "tick": self.tick,
+            "team_id": self.team_id,
+            "service_id": self.service_id,
+            "status": self.status,
+            "message": self.message,
+            "time": self.time,
+            "celery_id": self.celery_id,
+            "output": self.output,
+            "run_over_time": self.run_over_time or False,
+            "finished": self.finished,
+            "data": self.data,
         }
 
     @classmethod
-    def upsert(cls, entry: 'CheckerResult| None' = None) -> Insert:
+    def upsert(cls, entry: "CheckerResult| None" = None) -> Insert:
         """
         Usage: db_session().execute(CheckerResult.upsert().values(instance.props_dict()))
         :return:
         """
         stmt = insert(CheckerResult)
         data = {
-            'status': stmt.excluded.status,
-            'message': stmt.excluded.message,
-            'time': stmt.excluded.time,
-            'celery_id': stmt.excluded.celery_id,
-            'output': stmt.excluded.output,
-            'data': stmt.excluded.data,
+            "status": stmt.excluded.status,
+            "message": stmt.excluded.message,
+            "time": stmt.excluded.time,
+            "celery_id": stmt.excluded.celery_id,
+            "output": stmt.excluded.output,
+            "data": stmt.excluded.data,
         }
         if entry and entry.run_over_time is not None:
-            data['run_over_time'] = stmt.excluded.run_over_time
+            data["run_over_time"] = stmt.excluded.run_over_time
         if entry and entry.finished is not None:
-            data['finished'] = stmt.excluded.finished
+            data["finished"] = stmt.excluded.finished
         stmt = stmt.on_conflict_do_update(
-            constraint=cls.checker_results_unique_1,
-            set_=data
+            constraint=cls.checker_results_unique_1, set_=data
         )
         return stmt
 
@@ -576,7 +595,7 @@ class CheckerResultLite:
         self.message: str = message
 
     @classmethod
-    def efficient_insert(cls, items) -> None:
+    def efficient_insert(cls, items: list["CheckerResultLite"]) -> None:
         if len(items) == 0:
             return
         cursor = db_session().connection().connection.cursor()
@@ -597,11 +616,12 @@ class LogMessage(Base, Serializer, ModelMixin):
     """
     Collected log information from all the pages
     """
-    __tablename__ = 'logmessages'
+
+    __tablename__ = "logmessages"
     id = mapped_column(Integer, primary_key=True)
     created = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     component = mapped_column(String(128), nullable=False)
-    level = mapped_column(SmallInteger, server_default=text('0'))
+    level = mapped_column(SmallInteger, server_default=text("0"))
     title = mapped_column(String)
     text = mapped_column(String)
 
@@ -613,10 +633,10 @@ class LogMessage(Base, Serializer, ModelMixin):
     WARNING = 20
     ERROR = 30
 
-    LEVELS = ['ERROR', 'WARNING', 'NOTIFICATION', 'IMPORTANT', 'INFO', 'DEBUG']
+    LEVELS = ["ERROR", "WARNING", "NOTIFICATION", "IMPORTANT", "INFO", "DEBUG"]
 
     if typing.TYPE_CHECKING:
-        query: 'Query[LogMessage]'
+        query: "Query[LogMessage]"
 
     @classmethod
     def level_to_python(cls, lvl: int) -> int:
@@ -633,34 +653,38 @@ class CheckerFilesystem(Base, ModelMixin):
     """
     One line for each file/folder in a package. Files are identified by their hash.
     """
-    __tablename__ = 'checker_filesystem'
+
+    __tablename__ = "checker_filesystem"
     id = mapped_column(Integer, primary_key=True)
     package = mapped_column(String(32), nullable=False, index=True)
     path = mapped_column(String, nullable=False)
     file_hash = mapped_column(String(32), nullable=True)  # NULL = folder
-    __table_args__ = (UniqueConstraint('package', 'path', name='checker_filesystem_unique_1'),)
+    __table_args__ = (
+        UniqueConstraint("package", "path", name="checker_filesystem_unique_1"),
+    )
 
     if typing.TYPE_CHECKING:
-        query: 'Query[CheckerFilesystem]'
+        query: "Query[CheckerFilesystem]"
 
 
 class CheckerFile(Base, ModelMixin):
     """
     Files in a package.
     """
-    __tablename__ = 'checker_files'
+
+    __tablename__ = "checker_files"
     id = mapped_column(Integer, primary_key=True)
     file_hash = mapped_column(String(32), nullable=False, index=True)
     content = mapped_column(LargeBinary, nullable=False)
-    __table_args__ = (UniqueConstraint('file_hash', name='checker_files_unique_1'),)
+    __table_args__ = (UniqueConstraint("file_hash", name="checker_files_unique_1"),)
 
     if typing.TYPE_CHECKING:
-        query: 'Query[CheckerFile]'
+        query: "Query[CheckerFile]"
 
 
 class Tick(Base, ModelMixin):
     # we record some timing information in DB because Grafana requires this
-    __tablename__ = 'ticks'
+    __tablename__ = "ticks"
     tick = mapped_column(Integer, primary_key=True)
     start = mapped_column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
     end = mapped_column(TIMESTAMP(timezone=True), nullable=True, server_default=text('NULL'))
@@ -673,17 +697,17 @@ class Tick(Base, ModelMixin):
 
     @classmethod
     def set_start(cls, session: Session, tick: int, dt: datetime) -> None:
-        cls._set(session, tick, 'start', dt)
+        cls._set(session, tick, "start", dt)
 
     @classmethod
     def set_end(cls, session: Session, tick: int, dt: datetime) -> None:
-        cls._set(session, tick, 'end', dt)
+        cls._set(session, tick, "end", dt)
 
 
-T = typing.TypeVar('T')
+T = typing.TypeVar("T")
 
 
 def expect(x: T | None) -> T:
     if not x:
-        raise Exception('Missing object')
+        raise Exception("Missing object")
     return x

@@ -27,6 +27,7 @@
             ],
             "tsConfig": "tsconfig.app.json",
             "assets": [
+              "src/favicon.ico",
               "src/favicon.png",
               "src/assets",
               "src/.htaccess"
@@ -42,6 +43,9 @@
             "browser": "src/main.ts"
           },
           "configurations": {
+            "local": {
+              "styles": ["src/styles.less", "src/env-dev.less"]
+            },
             "production": {
               "fileReplacements": [
                 {
@@ -73,6 +77,12 @@
                   "maximumError": "10kb"
                 }
               ]
+            },
+            "intern": {
+              "styles": ["src/styles.less", "src/env-intern.less"]
+            },
+            "dev": {
+              "styles": ["src/styles.less", "src/env-dev.less"]
             }
           },
           "defaultConfiguration": ""
@@ -84,6 +94,9 @@
             "buildTarget": "scoreboard:build"
           },
           "configurations": {
+            "local": {
+              "buildTarget": "scoreboard:build:local"
+            },
             "production": {
               "buildTarget": "scoreboard:build:production"
             }

@@ -1,8 +1,7 @@
 import random
 import time
 import unittest
-import os
-from typing import List
+from typing import List, Any
 from unittest import skip
 
 from sqlalchemy import func
@@ -49,13 +48,13 @@ avg first 15: 0.059 sec         avg last 15: 0.117 sec
 @skip('benchmark')
 class BenchTestCase(DatabaseTestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         super().setUpClass()
-        config.SCORING.FLAG_ROUNDS_VALID = 10
+        config.SCORING.flags_rounds_valid = 10
         config.CONFIG['scoring']['nop_team_id'] = -1
-        config.SCORING.NOP_TEAM_ID = -1
+        config.SCORING.nop_team_id = -1
 
-    def _print_stats(self):
+    def _print_stats(self) -> None:
         print('# Teams:    {}'.format(Team.query.count()))
         print('# Services: {}'.format(Service.query.count()))
         print('# Flags:    {}'.format(SubmittedFlag.query.count()))
@@ -67,15 +66,16 @@ class BenchTestCase(DatabaseTestCase):
         highscores.sort(reverse=True)
         print('Highscores: {}'.format(highscores[:3]))
 
-    def _init_teams(self, team_count: int, **kwargs):
+    def _init_teams(self, team_count: int, **kwargs: Any) -> None:
         for i in range(team_count):
             db_session().add(Team(name=f'Team {i + 1}', vpn_connected=True, **kwargs))
 
-    def _init_services(self, service_count: int, **kwargs):
+    def _init_services(self, service_count: int, **kwargs: Any) -> None:
         for i in range(service_count):
             db_session().add(Service(name=f'Service {i + 1}', checker_script='', **kwargs))
 
-    def _submit_checker_results(self, endround: int, chance_offline=0.02, chance_flagmissing=0.02, chance_mumble=0.05, seed=1337):
+    def _submit_checker_results(self, endround: int, chance_offline: float = 0.02, chance_flagmissing: float = 0.02, chance_mumble: float = 0.05,
+                                seed: int = 1337) -> None:
         rnd = random.Random(seed)
         teams = Team.query.all()
         services = Service.query.all()
@@ -95,7 +95,7 @@ class BenchTestCase(DatabaseTestCase):
                     results.append(CheckerResultLite(t.id, s.id, r, state))
         CheckerResultLite.efficient_insert(results)
 
-    def _submit_random_flags(self, endround: int, chance=0.33, seed=1337):
+    def _submit_random_flags(self, endround: int, chance: float = 0.33, seed: int = 1337) -> None:
         rnd = random.Random(seed)
         teams = Team.query.all()
         services = Service.query.all()
@@ -142,7 +142,7 @@ class BenchTestCase(DatabaseTestCase):
             times.append(ts)
         return times
 
-    def test_something_like_faust2019(self):
+    def test_something_like_faust2019(self) -> None:
         # Faust 2019 had: 6 working services, 53 teams, 87477 submitted flags, highscores 11678.00, 7620.00, 7758.00
         reset_timing()
         timing()
@@ -162,7 +162,7 @@ class BenchTestCase(DatabaseTestCase):
         print_query_stats()
         time.sleep(0.5)
 
-    def test_something_large(self):
+    def test_something_large(self) -> None:
         reset_timing()
         timing()
         self._init_teams(150)

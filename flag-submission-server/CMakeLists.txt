@@ -48,7 +48,7 @@ include(FetchContent)
 FetchContent_Declare(
 		yaml-cpp
 		GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-		GIT_TAG        0.8.0 # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
+		GIT_TAG        master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
 )
 FetchContent_GetProperties(yaml-cpp)
 FetchContent_MakeAvailable(yaml-cpp)
@@ -83,7 +83,9 @@ set(SOURCE_FILES
 		src/libraries/base64.c
 		src/statistics.cpp
 		src/statistics.h
-		)
+		src/string_pool.h
+		src/string_pool.cpp
+)
 set(SOURCE_FILES ${SOURCE_FILES} ${SOURCE_FILES_FIX})
 add_executable(flag-submission-server ${SOURCE_FILES} src/main.cpp)
 target_link_libraries(flag-submission-server PUBLIC ${CMAKE_THREAD_LIBS_INIT}
@@ -109,6 +111,8 @@ set(SOURCE_FILES_3
 		src/libraries/base64.c
 		src/statistics.cpp
 		src/statistics.h
+		src/string_pool.h
+		src/string_pool.cpp
 		)
 add_executable(benchmark-newflags ${SOURCE_FILES_3})
 target_link_libraries(benchmark-newflags ${OPENSSL_CRYPTO_LIBRARY} ${YAML_LIBRARIES})

@@ -15,15 +15,22 @@ p {
 	display: grid;
 	grid-template-columns: 33% 33% 33%;
 	grid-column-gap: @result-grid-gap;
+	grid-row-gap: 1px;
 
 	// Icon color
 	> i.fas {
 		color: #222;
+		justify-self: center;
 		align-self: center;
 	}
 
-	> .points, > .delta {
+	> .delta {
+		justify-self: center;
+	}
+
+	> .points {
 		justify-self: end;
+		align-self: center;
 	}
 }
 

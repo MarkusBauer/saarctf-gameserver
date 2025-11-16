@@ -8,7 +8,7 @@ from vpn.vpnlib import generate_vpn_keys, format_vpn_keys
 from saarctf_commons.config import config, load_default_config
 
 
-def configure_vpnserver():
+def configure_vpnserver() -> None:
     server_config_file = config.VPN_BASE_DIR / 'config-server' / 'orga-multi.conf'
     client_config_file = config.VPN_BASE_DIR / 'config-client' / 'orga-multi.conf'
     orga_secrets_dir = config.VPN_BASE_DIR / 'orga-secrets'

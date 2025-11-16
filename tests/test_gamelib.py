@@ -42,7 +42,7 @@ class GamelibTestCase(TestCase):
                     flag: str = service.get_flag(team, tick, payload)
                     self.assertNotIn(flag, seen_flags, f'Flag {flag} duplicated!')
                     seen_flags.add(flag)
-                    self.assertTrue(gamelib.FLAG_REGEX.fullmatch(flag), f'Flag {flag} did not match regex {gamelib.FLAG_REGEX}')
+                    self.assertTrue(gamelib.get_flag_regex().fullmatch(flag), f'Flag {flag} did not match regex {gamelib.get_flag_regex()}')
                     # parse flag
                     a, b, c, d = service.check_flag(flag)
                     self.assertEqual(a, team.id)

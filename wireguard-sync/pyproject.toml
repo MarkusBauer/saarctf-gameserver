@@ -5,7 +5,7 @@
 name = "wireguard-sync"
 version = "0.1.0"
 description = ""
-authors = ["SaarCTF maintainers <saarctf@saarsec.rocks>"]
+authors = ["saarCTF maintainers <saarctf@saarsec.rocks>"]
 
 [tool.poetry.dependencies]
 python = "^3.12"

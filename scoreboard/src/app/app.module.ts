@@ -18,6 +18,8 @@ import {TableServiceHeaderCellComponent} from './table-service-header-cell/table
 import {BaseChartDirective, provideCharts, withDefaultRegisterables} from "ng2-charts";
 import {PageGraphsComponent} from './page-graphs/page-graphs.component';
 import {WebStorageModule} from "@efaps/ngx-store";
+import {FrozenValueComponent} from "./frozen-value/frozen-value.component";
+import {PageDashboardComponent} from "./page-dashboard/page-dashboard.component";
 
 @NgModule({
     declarations: [
@@ -26,12 +28,14 @@ import {WebStorageModule} from "@efaps/ngx-store";
         CurrentTickComponent,
         SettingsComponent,
         NotificationOverlayComponent,
+        PageDashboardComponent,
         PageIndexComponent,
         PageTeamComponent,
         PageNotFoundComponent,
         TableLineCellsComponent,
         TableServiceHeaderCellComponent,
-        PageGraphsComponent
+        PageGraphsComponent,
+        FrozenValueComponent
     ],
     bootstrap: [AppComponent],
     imports: [

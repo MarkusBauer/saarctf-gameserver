@@ -17,25 +17,21 @@ class ConfigTest(TestCase):
         c2 = config.Config.from_dict(config.current_config.CONFIG_FILE, d)
         c2.CONFIG = config.current_config.CONFIG
         for f in fields(config.Config):
-            self.assertEqual(getattr(config.current_config, f.name), getattr(c2, f.name), f'Not equal: {f.name}')
+            self.assertEqual(getattr(config.current_config, f.name), getattr(c2, f.name), f"Not equal: {f.name}")
         self.assertEqual(config.current_config, c2)
 
-    def test_sample_config_json(self) -> None:
-        f = Path(__file__).parent.parent / 'config.sample.json'
-        c = config.Config.load_from_file(f)
-        self.assertEqual(1, c.SCORING.nop_team_id)
-        self.assertEqual(10, c.SCORING.flags_rounds_valid)
-
     def test_sample_config_yaml(self) -> None:
-        f = Path(__file__).parent.parent / 'config.sample.yaml'
-        c = config.Config.load_from_file(f)
+        f = Path(__file__).parent.parent / "config.sample.yaml"
+        c = config.Config.load_from_file(f, interpolate_env=False)
         self.assertEqual(1, c.SCORING.nop_team_id)
         self.assertEqual(10, c.SCORING.flags_rounds_valid)
+        self.assertEqual('SAAR', c.FLAG_PREFIX)
+        c.validate()
 
     def test_legacy_config(self) -> None:
         legacy_config = {
             "databases": {
-                "postgres": {},
+                "postgres": {"database": "test"},
                 "redis": {},
                 "rabbitmq": {},
             },
@@ -54,8 +50,15 @@ class ConfigTest(TestCase):
                 "gateway_ip": [127, [200, 256, 32], [1, 200, 0], 1],
                 "team_range": [127, [200, 256, 32], [1, 200, 0], 0, 24],
                 "vpn_peer_ips": [127, [200, 256, 48], [1, 200, 0], 1],
-            }
+            },
         }
-        c = config.Config.from_dict('test', legacy_config)
+        c = config.Config.from_dict(Path("test"), legacy_config, interpolate_env=False)
         self.assertEqual(2, c.SCORING.nop_team_id)
         self.assertEqual(20, c.SCORING.flags_rounds_valid)
+
+    def test_validation(self) -> None:
+        f = Path(__file__).parent.parent / 'config.sample.yaml'
+        c = config.Config.load_from_file(f, interpolate_env=False)
+        c.SECRET_FLAG_KEY = b""  # assume we forgot to configure it
+        with self.assertRaises(ValueError):
+            c.validate()

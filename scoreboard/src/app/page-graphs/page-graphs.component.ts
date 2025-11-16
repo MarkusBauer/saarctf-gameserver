@@ -187,7 +187,7 @@ export class PageGraphsComponent extends StatisticsComponentBase {
         let labels = [];
         for (let i = 0; i < services.length; i++) {
             datasets.push(addScheme({
-                data: stats[i].map(s => s[key]),
+                data: stats[i].map(s => s[key]).filter(s => s !== '?'),
                 label: services[i].name,
                 pointRadius: 0
             }, (i % (COLORS.length - 2)) + 2));

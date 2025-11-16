@@ -5,7 +5,7 @@ set -euxo pipefail
 . venv/bin/activate
 
 # Configure database credentials for container setup
-cp ./config.containers.json ./config.json
+cp ./ci-config.yaml ./config.yaml
 export FLASK_APP=controlserver/app.py
 alembic upgrade head
 flask run --host=0.0.0.0 &

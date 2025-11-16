@@ -13,16 +13,16 @@ from saarctf_commons.debug_sql_timing import timing, print_query_stats
 ARGUMENTS: none
 """
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     load_default_config()
     config.set_script()
-    NamedRedisConnection.set_clientname('script-' + os.path.basename(__file__))
+    NamedRedisConnection.set_clientname("script-" + os.path.basename(__file__))
     init_database()
     timing()
     scoring = ScoringCalculation(config.SCORING)
-    print('Recomputing first blood flags now, might take some time ...')
+    print("Recomputing first blood flags now, might take some time ...")
     scoring.recompute_first_blood_flags()
-    timing('First Blood')
-    print('Done.')
-    if '--stats' in sys.argv:
+    timing("First Blood")
+    print("Done. Please restart the CTF Timer now (it needs a fresh cache)")
+    if "--stats" in sys.argv:
         print_query_stats()

@@ -14,16 +14,16 @@ from saarctf_commons.db_utils import retry_on_sql_error
 from saarctf_commons.redis import NamedRedisConnection
 
 # Set environment for pwntools
-os.environ['TERM'] = 'xterm'
-os.environ['PWNLIB_NOTERM'] = '1'
+os.environ["TERM"] = "xterm"
+os.environ["PWNLIB_NOTERM"] = "1"
 # Set environment (path) for gamelib (in single-process mode)
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gamelib import gamelib, gamelogger, ServiceConfig
 from saarctf_commons.config import config
 
-SEPARATOR = "\n\n" + '-' * 72
+SEPARATOR = "\n\n" + "-" * 72
 
 
 class SaarctfServiceRunner(CheckerRunner):
@@ -42,9 +42,9 @@ class SaarctfServiceRunner(CheckerRunner):
                 cfg = ServiceConfig(
                     name=service.name,
                     service_id=service.id,
-                    flag_ids=service.flag_ids.split(',') if service.flag_ids else [],
+                    flag_ids=service.flag_ids.split(",") if service.flag_ids else [],
                     interface_file=fn,
-                    interface_class=cl
+                    interface_class=cl,
                 )
             self._service_config_cache[self.package] = cfg
         cfg.service_id = service_id
@@ -52,9 +52,10 @@ class SaarctfServiceRunner(CheckerRunner):
 
     def get_checker_class(self) -> Type[gamelib.ServiceInterface]:
         # Load service interface
-        fname, clsname = self.script.split(':')
+        fname, clsname = self.script.split(":")
         if self.package:
             from checker_runner.package_loader import PackageLoader
+
             module = PackageLoader.load_module_from_package(self.package, fname)
         else:
             module = importlib.import_module(fname)
@@ -74,16 +75,16 @@ class SaarctfServiceRunner(CheckerRunner):
         checker: gamelib.ServiceInterface = self.get_checker_class()(service_config)
         checker.initialize_team(team)
         try:
-            gamelogger.GameLogger.log('----- check_integrity -----')
+            gamelogger.GameLogger.log("----- check_integrity -----")
             checker.check_integrity(team, tick)
-            gamelogger.GameLogger.log(f'----- store_flags({tick}) -----')
+            gamelogger.GameLogger.log(f"----- store_flags({tick}) -----")
             checker.store_flags(team, tick)
             if tick > 1:
-                gamelogger.GameLogger.log(f'----- retrieve_flags({tick - 1}) -----')
+                gamelogger.GameLogger.log(f"----- retrieve_flags({tick - 1}) -----")
                 checker.retrieve_flags(team, tick - 1)
             elif tick <= -1:
                 # Test run - retrieve the flag we just have set
-                gamelogger.GameLogger.log(f'----- retrieve_flags({tick}) -----')
+                gamelogger.GameLogger.log(f"----- retrieve_flags({tick}) -----")
                 checker.retrieve_flags(team, tick)
         finally:
             try:
@@ -91,7 +92,7 @@ class SaarctfServiceRunner(CheckerRunner):
             except:
                 traceback.print_exc()
 
-        return CheckerRunOutput('SUCCESS')
+        return CheckerRunOutput("SUCCESS")
 
     def execute_checker(self, team_id: int, tick: int) -> CheckerRunOutput:
         try:
@@ -102,14 +103,14 @@ class SaarctfServiceRunner(CheckerRunner):
         # handle only celery-specific exceptions, and crashes
         except SoftTimeLimitExceeded:
             traceback.print_exc()
-            return CheckerRunOutput('TIMEOUT', message='Timeout, service too slow')
+            return CheckerRunOutput("TIMEOUT", message="Timeout, service too slow")
         except MemoryError:
             set_process_needs_restart()
             traceback.print_exc()
-            return CheckerRunOutput('CRASHED')
+            return CheckerRunOutput("CRASHED")
         except:
             traceback.print_exc()
-            return CheckerRunOutput('CRASHED')
+            return CheckerRunOutput("CRASHED")
 
     def execute_checker_subprocess(self, team_id: int, tick: int, timeout: int) \
         -> CheckerRunOutput:
@@ -136,21 +137,21 @@ class SaarctfServiceRunner(CheckerRunner):
         except subprocess.TimeoutExpired as e:
             return CheckerRunOutput('TIMEOUT', message='Timeout, service too slow', output=e.output.decode('utf-8'))
         except subprocess.CalledProcessError as e:
-            return CheckerRunOutput('CRASHED', output=e.output.decode('utf-8'))
+            return CheckerRunOutput("CRASHED", output=e.output.decode("utf-8"))
         except subprocess.SubprocessError as e:
-            return CheckerRunOutput('CRASHED', output=str(e))
+            return CheckerRunOutput("CRASHED", output=str(e))
 
 
-if __name__ == '__main__':
-    print('(subprocess invoked)')
+if __name__ == "__main__":
+    print("(subprocess invoked)")
     # execute checker script
     if len(sys.argv) <= 5:
-        raise Exception('Not enough arguments!')
-    NamedRedisConnection.set_clientname('worker-process')
+        raise Exception("Not enough arguments!")
+    NamedRedisConnection.set_clientname("worker-process")
 
     service_id = int(sys.argv[3])
     run = SaarctfServiceRunner(service_id, sys.argv[1], sys.argv[2], None)  # TODO None
     result = run.execute_checker(int(sys.argv[4]), int(sys.argv[5]))
     print(SEPARATOR)
-    print(result.status + '|' + (result.message or ''))
+    print(result.status + "|" + (result.message or ""))
     sys.exit(0)

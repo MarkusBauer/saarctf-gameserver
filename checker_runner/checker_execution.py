@@ -39,6 +39,7 @@ class CheckerRunner(ABC):
     def execute_checker(self, team_id: int, tick: int) -> CheckerRunOutput:
         raise NotImplementedError
 
-    def execute_checker_subprocess(self, team_id: int, tick: int, timeout: int) \
-        -> CheckerRunOutput:
+    def execute_checker_subprocess(
+        self, team_id: int, tick: int, timeout: int
+    ) -> CheckerRunOutput:
         raise NotImplementedError

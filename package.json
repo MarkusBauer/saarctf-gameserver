@@ -5,7 +5,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "prebuild": "mkdirp controlserver/static/vendor",
-    "less": "lessc --include-path=node_modules  controlserver/static/less/index.less controlserver/static/css/index.css",
+    "environment": "if [ -z \"$SAARCTF_ENVIRONMENT\" ]; then ./run.sh saarctf_commons/config.py get environment || echo None ; else echo $SAARCTF_ENVIRONMENT ; fi",
+    "less": "lessc --include-path=node_modules --modify-var='@env-name=\"'$(npm run -s environment)'\"' controlserver/static/less/index.less controlserver/static/css/index.css",
     "copy": "copyfiles -u 3 \"node_modules/bootstrap/dist/*/**\" controlserver/static/vendor && copyfiles -u 3 \"node_modules/bootstrap/dist/fonts/**\" controlserver/static/ && copyfiles -u 2 node_modules/angular/angular.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/jquery/dist/jquery.js controlserver/static/vendor/js/ && copyfiles -u 3 \"node_modules/eonasdan-bootstrap-datetimepicker/build/*/**\" controlserver/static/vendor/ && copyfiles -u 3 node_modules/moment/min/moment-with-locales.min.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/moment-duration-format/lib/moment-duration-format.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/chart.js/dist/Chart.bundle.min.js controlserver/static/vendor/js/ && copyfiles -u 3 node_modules/angular-chart.js/dist/angular-chart.min.js controlserver/static/vendor/js/",
     "build": "npm run copy && npm run less"
   },

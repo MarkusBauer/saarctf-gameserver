@@ -6,7 +6,7 @@
 		VPN Control
 	</div>
 	<div class="panel-body">
-        <div>
+        <div class="clearfix">
             <span class="label label-success" ng-if="state == 'on'">Network open</span>
             <span class="label label-warning" ng-if="state == 'team'" title="Access to vulnbox is possible, but not to other teams">Network open within teams</span>
             <span class="label label-success" ng-if="state == 'team'" title="Access to vulnbox is possible, but not to other teams">vulnbox open</span>
@@ -23,6 +23,28 @@
                 <button type="submit" class="btn btn-default">Set</button>
             </form>
         </div>
+
+        <p>
+            <span ng-if="openVulnboxAccessAt"><br/>
+                <span class="glyphicon glyphicon-play"></span> Vulnbox Access: {{ openVulnboxAccessAt | newDate | date:'dd.MM.yyyy HH:mm:ss' }}
+                (in {{ openVulnboxAccessAt - serverTime |interval }})
+                <a ng-click="setOpenVulnboxAccessAt(null)" class="btn btn-link btn-xs">&times;</a>
+            </span>
+        </p>
+        <form class="form-horizontal" ng-if="!hideControls">
+			<div class="form-group">
+				<label class="col-sm-4 control-label" title="CTF starts at this time">Set vulnbox access</label>
+				<div class="col-sm-8">
+					<div class="input-group date">
+						<input type="text" class="form-control" placeholder="Access time" ng-model="openVulnboxAccessAtTmp" bs-datepicker>
+						<span class="input-group-addon"><span class="glyphicon glyphicon-time"></span></span>
+						<span class="input-group-btn">
+                            <button class="btn btn-default" type="submit" ng-click="setOpenVulnboxAccessAt(openVulnboxAccessAtTmp)">Set</button>
+                        </span>
+					</div>
+				</div>
+			</div>
+		</form>
 
 		<br ng-if="!hideControls"/>
 		<canvas class="chart chart-line" width="21" height="10" id="graph1" ng-show="graph_bytes"></canvas>

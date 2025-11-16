@@ -151,6 +151,8 @@ class PatchUtils:
 
         :return: A list of download URLs, if configured
         """
+        if not config.PATCHES_PUBLIC_PATH:
+            raise ValueError('Not configured: PATCHES_PUBLIC_PATH')
         os.makedirs(config.PATCHES_PUBLIC_PATH, exist_ok=True)
         urls = []
         for fname in [self.patchfile] + self.additional_files:

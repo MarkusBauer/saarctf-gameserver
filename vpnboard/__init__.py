@@ -22,5 +22,16 @@ class VpnStatus:
 
 class VpnStatusHandler(ABC):
     @abstractmethod
-    def update(self, states: list[VpnStatus], banned_teams: set[int], check_vulnboxes: bool, start: float) -> None:
+    def update_all(self, states: list[VpnStatus], banned_teams: set[int], check_vulnboxes: bool, start: float) -> None:
+        """
+        Guaranteed to be complete / have ping infos.
+        Not guaranteed to have WgStatus infos.
+        """
         raise NotImplementedError()
+
+    def update_wireguard(self, states: list[VpnStatus], banned_teams: set[int], check_vulnboxes: bool, start: float) -> None:
+        """
+        Guaranteed to have WgStatus or ping infos.
+        Not guaranteed to be complete
+        """
+        pass

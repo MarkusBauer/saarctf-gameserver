@@ -11,7 +11,7 @@ from logging import Handler, NOTSET, getLogger, LogRecord
 from typing import List, Any
 
 import sqlalchemy
-from celery import Celery
+from celery import Celery, Task
 from celery.local import PromiseProxy
 from celery.signals import celeryd_after_setup
 from kombu.common import Broadcast
@@ -34,10 +34,10 @@ def worker_init(sender: Any, instance: Any, **kwargs: Any) -> None:
     :param kwargs:
     :return:
     """
-    NamedRedisConnection.set_clientname('worker-host', True)
+    NamedRedisConnection.set_clientname("worker-host", True)
     # open redis connection so that we see this process in the client list
-    get_redis_connection().get('components:worker')
-    NamedRedisConnection.set_clientname('worker', True)
+    get_redis_connection().get("components:worker")
+    NamedRedisConnection.set_clientname("worker", True)
 
 
 class OutputHandler(Handler):
@@ -49,7 +49,7 @@ class OutputHandler(Handler):
         Handler.__init__(self, level)
         self.buffer: list[str] = []
 
-    def emit(self, record: LogRecord):
+    def emit(self, record: LogRecord) -> None:
         self.buffer.append(self.format(record))
 
 
@@ -57,7 +57,7 @@ def set_limits() -> None:
     """
     Set resource limits on the checker process
     """
-    if 'SAARCTF_NO_RLIMIT' not in os.environ:
+    if "SAARCTF_NO_RLIMIT" not in os.environ:
         resource.setrlimit(resource.RLIMIT_AS, (2048 * 1000000, 3072 * 1000000))  # 2GB soft / 3GB hard
     pass
 
@@ -78,7 +78,7 @@ def save_checker_result(tick: int, service_id: int, team_id: int, celery_id: str
         session.commit()
 
 
-def run_checkerscript(self, runner_spec: str, package: str, script: str, service_id: int, team_id: int, tick: int, cfg: dict | None) -> str:
+def run_checkerscript(self: Task, runner_spec: str, package: str, script: str, service_id: int, team_id: int, tick: int, cfg: dict | None) -> str:
     """
     Run a given checker script against a single team.
     :param self: (celery task instance)
@@ -88,23 +88,24 @@ def run_checkerscript(self, runner_spec: str, package: str, script: str, service
     :param service_id:
     :param team_id:
     :param tick:
+    :param cfg:
     :return: The (db) status of this execution
     """
     set_limits()
 
     # Start of debug code to test "special" cases
-    if script == 'crashtest':
+    if script == "crashtest":
         # "rogue" - crash in framework
-        raise Exception('Invalid script!')
-    if script == 'sleeptest':
+        raise Exception("Invalid script!")
+    if script == "sleeptest":
         # "hard sleeper" - ignore soft timeout and gets killed by hard time limit
         try:
             time.sleep(20)
         finally:
             time.sleep(20)
-            return 'Wakeup'
-    if script == 'pendingtest':
-        script = 'checker_runner.demo_checker:TimeoutService'
+            return "Wakeup"
+    if script == "pendingtest":
+        script = "checker_runner.demo_checker:TimeoutService"
     # End of debug code
 
     start_time = time.time()
@@ -113,7 +114,7 @@ def run_checkerscript(self, runner_spec: str, package: str, script: str, service
 
     runner = CheckerRunnerFactory.build(runner_spec, service_id, package, script, cfg)
     result = runner.execute_checker(team_id, tick)
-    checker_output = '\n'.join(output.buffer).replace('\x00', '<0x00>')
+    checker_output = "\n".join(output.buffer).replace("\x00", "<0x00>")
     if not result.output:
         result.output = checker_output
 
@@ -124,17 +125,18 @@ def run_checkerscript(self, runner_spec: str, package: str, script: str, service
         save_checker_result(tick, service_id, team_id, self.request.id, result, time.time() - start_time)
     except sqlalchemy.exc.InvalidRequestError as e:
         # This session is in 'prepared' state; no further SQL can be emitted within this transaction.
-        if 'no further SQL can be emitted' in str(e):
+        if "no further SQL can be emitted" in str(e):
             set_process_needs_restart()
         else:
             raise e
     if process_needs_restart():
-        print('RESTART')
+        print("RESTART")
         sys.exit(0)
     return result.status
 
 
-def run_checkerscript_external(self, runner_spec: str, package: str, script: str, service_id: int, team_id: int, tick: int, cfg: dict | None) -> str:
+def run_checkerscript_external(self: Task, runner_spec: str, package: str, script: str, service_id: int, team_id: int, tick: int,
+                               cfg: dict | None) -> str:
     """
     Run a given checker script against a single team - in a seperate process, decoupled from the celery worker.
     In case the checker script crashes the process, nobody is harmed.
@@ -145,6 +147,7 @@ def run_checkerscript_external(self, runner_spec: str, package: str, script: str
     :param service_id:
     :param team_id:
     :param tick:
+    :param cfg:
     :return: The (db) status of this execution
     """
     set_limits()
@@ -164,11 +167,12 @@ def preload_packages(packages: List[str] | None = None) -> bool:
     :return:
     """
     from checker_runner.package_loader import PackageLoader
+
     if packages:
         for package in packages:
-            print('Preloading {} ...'.format(package))
+            print("Preloading {} ...".format(package))
             PackageLoader.ensure_package_exists(package)
-    print('Done.')
+    print("Done.")
     return True
 
 
@@ -181,16 +185,16 @@ def run_command(cmd: str) -> str:
     cwd = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     try:
         output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, cwd=cwd, shell=True, timeout=90)
-        print(output.decode('utf-8'))
+        print(output.decode("utf-8"))
     except subprocess.CalledProcessError as e:
-        print('ERROR: ', e.returncode)
-        print(e.output.decode('utf-8'))
+        print("ERROR: ", e.returncode)
+        print(e.output.decode("utf-8"))
         raise
     except subprocess.TimeoutExpired as e:
-        print('TIMEOUT')
-        print(e.output.decode('utf-8'))
+        print("TIMEOUT")
+        print(e.output.decode("utf-8"))
         raise
-    return output.decode('utf-8')
+    return output.decode("utf-8")
 
 
 class CeleryWorker:
@@ -201,14 +205,19 @@ class CeleryWorker:
         self.preload_packages: PromiseProxy
         self.run_command: PromiseProxy
 
-    def init(self) -> None:
-        print(f'CONFIGURING CELERY: broker={config.celery_url()}, backend={config.celery_redis_url()}')
-        self.app = Celery('checker_runner.celery_cmd', broker=config.celery_url(), backend=config.celery_redis_url(),
-                          broker_connection_retry_on_startup=True)
+    def init(self, threadsafe: bool = False) -> None:
+        print(f"CONFIGURING CELERY: broker={config.celery_url()}, backend={config.celery_redis_url()}")
+        self.app = Celery(
+            "checker_runner.celery_cmd",
+            broker=config.celery_url(),
+            backend=config.celery_redis_url(),
+            broker_connection_retry_on_startup=True,
+        )
         self.app.conf.task_track_started = True
         self.app.conf.result_expires = None
         self.app.conf.worker_pool_restarts = True
-        self.app.conf.task_queues = (Broadcast(name='broadcast'),)
+        self.app.conf.task_queues = (Broadcast(name="broadcast"),)
+        self.app.conf.result_backend_thread_safe = threadsafe
 
         # register tasks
         self.run_checkerscript = self.app.task(bind=True)(run_checkerscript)
@@ -220,9 +229,9 @@ class CeleryWorker:
 
 celery_worker = CeleryWorker()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     load_default_config()
-    NamedRedisConnection.set_clientname('worker')
+    NamedRedisConnection.set_clientname("worker")
     init_database()
     celery_worker.init()
     celery_worker.app.start()

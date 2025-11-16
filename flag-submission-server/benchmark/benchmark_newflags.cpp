@@ -150,6 +150,7 @@ int do_forks(int process_count) {
 
 int main(int argc, char *argv[]) {
 	Config::load();
+    Config::loadFromEnv();
 
 #ifndef TEST_SUBMIT
 	if (argc > 1) {

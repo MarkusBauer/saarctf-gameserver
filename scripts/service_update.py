@@ -14,12 +14,12 @@ Does not update existing checker scripts, tries to preserve manual changes.
 ARGUMENTS: none
 """
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     load_default_config()
     config.set_script()
     init_database()
 
     mgr = ServiceRepoManager()
     mgr.update_all_services()
-    print('[OK] Service update complete')
-    print('     You might want to update the checker scripts in UI.')
+    print("[OK] Service update complete")
+    print("     You might want to update the checker scripts in UI.")

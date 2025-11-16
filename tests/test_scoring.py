@@ -4,11 +4,13 @@ import os
 import time
 import unittest
 from collections import defaultdict
+from datetime import timedelta, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Tuple, Dict
 
 from controlserver.models import TeamPoints, TeamRanking, SubmittedFlag, db_session, CheckerResult, db_session_2
+from controlserver.scoring.filtered_scoring import FilteredScoringCalculation
 from controlserver.scoring.scoreboard import Scoreboard
 from controlserver.scoring.scoring import ScoringCalculation
 from controlserver.timer import init_mock_timer, CTFState
@@ -18,9 +20,9 @@ from tests.utils.scriptrunner import ScriptRunner
 
 
 class ScoringTestCase(DatabaseTestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
-        self.config = config.config.SCORING
+        self.config = config.ScoringConfig.from_dict(config.config.SCORING.to_dict())
 
     def save_checker_results(self, results: List[Tuple[int, List[str]]]) -> None:
         session = db_session()
@@ -172,7 +174,7 @@ class ScoringTestCase(DatabaseTestCase):
             key = (flag.service_id, flag.submitted_by, flag.tick_submitted,
                    flag.team_id, flag.tick_issued, flag.payload)
             should_be = key in first_blood_flags
-            self.assertEqual(should_be, flag.is_firstblood, f'wrong: {key}')
+            self.assertEqual(1 if should_be else 0, flag.is_firstblood, f'wrong: {key}  {flag}')
 
         # 5. Check ranking
         for team_id in (1, 2, 3, 4):
@@ -182,6 +184,11 @@ class ScoringTestCase(DatabaseTestCase):
                 pass
         pass
 
+    def test_scoring_alternate_firstblood(self) -> None:
+        self.config.firstblood_algorithm = 'firstblood:MultiFirstBloodAlgorithm'
+        self.config.data["firstblood_limit"] = 1
+        self.test_scoring()
+
     def test_scoring_factors(self) -> None:
         self.config = config.ScoringConfig.from_dict(config.config.SCORING.to_dict())
         self.config.off_factor = 2.0
@@ -189,7 +196,7 @@ class ScoringTestCase(DatabaseTestCase):
         self.config.sla_factor = 0.8
         self.test_scoring()
 
-    def _create_results(self):
+    def _create_results(self) -> None:
         # mock checker results
         checker_results = [
             (1, ['SUCCESS', 'SUCCESS', 'SUCCESS'] * 4),
@@ -285,7 +292,7 @@ class ScoringTestCase(DatabaseTestCase):
         for flag in self.get_flags():
             should_be = (flag.service_id, flag.submitted_by, flag.tick_submitted, flag.team_id, flag.tick_issued,
                          flag.payload) in first_blood_flags
-            self.assertEqual(should_be, flag.is_firstblood)
+            self.assertEqual(1 if should_be else 0, flag.is_firstblood)
 
     def flag_formula(self, num_stealers: int, victim_rank: int, service_flag_count: int = 1) -> float:
         raw = (1.0 + (1.0 / num_stealers) ** 0.5 + (1 / victim_rank) ** 0.5) / service_flag_count
@@ -294,7 +301,7 @@ class ScoringTestCase(DatabaseTestCase):
     def sla_formula(self, teams_online: int) -> float:
         return math.sqrt(teams_online) * self.config.sla_factor
 
-    def def_formula(self, times_stolen: int, teams_online: int = 4, service_flag_count: int = 1):
+    def def_formula(self, times_stolen: int, teams_online: int = 4, service_flag_count: int = 1) -> float:
         raw = -(times_stolen * 1.0 / teams_online) ** 0.3 * self.sla_formula(teams_online) / service_flag_count
         return raw * self.config.def_factor
 
@@ -321,9 +328,8 @@ class ScoringTestCase(DatabaseTestCase):
         self._create_results()
         with TemporaryDirectory() as directory:
             base = Path(directory)
-            config.current_config.SCOREBOARD_PATH = base
             scoring = ScoringCalculation(self.config)
-            scoreboard = Scoreboard(scoring, publish=False)
+            scoreboard = Scoreboard(scoring, base, publish=False)
             scoreboard.update_tick_info()
             scoreboard.create_scoreboard(-1, False, False)
             scoreboard.create_scoreboard(0, True, False)
@@ -364,6 +370,102 @@ class ScoringTestCase(DatabaseTestCase):
                 {'pos': 2, 'team': 'Team3', 'score': 117.2199},
                 {'pos': 3, 'team': 'Team4', 'score': 97.8485}
             ]})
+
+    def test_firstblood_multi(self) -> None:
+        scenario = [
+            (3, 0, 2, 10, 1),
+            (3, 0, 3, 10, 0),
+            (3, 0, 3, 11, 2),
+            (3, 0, 2, 11, 0),
+            (3, 0, 2, 12, 3),
+            (3, 0, 3, 12, 0),
+            (3, 0, 2, 13, 0),
+            (3, 1, 2, 10, 1),
+        ]
+        self._test_scenario([scenario])
+
+    def test_firstblood_multi_2(self) -> None:
+        scenario = [
+            [(3, 0, 2, 10, 1)],
+            [(3, 0, 3, 10, 0)],
+            [(3, 0, 3, 11, 2)],
+            [(3, 0, 2, 11, 0)],
+            [(3, 0, 2, 12, 3)],
+            [(3, 0, 3, 12, 0)],
+            [(3, 0, 2, 13, 0)],
+            [(3, 1, 2, 10, 1)],
+        ]
+        self._test_scenario(scenario)
+
+    def test_firstblood_multi_2_with_restart(self) -> None:
+        scenario = [
+            [(3, 0, 2, 10, 1)],
+            [(3, 0, 3, 10, 0)],
+            [(3, 0, 3, 11, 2)],
+            [(3, 0, 2, 11, 0)],
+            [(3, 0, 2, 12, 3)],
+            [(3, 0, 3, 12, 0)],
+            [(3, 0, 2, 13, 0)],
+            [(3, 1, 2, 10, 1)],
+        ]
+        self._test_scenario(scenario, reset_cache_after_seq=True)
+
+    def test_firstblood_multi_2_with_recompute(self) -> None:
+        scenario = [
+            [(3, 0, 2, 10, 1)],
+            [(3, 0, 3, 10, 0)],
+            [(3, 0, 3, 11, 2)],
+            [(3, 0, 2, 11, 0)],
+            [(3, 0, 2, 12, 3)],
+            [(3, 0, 3, 12, 0)],
+            [(3, 0, 2, 13, 0)],
+            [(3, 1, 2, 10, 1)],
+        ]
+        self._test_scenario(scenario, use_recompute=True)
+
+    def _test_scenario(self, scenario: list[list[tuple[int, int, int, int, int]]],
+                       reset_cache_after_seq: bool = False,
+                       use_recompute: bool = False) -> None:
+        self.config.firstblood_algorithm = 'firstblood:MultiFirstBloodAlgorithm'
+        self.config.data["firstblood_limit"] = 3
+        self.demo_team_services(num_teams=15)
+
+        flag_ids = []
+        ts_delta = 1
+        for tick, scenario_chunk in enumerate(scenario):
+            with db_session_2() as session:
+                new_flags = []
+                for sid, pl, att, vic, _ in scenario_chunk:
+                    flag = SubmittedFlag(
+                        service_id=sid, payload=pl,
+                        tick_issued=tick, tick_submitted=tick,
+                        submitted_by=att, team_id=vic,
+                        ts=datetime.now() + timedelta(seconds=ts_delta)
+                    )
+                    session.add(flag)
+                    new_flags.append(flag)
+                    ts_delta += 1
+                session.commit()
+                flag_ids.append([flag.id for flag in new_flags])
+
+            if not use_recompute:
+                with db_session_2() as session:
+                    scoring = ScoringCalculation(self.config)
+                    scoring.compute_firstblood_incremental(session, list(session.query(SubmittedFlag).filter(SubmittedFlag.tick_submitted == tick).all()))
+                    session.commit()
+                if reset_cache_after_seq:
+                    scoring.first_blood.reset_caches()
+
+        if use_recompute:
+            scoring = ScoringCalculation(self.config)
+            scoring.recompute_first_blood_flags()
+
+        with db_session_2() as session:
+            flag_by_id = {flag.id: flag for flag in session.query(SubmittedFlag).all()}
+            for scenario_chunk, flag_id_chunk in zip(scenario, flag_ids):
+                for (sid, pl, att, vic, expected_firstblood), flag_id in zip(scenario_chunk, flag_id_chunk):
+                    self.assertEqual(expected_firstblood, flag_by_id[flag_id].is_firstblood,
+                                     f"({sid}, {pl}, {att}, {vic}, {expected_firstblood}), {flag_by_id[flag_id]}")
 
 
 if __name__ == '__main__':

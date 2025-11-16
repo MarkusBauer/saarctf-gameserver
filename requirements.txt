@@ -1,5 +1,6 @@
 flask
-flask_admin
+# flask_admin 2 locks us to bootstrap 4
+flask_admin<2
 sqlalchemy[mypy]>=2, <3
 alembic
 psycopg2-binary
@@ -21,6 +22,7 @@ filelock
 ecs-logging
 pyyaml
 typing-extensions  # for typing.override - drop when we have min 3.12
+pydantic>=2,<3
 # for enochecker framework
 aiohttp
 enochecker_core

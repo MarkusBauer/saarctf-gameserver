@@ -16,7 +16,7 @@ ARGUMENTS: Team-ID
 """
 
 
-def main():
+def main() -> None:
     team_id = int(sys.argv[1])
     is_vpn_2 = sys.argv[2] == 'cloudhosted' if len(sys.argv) > 2 else False
     if is_vpn_2:

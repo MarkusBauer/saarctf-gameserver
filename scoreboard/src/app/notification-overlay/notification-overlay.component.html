@@ -20,7 +20,7 @@
 		Game is over!
 	</div>
 
-	<div class="teams">
+	<div class="teams" *ngIf="teamsInEndscreen">
 		<table class="finaltable">
 			<tr *ngFor="let teaminfo of topTeams; let i = index">
 				<td>{{i + 1}}.</td>

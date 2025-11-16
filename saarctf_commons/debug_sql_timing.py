@@ -38,7 +38,7 @@ def print_query_stats() -> None:
 
 
 @event.listens_for(Engine, "before_cursor_execute")
-def before_cursor_execute(conn, cursor, statement, parameters, context, executemany) -> None:
+def before_cursor_execute(conn, cursor, statement: str, parameters, context, executemany) -> None:  # type: ignore[no-untyped-def]
     statement = statement.replace('\n', ' ')[:165]
     context._query_start_time = time.time()
     if debug_print:
@@ -46,7 +46,7 @@ def before_cursor_execute(conn, cursor, statement, parameters, context, executem
 
 
 @event.listens_for(Engine, "after_cursor_execute")
-def after_cursor_execute(conn, cursor, statement, parameters, context, executemany) -> None:
+def after_cursor_execute(conn, cursor, statement, parameters, context, executemany) -> None:  # type: ignore[no-untyped-def]
     total = time.time() - context._query_start_time
     statement = statement.replace('\n', ' ')[:165]
     query_counter[statement] += 1

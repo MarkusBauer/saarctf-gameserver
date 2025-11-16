@@ -8,6 +8,7 @@
 #include "libraries/base64.h"
 #include "redis.h"
 #include "statistics.h"
+#include "string_pool.h"
 
 
 // valid team ids: [1 .. max_team_id]
@@ -53,6 +54,9 @@ static inline uint16_t get_team_id_from_ip(struct sockaddr_in &addr) {
 	return team_id ? team_id : (char) 1; // 127.0.0.1 is team "1"
 }
 
+static inline bool is_test_flag(const FlagFormat &flag);
+static const char* answer_test_flag(const FlagFormat &flag, uint16_t submitting_team);
+
 
 /**
  * Checks if a flag is valid or not
@@ -68,24 +72,27 @@ const char *progress_flag(const char *flag, int len, struct sockaddr_in *addr, u
 	// flag present?
 	if (len <= 0) return "";
 
-#ifdef CHECK_STATE
-	if (Redis::state != RUNNING) {
-		return "[OFFLINE] CTF not running\n";
-	}
-#endif
-
 	// check length
 	if (len != FLAG_LENGTH_FULL) return "[ERR] Wrong length\n";
 
 	// check format (SAAR{...})
-	if (flag[0] != 'S' || flag[1] != 'A' || flag[2] != 'A' || flag[3] != 'R' || flag[4] != '{' ||
-		flag[FLAG_LENGTH_FULL - 1] != '}')
+	if (memcmp(flag, Config::flagPrefix.c_str(), Config::flagPrefix.size()) != 0 ||
+		flag[Config::flagPrefix.size()] != '{' ||
+		flag[FLAG_LENGTH_FULL - 1] != '}') {
 		return "[ERR] Invalid flag (wrong format)\n";
+	}
 
 	// Base64 decode
 	FlagFormat binary_flag;
-	if (base64_decode((unsigned char *) &flag[5], FLAG_LENGTH_B64, (unsigned char *) &binary_flag) != sizeof binary_flag)
+	if (base64_decode((unsigned char *) &flag[5], FLAG_LENGTH_B64, (unsigned char *) &binary_flag) != sizeof binary_flag) {
 		return "[ERR] Invalid flag (format)\n";
+	}
+
+	#ifdef CHECK_STATE
+	if (Redis::state != RUNNING && !is_test_flag(binary_flag)) {
+		return "[OFFLINE] CTF not running\n";
+	}
+	#endif
 
 	// print_flag(binary_flag);
 
@@ -103,43 +110,52 @@ const char *progress_flag(const char *flag, int len, struct sockaddr_in *addr, u
 		char buffer[32];
 		inet_ntop(AF_INET, &addr, buffer, sizeof(buffer));
 		printf("Got connection from invalid IP: %s\n", buffer);
-		return "[ERR] Invalid source IP\n";
+		if (is_test_flag(binary_flag)) {
+			this_team = 0xffff;
+		} else {
+			return "[ERR] Invalid source IP\n";
+		}
 	}
 
-	// Check service
-	if (binary_flag.service_id > max_service_id) {
-		statistics::countFlag(this_team, statistics::FlagState::Invalid);
-		return "[ERR] Invalid flag (service)\n";
-	}
+	if (!is_test_flag(binary_flag)) {
+		// Check service
+		if (binary_flag.service_id > max_service_id) {
+			statistics::countFlag(this_team, statistics::FlagState::Invalid);
+			return "[ERR] Invalid flag (service)\n";
+		}
 
-	// check team is valid
-	if (binary_flag.team_id > max_team_id) {
-		statistics::countFlag(this_team, statistics::FlagState::Invalid);
-		return "[ERR] Invalid flag (team)\n";
-	}
-	// check NOP team / test runs (with round < 0)
-	if (Config::nopTeamId && binary_flag.team_id == Config::nopTeamId) {
-		statistics::countFlag(this_team, statistics::FlagState::Nop);
-		return "[ERR] Can't submit flag from NOP team\n";
-	}
-	if (binary_flag.round > 0x7fff) {
-		statistics::countFlag(this_team, statistics::FlagState::Invalid);
-		return "[ERR] Invalid flag (issued for testing purposes)\n";
-	}
-	// Check
-	if (this_team == binary_flag.team_id) {
-		statistics::countFlag(this_team, statistics::FlagState::Own);
-		return "[ERR] This is your own flag\n";
-	}
+		// check team is valid
+		if (binary_flag.team_id > max_team_id) {
+			statistics::countFlag(this_team, statistics::FlagState::Invalid);
+			return "[ERR] Invalid flag (team)\n";
+		}
+		// check NOP team / test runs (with round < 0)
+		if (Config::nopTeamId && binary_flag.team_id == Config::nopTeamId) {
+			statistics::countFlag(this_team, statistics::FlagState::Nop);
+			return "[ERR] Can't submit flag from NOP team\n";
+		}
+		if (binary_flag.round > 0x7fff) {
+			statistics::countFlag(this_team, statistics::FlagState::Invalid);
+			return "[ERR] Invalid flag (issued for testing purposes)\n";
+		}
+		// Check
+		if (this_team == binary_flag.team_id) {
+			statistics::countFlag(this_team, statistics::FlagState::Own);
+			return "[ERR] This is your own flag\n";
+		}
+		if (Config::nopTeamId && this_team == Config::nopTeamId) {
+			return "[ERR] Can't submit flag as NOP team\n";
+		}
 
-	// check if flag is expired
-#ifdef CHECK_EXPIRED
-	// <round issued> + <number of valid rounds> is the last round a flag is valid
-	if (binary_flag.round + Config::flagRoundsValid < Redis::current_round) {
-		statistics::countFlag(this_team, statistics::FlagState::Expired);
-		return "[ERR] Expired\n";
+		// check if flag is expired
+		#ifdef CHECK_EXPIRED
+		// <round issued> + <number of valid rounds> is the last round a flag is valid
+		if (binary_flag.round + Config::flagRoundsValid < Redis::current_round) {
+			statistics::countFlag(this_team, statistics::FlagState::Expired);
+			return "[ERR] Expired\n";
+		}
+		#endif
 	}
-#endif
 
 	// check MAC
 #ifdef CHECK_MAC
@@ -150,6 +166,10 @@ const char *progress_flag(const char *flag, int len, struct sockaddr_in *addr, u
 #else
 	volatile bool x = verify_hmac(&binary_flag, &binary_flag.mac, binary_flag.mac);
 #endif
+
+	if (is_test_flag(binary_flag)) {
+		return answer_test_flag(binary_flag, this_team);
+	}
 
 	// Check if flag is a resubmit
 #ifdef CHECK_CACHE
@@ -237,4 +257,27 @@ void printFlagStatsForRound(int round) {
 
 void printCacheStats() {
 	flag_cache.printStats();
+}
+
+
+static StringPool dynamicAnswers;
+
+static inline bool is_test_flag(const FlagFormat &flag) {
+	return flag.service_id >= FLAG_SERVICE_CHECK_LIMIT;
+}
+
+static const char* answer_test_flag(const FlagFormat &flag, uint16_t submitting_team) {
+	if (flag.service_id == FLAG_SERVICE_STATUSCHECK) {
+		return dynamicAnswers.get(
+			"[OK] Status check passed. submitter=%d max_team_id=%d max_service_id=%d online_status=%d tick=%d nop_team_id=%d\n",
+			submitting_team, max_team_id, max_service_id, Redis::state, Redis::current_round, Config::nopTeamId
+		);
+	}
+	if (flag.service_id == FLAG_SERVICE_TEAMCHECK) {
+		return dynamicAnswers.get(
+			"[OK] You are team %d\n",
+			submitting_team, max_team_id, max_service_id, Redis::state, Redis::current_round, Config::nopTeamId
+		);
+	}
+	return "[ERR] Invalid flag (service)\n";
 }

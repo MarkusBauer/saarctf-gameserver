@@ -16,9 +16,11 @@ from saarctf_commons.logging_utils import setup_script_logging
 from saarctf_commons.config import config, load_default_config
 from saarctf_commons.redis import NamedRedisConnection
 from controlserver.models import db_session_2, Team, Service, CheckerResult, init_database
-from controlserver.dispatcher import Dispatcher
+from controlserver.dispatcher import DispatcherFactory
 from checker_runner.runner import celery_worker
 from scripts.worker_pool_increase import FlowerInterface
+
+from celery.result import GroupResult, AsyncResult
 
 """
 ARGUMENTS: --team X --service Y [ -n 1,2,3,4... ]
@@ -35,7 +37,7 @@ def timings_from_message(result: CheckerResult) -> tuple[float | None, float | N
         m = re.search(r'\[([ \d.]{6})] \n \n----- retrieve_flags\(', result.output, re.MULTILINE)
         if m is not None:
             ts = float(m.group(1).strip())
-            tr = cast(float, result.time) - ti - ts if result.time is not None else None
+            tr = cast(float, result.time) - ts if result.time is not None else None
             return ti, ts, tr
         return ti, None, None
     return None, None, None
@@ -114,7 +116,7 @@ class LoadTester:
         if service is None:
             raise ValueError(f'Invalid service ID: {service_id}')
 
-        self.dispatcher = Dispatcher()
+        self.dispatcher = DispatcherFactory.build(config.RUNNER.dispatcher)
         self.concurrency = concurrency
         self.team: Team = team
         self.service: Service = service
@@ -139,9 +141,10 @@ class LoadTester:
     def run(self, n: int) -> LoadTestResult:
         min_tick = self._get_min_tick()
         ticks = list(range(min_tick - n, min_tick))
-        taskgroup = self.dispatcher.dispatch_test_script_many(self.team, self.service, ticks, route='loadtest')
+        taskgroup_ref = self.dispatcher.dispatch_test_script_many(self.team, self.service, ticks, route='loadtest')
+        taskgroup = GroupResult.restore(taskgroup_ref, app=celery_worker.app)
         taskgroup.join()
-        self.dispatcher.collect_test_results_many(self.team, self.service, ticks, taskgroup)
+        self.dispatcher.collect_test_results_many(self.team, self.service, ticks, taskgroup_ref)
         with db_session_2() as session:
             results = session.query(CheckerResult) \
                 .filter(CheckerResult.team_id == self.team.id) \

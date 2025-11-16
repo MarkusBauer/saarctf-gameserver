@@ -10,6 +10,8 @@ public:
 
 	static void load(const std::string& filename);
 
+	static void loadFromEnv();
+
 	static const char *getPostgresConnectionString();
 
 	static std::string getRedisHost();
@@ -21,6 +23,8 @@ public:
 	static std::string getRedisPassword();
 
 	static unsigned char hmac_secret_key[32];
+
+	static std::string flagPrefix;
 
 	static int flagRoundsValid;
 

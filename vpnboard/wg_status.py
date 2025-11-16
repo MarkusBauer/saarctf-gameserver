@@ -2,12 +2,17 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from ipaddress import IPv4Address, IPv4Network
+from typing import Any
 
 from pyroute2 import WireGuard
 from pyroute2.netlink.exceptions import NetlinkError
 
 
-def eprint(*args, **kwargs) -> None:
+# INTERFACE_NAME = 'tun'  # for wireguard-sync scripts
+INTERFACE_NAME = 'tt-'  # for ctfroute
+
+
+def eprint(*args: Any, **kwargs: Any) -> None:
     print(*args, file=sys.stderr, **kwargs)
 
 
@@ -45,7 +50,7 @@ def get_wireguard_status(team_id: int, wg: WireGuard | None = None) -> WgStatus:
     if wg is None:
         wg = WireGuard()
     try:
-        infos = wg.info(f'tun{team_id}')
+        infos = wg.info(f'{INTERFACE_NAME}{team_id}')
     except NetlinkError as e:
         raise ValueError(e)
     result = WgStatus(team_id)

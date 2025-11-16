@@ -9,6 +9,8 @@ RUN --mount=type=cache,target=/root/.npm \
 
 ADD scoreboard /opt/scoreboard
 ADD controlserver/static /opt/controlserver/static
+# TODO find a way to set this dynamically?
+ENV SAARCTF_ENVIRONMENT=None
 RUN npm run build
 
 
@@ -19,6 +21,8 @@ RUN --mount=type=cache,target=/root/.npm \
      npm install
 
 ADD controlserver/static /opt/controlserver/static
+# TODO find a way to set this dynamically?
+ENV SAARCTF_ENVIRONMENT=None
 RUN npm run build
 
 

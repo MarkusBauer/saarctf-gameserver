@@ -1,5 +1,5 @@
-import getpass
 import os
+import pwd
 import subprocess
 from pathlib import Path
 
@@ -7,6 +7,10 @@ from controlserver.db_filesystem import DBFilesystem
 from controlserver.models import db_session_2, Service
 from gamelib import ServiceConfig
 from saarctf_commons.config import config
+
+
+def _getuser() -> str:
+    return pwd.getpwuid(os.getuid())[0]
 
 
 class ServiceRepoManager:
@@ -19,14 +23,14 @@ class ServiceRepoManager:
         self.messages.append(msg)
 
     def _directory(self, remote_url: str) -> Path:
-        if '/' in remote_url:
-            remote_url = remote_url.rsplit('/', 1)[-1]
-        if remote_url.endswith('.git'):
+        if "/" in remote_url:
+            remote_url = remote_url.rsplit("/", 1)[-1]
+        if remote_url.endswith(".git"):
             remote_url = remote_url[:-4]
         return config.SERVICES_PATH / remote_url
 
     def is_owner(self) -> bool:
-        return config.SERVICES_PATH.owner() == getpass.getuser()
+        return config.SERVICES_PATH.owner() == _getuser()
 
     def checkout_services(self) -> int:
         count = 0
@@ -37,25 +41,25 @@ class ServiceRepoManager:
 
     def git_checkout_service(self, remote_url: str) -> bool:
         dir = self._directory(remote_url)
-        if dir.exists() and (dir / '.git').exists():
+        if dir.exists() and (dir / ".git").exists():
             return False
-        self._report(f'Checking out {remote_url} ...')
-        subprocess.check_call(['git', 'clone', remote_url, str(dir)], cwd=dir.parent)
-        self._report(f'Populated: {str(dir)}')
+        self._report(f"Checking out {remote_url} ...")
+        subprocess.check_call(["git", "clone", remote_url, str(dir)], cwd=dir.parent)
+        self._report(f"Populated: {str(dir)}")
         return True
 
     def git_pull_service(self, remote_url: str) -> None:
         dir = self._directory(remote_url)
-        is_unclean = subprocess.run(['git', 'diff', '--quiet'], cwd=dir).returncode != 0
+        is_unclean = subprocess.run(["git", "diff", "--quiet"], cwd=dir).returncode != 0
         if is_unclean:
             subprocess.check_call(['git', 'stash'], cwd=dir.parent)
         try:
-            self._report(f'Pulling {str(dir)}')
-            subprocess.check_call(['git', 'pull', '--rebase'], cwd=dir)
+            self._report(f"Pulling {str(dir)}")
+            subprocess.check_call(["git", "pull", "--rebase"], cwd=dir)
         finally:
             if is_unclean:
-                subprocess.check_call(['git', 'stash', 'apply'], cwd=dir.parent)
-        self._report(f'Pulled {str(dir)}')
+                subprocess.check_call(["git", "stash", "apply"], cwd=dir.parent)
+        self._report(f"Pulled {str(dir)}")
 
     def import_services(self) -> None:
         disk_services = self.find_services()
@@ -68,37 +72,39 @@ class ServiceRepoManager:
             session.commit()
 
     def _cfg_to_db(self, dir: Path, cfg: ServiceConfig) -> Service:
-        checker_dir = str(dir / 'checkers')
+        checker_dir = str(dir / "checkers")
         package, setup_package, _ = self.upload_checker_scripts(checker_dir)
         return Service(
             name=cfg.name,
             checker_script_dir=checker_dir,
-            checker_script=f'{cfg.interface_file}:{cfg.interface_class}',
+            checker_script=f"{cfg.interface_file}:{cfg.interface_class}",
             num_payloads=cfg.num_payloads,
-            flag_ids=','.join(cfg.flag_ids),
+            flag_ids=",".join(cfg.flag_ids),
             flags_per_tick=cfg.flags_per_tick,  # type: ignore
-            ports=','.join(cfg.ports),
+            ports=",".join(cfg.ports),
             package=package,
-            setup_package=setup_package
+            setup_package=setup_package,
         )
 
     def _cfg_equals_db(self, dir: Path, cfg: ServiceConfig, service: Service) -> bool:
-        return service.name == cfg.name and \
-            service.checker_script_dir == str(dir / 'checkers') and \
-            service.checker_script == f'{cfg.interface_file}:{cfg.interface_class}' and \
-            service.num_payloads == cfg.num_payloads and \
-            service.flag_ids == ','.join(cfg.flag_ids) and \
-            service.flags_per_tick == cfg.flags_per_tick and \
-            service.ports == ','.join(cfg.ports)
+        return (
+            service.name == cfg.name
+            and service.checker_script_dir == str(dir / "checkers")
+            and service.checker_script == f"{cfg.interface_file}:{cfg.interface_class}"
+            and service.num_payloads == cfg.num_payloads
+            and service.flag_ids == ",".join(cfg.flag_ids)
+            and service.flags_per_tick == cfg.flags_per_tick
+            and service.ports == ",".join(cfg.ports)
+        )
 
     def _update_db_from_cfg(self, dir: Path, cfg: ServiceConfig, service: Service) -> None:
         service.name = cfg.name
-        service.checker_script_dir = str(dir / 'checkers')
-        service.checker_script = f'{cfg.interface_file}:{cfg.interface_class}'
+        service.checker_script_dir = str(dir / "checkers")
+        service.checker_script = f"{cfg.interface_file}:{cfg.interface_class}"
         service.num_payloads = cfg.num_payloads
-        service.flag_ids = ','.join(cfg.flag_ids)
+        service.flag_ids = ",".join(cfg.flag_ids)
         service.flags_per_tick = cfg.flags_per_tick  # type: ignore
-        service.ports = ','.join(cfg.ports)
+        service.ports = ",".join(cfg.ports)
 
     def find_services(self) -> list[tuple[Path, ServiceConfig]]:
         results = []
@@ -106,10 +112,10 @@ class ServiceRepoManager:
             if not dir.is_dir():
                 continue
             try:
-                cfg = ServiceConfig.from_file(dir / 'checkers' / 'config.toml')
+                cfg = ServiceConfig.from_file(dir / "checkers" / "config.toml")
                 results.append((dir, cfg))
             except FileNotFoundError:
-                self._report(f'Not a service (or no config): {dir}')
+                self._report(f"Not a service (or no config): {dir}")
         return results
 
     def update_service(self, remote_url: str) -> None:
@@ -119,14 +125,14 @@ class ServiceRepoManager:
 
             if not dir.exists():
                 self.git_checkout_service(remote_url)
-                cfg = ServiceConfig.from_file(dir / 'checkers' / 'config.toml')
+                cfg = ServiceConfig.from_file(dir / "checkers" / "config.toml")
                 session.add(self._cfg_to_db(dir, cfg))
                 self._report(f'Added "{cfg.name}" to DB')
 
             else:
-                cfg_before = ServiceConfig.from_file(dir / 'checkers' / 'config.toml')
+                cfg_before = ServiceConfig.from_file(dir / "checkers" / "config.toml")
                 self.git_pull_service(remote_url)
-                cfg = ServiceConfig.from_file(dir / 'checkers' / 'config.toml')
+                cfg = ServiceConfig.from_file(dir / "checkers" / "config.toml")
                 # write to DB if service exists and wasn't altered manually
                 if cfg.name in by_name and cfg_before != cfg and self._cfg_equals_db(dir, cfg_before, by_name[cfg.name]):
                     self._update_db_from_cfg(dir, cfg, by_name[cfg.name])
@@ -138,7 +144,8 @@ class ServiceRepoManager:
         config.SERVICES_PATH.mkdir(parents=True, exist_ok=True)
 
         if not self.is_owner():
-            raise PermissionError(f'You are not the owner of {config.SERVICES_PATH}. Please do not mess up permissions.')
+            raise PermissionError(f"You are not the owner of {config.SERVICES_PATH}. Please do not mess up permissions. "
+                                  f"You are {_getuser()!r} but should be {config.SERVICES_PATH.owner()!r}.")
 
         for remote_service in config.SERVICE_REMOTES:
             self.update_service(remote_service)
@@ -149,7 +156,7 @@ class ServiceRepoManager:
 
         # try to upload a setup script
         base = Path(checker_script_dir).parent
-        fnames = [f for f in [base/'dependencies.sh', base / 'checker-requirements.txt'] if f.exists()]
+        fnames = [f for f in [base / "dependencies.sh", base / "checker-requirements.txt"] if f.exists()]
         if len(fnames) > 0:
             setup_package, _ = self.dbfs.move_single_files_to_package(fnames)
         else:

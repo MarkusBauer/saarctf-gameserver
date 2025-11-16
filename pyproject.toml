@@ -1,0 +1,63 @@
+[project]
+name = "saarctf-gameserver"
+version = "0.1.0"
+description = "saarCTF gameserver / engine"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = ["saarCTF maintainers <saarctf@saarsec.rocks>"]
+
+[tool.mypy]
+exclude = [
+    "gamelib/ci",
+    "checker_runner/runners/eno.py"  # remove when ECSC upstreamed their enochecker_core changes
+]
+plugins = ["sqlalchemy.ext.mypy.plugin"]
+python_version = "3.12"
+
+packages = [
+    "checker_runner",
+    "controlserver",
+    "gamelib",
+    "saarctf_commons",
+    "scripts",
+    "tests",
+    "vpn",
+    "vpnboard",
+    # "wireguard-sync/wireguard_sync",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "celery",
+    "celery.*",
+    "kombu.common",
+    "billiard.exceptions",
+    "flask_apscheduler",
+    "flask_migrate",
+    "flask_admin",
+    "flask_admin.contrib",
+    "jinja2",
+    "kombu",
+    "htmlmin",
+    "filelock",
+    "PIL",
+    "psycopg2",
+    "psycopg2.*",
+    "sample_files.*",
+    "pysigset",
+    "pwnlib",
+    "pwnlib.exception",
+    "pwnlib.tubes",
+    "influxdb",
+    "markupsafe",
+    "werkzeug.utils",
+    "hcloud",
+    "hcloud.actions.client",
+    "hcloud.firewalls.domain",
+    "amqp",
+    "pyroute2",
+    "pyroute2.netlink.exceptions",
+    "pytest",
+    "jsons",
+]
+ignore_missing_imports = true

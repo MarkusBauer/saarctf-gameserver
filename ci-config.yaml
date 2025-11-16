@@ -1,0 +1,49 @@
+{
+    "databases": {
+        "postgres": {
+            # Leave server empty to use local socket
+            "server": "postgres",
+            "port": 5432,
+            "username": "saarsec",
+            "password": "123456789",
+            "database": "saarctf"
+        },
+        "redis": {
+            "host": "redis",
+            "port": 6379,
+            "db": 3
+        },
+        "rabbitmq": {
+            "host": "rabbitmq",
+            "port": 5672,
+            "vhost": "saarctf",
+            "username": "saarsec",
+            "password": "123456789"
+        },
+        "website": "sqlite:///../../saarctf-webpage/db.sqlite3"
+    },
+    "scoreboard_path": "/dev/shm/scoreboard",
+    "vpnboard_path": "/dev/shm/vpnboard",
+    "checker_packages_path": "/dev/shm/packages",
+    "flower_url": "http://localhost:5555/",
+    "secret_flags": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "external_timer": false,
+    "dispatcher_check_vpn_status": true,
+    "scoring": {
+        "nop_team_id": 0,
+        "flags_rounds_valid": 10
+    },
+    "service_remotes": [],
+    "network": {
+        "game": "10.37.0.0/16",
+        # Syntax: ["number", "or list", ["a", "b", "c"], "= ((team_id / a) mod b) + c"]
+        "vulnbox_ip": [127, [200, 256, 0], [1, 200, 0], 2],
+        "gateway_ip": [127, [200, 256, 0], [1, 200, 0], 1],
+        "testbox_ip": [127, [200, 256, 0], [1, 200, 0], 3],
+        # Range syntax: ["number", "or list", ["a", "b", "c"], "= ((team_id / a) mod b) + c", "/range"]
+        "team_range": [127, [200, 256, 0], [1, 200, 0], 0, 24],
+        "vpn_host": "10.13.0.1",
+        "vpn_peer_ips": [10, [200, 256, 80], [1, 200, 0], 1],
+        "gameserver_ip": "10.13.0.2"
+    }
+}

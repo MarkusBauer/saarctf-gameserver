@@ -29,8 +29,10 @@
 			<div title="Offensive points" class="text-nowrap points not-in-sum-mode">{{service_rank.o.toFixed(1)}}</div>
 			<span class="delta not-in-sum-mode"><small title="New offensive points this tick">({{floatToString(service_rank.do)}})</small></span>
 			<i class="fas fa-flag offset-left not-in-sum-mode" title="Captured flags"></i>
-			<div title="Captured flags" class="text-nowrap not-in-sum-mode">{{service_rank.cap}}</div>
+			<div title="Captured flags" class="text-nowrap points not-in-sum-mode">{{service_rank.cap}}</div>
+			<div class="text-nowrap">
 			<span class="delta not-in-sum-mode"><small title="Captured flags last tick">(+{{service_rank.dcap}})</small></span>
+			</div>
 
 			<i class="fas fa-shield-alt not-in-sum-mode"></i>
 			<div title="Defensive points" class="text-nowrap points not-in-sum-mode">{{service_rank.d.toFixed(1)}}</div>
@@ -38,12 +40,14 @@
 				({{floatToString(service_rank.dd, true)}})
 			</small></span>
 			<i class="fas fa-flag-checkered offset-left not-in-sum-mode" title="Lost flags"></i>
-			<div title="Lost flags" class="text-nowrap not-in-sum-mode">-{{service_rank.st}}</div>
+			<div title="Lost flags" class="text-nowrap points not-in-sum-mode">-{{service_rank.st}}</div>
+			<div class="text-nowrap">
 			<span class="delta not-in-sum-mode"><small title="Lost flags last tick">(-{{service_rank.dst}})</small></span>
+			</div>
 
 			<i class="fas fa-tachometer-alt not-in-sum-mode"></i>
 			<div title="SLA points" class="text-nowrap points not-in-sum-mode">{{service_rank.s.toFixed(1)}}</div>
-			<span class="delta not-in-sum-mode"><small title="New SLA points this tick">({{floatToString(service_rank.ds)}})</small></span>
+			<div class="delta not-in-sum-mode"><small title="New SLA points this tick">({{floatToString(service_rank.ds)}})</small></div>
 			<div class="sla-col offset-left">
 				<span class="label history-3" *ngIf="service_rank.dc.length > 2"
 					  [ngClass]="statusToClass(service_rank.dc[2])"
@@ -59,7 +63,8 @@
 					  [title]="statusToTooltip(service_rank.c)">{{statusToText(service_rank.c)}}</span>
 
 				<button type="button" class="btn btn-xs btn-link info-link" *ngIf="service_rank.m"
-						[popover]="service_rank.m" triggers="focus" [popoverTitle]="'Tick '+tick+': '+service_rank.c">
+						[popover]="service_rank.m" triggers="focus" [popoverTitle]="'Tick '+tick+': '+service_rank.c"
+                        aria-label="Checker Infos">
 					<span class="fas fa-info"></span>
 				</button>
 			</div>

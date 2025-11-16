@@ -4,11 +4,10 @@ import shutil
 import sys
 import time
 from pathlib import Path
-from typing import Dict, Optional, List, Iterable, Any
+from typing import Optional, Iterable, Any
 
 import htmlmin
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -51,7 +50,7 @@ class VpnBoard(VpnStatusHandler):
         shutil.copyfile(static_dir / 'css' / 'vpnboard.css', config.VPNBOARD_PATH / 'index.css')
         shutil.copyfile(static_dir / 'img' / 'favicon.png', config.VPNBOARD_PATH / 'favicon.png')
 
-    def render_template(self, template: str, filename: str, minimize=False, **kwargs) -> None:
+    def render_template(self, template: str, filename: str, minimize: bool = False, **kwargs: Any) -> None:
         """
         Render a template to file
         :param template:
@@ -102,5 +101,5 @@ class VpnBoard(VpnStatusHandler):
                              states=states, check_vulnboxes=check_vulnboxes, banned_teams=banned_teams)
         self.build_vpn_json(s.team for s in states)
 
-    def update(self, states: list[VpnStatus], banned_teams: set[int], check_vulnboxes: bool, start: float) -> None:
+    def update_all(self, states: list[VpnStatus], banned_teams: set[int], check_vulnboxes: bool, start: float) -> None:
         self.build_vpn_board(states, banned_teams, check_vulnboxes, start)

@@ -16,7 +16,7 @@ ARGUMENTS: Team-ID
 """
 
 
-def main():
+def main() -> None:
     team_id_str = sys.argv[1]
     if team_id_str.startswith('team'):
         team_id_str = team_id_str[4:]

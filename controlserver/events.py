@@ -25,6 +25,9 @@ class CTFEvents:
     def on_update_times(self) -> None:
         pass
 
+    def on_open_vulnbox_access(self) -> None:
+        pass
+
 
 class ConsoleCTFEvents(CTFEvents):
     """
@@ -32,24 +35,28 @@ class ConsoleCTFEvents(CTFEvents):
     """
 
     def __now(self, ts: datetime.datetime) -> str:
-        return ts.astimezone().strftime('%d.%m.%Y %H:%M:%S') + ' |'
+        return ts.astimezone().strftime("%d.%m.%Y %H:%M:%S") + " |"
 
     @override
     def on_start_tick(self, tick: int, ts: datetime.datetime) -> None:
-        print(self.__now(ts), 'Start of tick {}'.format(tick))
+        print(self.__now(ts), "Start of tick {}".format(tick))
 
     @override
     def on_end_tick(self, tick: int, ts: datetime.datetime) -> None:
-        print(self.__now(ts), 'End of tick {}'.format(tick))
+        print(self.__now(ts), "End of tick {}".format(tick))
 
     @override
     def on_start_ctf(self) -> None:
-        print(self.__now(datetime.datetime.now()), 'CTF initially started')
+        print(self.__now(datetime.datetime.now()), "CTF initially started")
 
     @override
     def on_suspend_ctf(self) -> None:
-        print(self.__now(datetime.datetime.now()), 'CTF suspended')
+        print(self.__now(datetime.datetime.now()), "CTF suspended")
 
     @override
     def on_end_ctf(self) -> None:
-        print(self.__now(datetime.datetime.now()), 'CTF is over!')
+        print(self.__now(datetime.datetime.now()), "CTF is over!")
+
+    @override
+    def on_open_vulnbox_access(self) -> None:
+        print(self.__now(datetime.datetime.now()), "Vulnbox access opened")

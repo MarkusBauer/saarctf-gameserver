@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import sys
-from typing import List
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -13,7 +12,7 @@ BASEPORT = 12000
 BASEPORT2 = 14000
 
 
-def build_cloud_server_config(team: Team, server_root: Path, secret_root: Path):
+def build_cloud_server_config(team: Team, server_root: Path, secret_root: Path) -> None:
     # Create secret
     secret_path = secret_root / f'team{team.id}'
     os.makedirs(secret_path, exist_ok=True)
@@ -69,7 +68,7 @@ def build_cloud_server_config(team: Team, server_root: Path, secret_root: Path):
     print(f'[OK] Created team #{team.id} server config')
 
 
-def build_cloud_team_config(team: Team, client_root: Path, secret_root: Path):
+def build_cloud_team_config(team: Team, client_root: Path, secret_root: Path) -> None:
     secret_path = secret_root / f'team{team.id}'
 
     # Create config
@@ -103,7 +102,7 @@ def build_cloud_team_config(team: Team, client_root: Path, secret_root: Path):
     print(f'[OK] Wrote team #{team.id} client configuration.')
 
 
-def build_vulnbox_server_config(team: Team, server_root: Path, secret_root: Path):
+def build_vulnbox_server_config(team: Team, server_root: Path, secret_root: Path) -> None:
     secret_file = secret_root / f'team{team.id}.key'
 
     # Create secret
@@ -165,7 +164,7 @@ def build_vulnbox_server_config(team: Team, server_root: Path, secret_root: Path
     print(f'[OK] Created team #{team.id} server config')
 
 
-def build_vulnbox_team_config(team: Team, client_root: Path, secret_root: Path):
+def build_vulnbox_team_config(team: Team, client_root: Path, secret_root: Path) -> None:
     secret_file = secret_root / f'team{team.id}.key'
 
     # Create config
@@ -205,7 +204,7 @@ def build_vulnbox_team_config(team: Team, client_root: Path, secret_root: Path):
     print(f'[OK] Wrote team #{team.id} client configuration.')
 
 
-def build_systemd_file(teams: List[Team]):
+def build_systemd_file(teams: list[Team]) -> None:
     prefix = '''
     [Unit]
     After=network.target
@@ -229,7 +228,7 @@ def build_systemd_file(teams: List[Team]):
     print('[OK] Systemd service generated.')
 
 
-def main():
+def main() -> None:
     server_root = config.VPN_BASE_DIR / 'config-server'  # output: server config
     client_root = config.VPN_BASE_DIR / 'config-client'  # output: team config
     secret_root = config.VPN_BASE_DIR / 'secrets'

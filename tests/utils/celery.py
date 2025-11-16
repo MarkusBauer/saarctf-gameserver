@@ -12,18 +12,18 @@ from tests.utils.base_cases import DatabaseTestCase
 class CeleryTestCase(DatabaseTestCase):
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         super().setUpClass()
         get_redis_connection().flushdb()
         celery_worker.init()
 
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
         self._purge_queue()
         self.worker = multiprocessing.Process(target=self._run_worker)
         self.worker.start()
 
-    def _purge_queue(self):
+    def _purge_queue(self) -> None:
         if config.RABBITMQ:
             with amqp.Connection(host=config.RABBITMQ['host'], port=config.RABBITMQ['port'],
                                  userid=config.RABBITMQ['username'], password=config.RABBITMQ['password'],
@@ -37,7 +37,7 @@ class CeleryTestCase(DatabaseTestCase):
         else:
             get_redis_connection().flushdb()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         if self.worker.is_alive():
             self.worker.terminate()
             self.worker.join(timeout=1)

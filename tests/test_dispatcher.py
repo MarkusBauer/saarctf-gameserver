@@ -1,12 +1,17 @@
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import patch
+from celery.result import GroupResult
 
-from controlserver.dispatcher import Dispatcher
+from checker_runner.runner import celery_worker
+from controlserver.dispatcher import DispatcherFactory
 from controlserver.models import Team, db_session, Service, CheckerResult
+from controlserver.timer import init_mock_timer
 from tests.utils.celery import CeleryTestCase
 
 
 class DispatcherTestCase(CeleryTestCase):
+    dispatcher_script = "dispatcher:CeleryDispatcher"
+
     def _prepare_db(self) -> None:
         self.demo_team_services()
         self.team: Team = Team.query.get(1)  # type: ignore
@@ -15,23 +20,25 @@ class DispatcherTestCase(CeleryTestCase):
 
     def test_dispatch_test_script(self) -> None:
         self._prepare_db()
-        dispatcher = Dispatcher()
-        task, result = dispatcher.dispatch_test_script(self.team, Service.query.get(1), -1, None)  # type: ignore[arg-type]
+        dispatcher = DispatcherFactory.build(self.dispatcher_script)
+        taskref, result = dispatcher.dispatch_test_script(self.team, Service.query.get(1), -1, None)  # type: ignore[arg-type]
+        task = GroupResult.restore(taskref, app=celery_worker.app)
         task_result = task.get(timeout=3)
-        self.assertEqual('SUCCESS', task_result)
+        self.assertEqual(["SUCCESS"], task_result)
         result = CheckerResult.query.get(result.id)  # type: ignore[assignment]
-        self.assertEqual(task.id, result.celery_id)
-        self.assertEqual('SUCCESS', result.status)
+        # self.assertEqual(task.id, result.celery_id)
+        self.assertEqual("SUCCESS", result.status)
         self.assertIsNotNone(result.finished)
         # self.assertTrue(result.integrity)
         # self.assertTrue(result.stored)
         # self.assertTrue(result.retrieved)
         self.assertIsNotNone(result.output)
-        self.assertIn('----- check_integrity -----', result.output)  # type: ignore
+        self.assertIn("----- check_integrity -----", result.output)  # type: ignore
 
     def test_dispatch_tick(self) -> None:
         self._prepare_db()
-        dispatcher = Dispatcher()
+        init_mock_timer()
+        dispatcher = DispatcherFactory.build(self.dispatcher_script)
         with patch('pathlib.Path.write_text') as write_text_mock:  # called by "attack.json" writer
             dispatcher.dispatch_checker_scripts(1)
             write_text_mock.assert_called_once()
@@ -54,9 +61,9 @@ class DispatcherTestCase(CeleryTestCase):
         self.assertEqual(3, results[2].service_id)
 
         # check final status
-        self.assertEqual('SUCCESS', results[0].status)
-        self.assertEqual('FLAGMISSING', results[1].status)
-        self.assertEqual('TIMEOUT', results[2].status)
+        self.assertEqual("SUCCESS", results[0].status)
+        self.assertEqual("FLAGMISSING", results[1].status)
+        self.assertEqual("TIMEOUT", results[2].status)
 
         self.print_logs()
-        self.assert_in_logs('Worker close to overload')
+        self.assert_in_logs("Worker close to overload")

@@ -1,13 +1,41 @@
+name: gameserver
+
+# - copy "config.docker.yaml" to "config.yaml" and adjust
+# - copy .env.example to .env and adjust
+
 volumes:
   postgres:
   redis:
-  scoreboard:
+  public-scoreboard:
+  internal-scoreboard:
 
-# TODO for you:
-# - persistence (see volumes above)
-# - restart policies
-# - writing config file
-# - define worker concurrency (etc)
+x-gameserver-common-env: &gameserver-common-env
+  POSTGRES_SERVER: ${POSTGRES_SERVER}
+  POSTGRES_PORT: ${POSTGRES_PORT}
+  POSTGRES_DATABASE: ${POSTGRES_DB}
+  POSTGRES_USERNAME: ${POSTGRES_USER}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_PORT}
+  REDIS_DB: ${REDIS_DB}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  RABBITMQ_HOST: ${RABBITMQ_HOST}
+  RABBITMQ_PORT: ${RABBITMQ_PORT}
+  RABBITMQ_VHOST: ${RABBITMQ_DEFAULT_VHOST}
+  RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
+  RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+  SECRET_FLAG_KEY: ${SECRET_FLAG_KEY}
+  CONFIG_FILE: ${CONFIG_FILE}
+  SCOREBOARD_PATH: ${PUBLIC_SCOREBOARD_PATH}
+  SCOREBOARD_PATH_INTERNAL: ${INTERNAL_SCOREBOARD_PATH}
+
+networks:
+  default:
+    driver_opts:
+      # Gameserver containers make use of some k3s services
+      # These are accessed over the cilium network - the wg interface has a lower MTU
+      # 1290 ensures connectivity to remote services without fragmentation
+      com.docker.network.driver.mtu: 1290
 
 services:
   postgres:
@@ -16,148 +44,211 @@ services:
       - POSTGRES_DB
       - POSTGRES_USER
       - POSTGRES_PASSWORD
-    ports:
-      - "127.0.0.1:5432:5432"
     volumes:
       - postgres:/var/lib/postgresql/data
     restart: unless-stopped
+    profiles:
+      - donotstart
+    ports:
+      - "127.0.0.1:5432:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 1s
       retries: 30
 
   rabbitmq:
     image: rabbitmq:4.0-management
-    healthcheck:
-      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
-      interval: 10s
-      timeout: 1s
-      retries: 30
     environment:
       - RABBITMQ_DEFAULT_USER
       - RABBITMQ_DEFAULT_PASS
       - RABBITMQ_DEFAULT_VHOST
-    ports:
-      - "127.0.0.1:5672:5672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+    restart: "unless-stopped"
 
   redis:
     image: redis:7.4-alpine
-    command: "redis-server --save 60 1 --loglevel warning"
+    command:
+      - redis-server
+      - --save
+      - "60"
+      - "1"
+      - --loglevel
+      - warning
+      - --requirepass
+      - ${REDIS_PASSWORD}
     volumes:
       - redis:/data
+    restart: "unless-stopped"
     ports:
       - "127.0.0.1:6379:6379"
 
-  migrate:
-    image: "saarctf/app"
-    build: .
+  submitter:
+    image: "${IMAGE_REGISTRY}/gameserver/submitter"
+    build: flag-submission-server
+    environment:
+      POSTGRES_SERVER: ${POSTGRES_SERVER}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DATABASE: ${POSTGRES_DB}
+      POSTGRES_USERNAME: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_DATABASE: ${REDIS_DB}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      CONFIG_SECRET_FLAGS: ${SECRET_FLAG_KEY}
     volumes:
-      - ./config.docker.yaml:/opt/config.yaml:ro
-    command: "-m alembic upgrade head"
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  cp:
-    image: "saarctf/app"
-    build: .
-    volumes:
-      - ./config.docker.yaml:/opt/config.yaml:ro
-      - scoreboard:/scoreboard
+      - ./config.yaml:/config.yaml:ro
     ports:
-      - "5000:5000"
-    command: ["-m", "gunicorn", "--bind", "0.0.0.0:5000", "--log-level", "info", "controlserver.wsgi:app"]
+      - 1337:31337
+    ulimits:
+      nofile: 16384
+    restart: "unless-stopped"
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-        restart: true
       redis:
         condition: service_started
+        restart: true
 
-  flower:
-    image: "saarctf/app"
-    build: .
+  submitter_telegraf:
+    image: "telegraf"
     volumes:
-      - ./config.docker.yaml:/opt/config.yaml:ro
-    ports:
-      - "5555:5555"
-    command: "-m celery -A checker_runner.celery_cmd flower --port=5555"
-    stop_grace_period: "2s"
+      - "./telegraf.submitter.conf:/etc/telegraf/telegraf.conf:ro"
     environment:
-      FLOWER_UNAUTHENTICATED_API: "1"
-    depends_on:
-      redis:
-        condition: service_started
-      rabbitmq:
-        condition: service_healthy
-        restart: true
+      PG_SERVER: ${TIMESCALE_SERVER}
+      PG_USERNAME: ${TIMESCALE_USER}
+      PG_PASSWORD: ${TIMESCALE_PASSWORD}
+      PG_DATABASE_METRICS: ${TIMESCALE_DB}
+    network_mode: "service:submitter"
 
-  checker:
-    image: "saarctf/app"
-    build: .
+  cp:
+    image: "${IMAGE_REGISTRY}/gameserver/controlpanel"
+    build:
+      context: .
+    environment:
+      <<: *gameserver-common-env
     volumes:
-      - ./config.docker.yaml:/opt/config.yaml:ro
-    command: "-m celery -A checker_runner.celery_cmd worker -Ofair -E -Q celery,tests,broadcast --concurrency=${CHECKER_CONCURRENCY}"
-    ulimits:
-      nofile: 65536
-      nproc: 65536
-    stop_grace_period: "1m"  # let started checker tasks finish gracefully
+      - ./kube.config:/root/.kube/config:ro
+      - ./config.yaml:${CONFIG_FILE}:ro
+      - public-scoreboard:${PUBLIC_SCOREBOARD_PATH}
+      - internal-scoreboard:${INTERNAL_SCOREBOARD_PATH}
+    ports:
+      - 5000:5000
+    command:
+      [
+        "-m",
+        "gunicorn",
+        "--bind",
+        "0.0.0.0:5000",
+        "--access-logfile",
+        "/dev/stderr",
+        "--error-logfile",
+        "/dev/stderr",
+        "--log-level",
+        "debug",
+        "controlserver.wsgi:app",
+      ]
+    restart: "unless-stopped"
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_started
-      rabbitmq:
-        condition: service_healthy
 
   timer:
-    image: "saarctf/app"
-    build: .
+    image: "${IMAGE_REGISTRY}/gameserver/controlpanel"
+    build:
+      context: .
+    environment:
+      <<: *gameserver-common-env
     volumes:
-      - ./config.docker.yaml:/opt/config.yaml:ro
-      - scoreboard:/scoreboard
+      - ./config.yaml:${CONFIG_FILE}:ro
+      - public-scoreboard:${PUBLIC_SCOREBOARD_PATH}
+      - internal-scoreboard:${INTERNAL_SCOREBOARD_PATH}
     command: ["controlserver/master_timer.py"]
     ulimits:
       nofile: 16384
+    restart: "unless-stopped"
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-        restart: true  # just to be safe, shouldn't be necessary
       redis:
         condition: service_started
       rabbitmq:
         condition: service_healthy
         restart: true
 
-  submitter:
-    image: "saarctf/submitter"
-    build: flag-submission-server
+  migrate:
+    image: "${IMAGE_REGISTRY}/gameserver/controlpanel"
+    build:
+      context: .
+    environment:
+      <<: *gameserver-common-env
     volumes:
-      - ./config.docker.yaml:/config.yaml:ro
-    ports:
-      - "31337:31337"
+      - ./config.yaml:${CONFIG_FILE}:ro
+    command: ["-m", "alembic", "upgrade", "head"]
+
+  checker:
+    image: "${IMAGE_REGISTRY}/gameserver/controlpanel"
+    build:
+      context: .
+    environment:
+      <<: *gameserver-common-env
+    volumes:
+      - ./config.yaml:${CONFIG_FILE}:ro
+    command:
+      [
+        "-m",
+        "celery",
+        "-A",
+        "checker_runner.celery_cmd",
+        "worker",
+        "-Ofair",
+        "-E",
+        "-Q",
+        "celery,tests,broadcast",
+        "-P",
+        "threads",
+        "--concurrency=${CHECKER_CONCURRENCY}",
+      ]
+    deploy:
+      replicas: 8
     ulimits:
-      nofile: 16384
+      nofile: 65536
+      nproc: 65536
+    stop_grace_period: 1m # let started checker tasks finish gracefully
+    restart: "unless-stopped"
     depends_on:
-      migrate:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-        restart: true
       redis:
         condition: service_started
-        restart: true
+      rabbitmq:
+        condition: service_healthy
+
+  scripts:
+    image: "${IMAGE_REGISTRY}/gameserver/controlpanel"
+    profiles:
+      - donotstart
+    build:
+      context: .
+    environment:
+      <<: *gameserver-common-env
+    volumes:
+      - ./config.yaml:${CONFIG_FILE}:ro
+      - ./services.json:/var/services.json:ro
+    command: ["sh"]
 
   # scoreboard "host", not the scoreboard daemon for off-site scoreboard generation
   # in this setting, the scoreboard is generated by the ctftimer, and written to a volume
   scoreboard:
     image: nginx
     volumes:
-      - "scoreboard:/usr/share/nginx/html:ro"
+      - ./nginx.default.conf:/etc/nginx/conf.d/default.conf:ro
+      - internal-scoreboard:/usr/share/nginx/html:ro
     ports:
-      - "5001:80"
+      - "8080:80"
+    restart: "unless-stopped"

@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import logging
 import os
@@ -26,7 +27,6 @@ from vpnboard.vpn_board import VpnBoard
 from vpnboard.vpnchecks import test_ping, test_nping, test_web
 from vpnboard.wg_status import get_wireguard_status
 
-USE_WIREGUARD: bool = True
 PING_CONCURRENCY: int = 24
 
 
@@ -82,14 +82,16 @@ class VpnStatusDaemon:
     These are: DB, VpnBoard, Logs, Metrics
     """
 
-    def __init__(self, use_nping: bool) -> None:
+    def __init__(self, complete: bool, check_wg: bool, use_nping: bool) -> None:
+        self.complete = complete
+        self.check_wg = check_wg
         self.use_nping = use_nping
         self._logger = logging.getLogger('vpn_status_daemon')
         self._vpn_status = VpnStatusThread()
         self._handlers: list[VpnStatusHandler] = [
             VpnBoard(),
             MetricStatusHandler(),
-            WireguardPeerLogger()
+            WireguardPeerLogger(),
         ]
 
     def __enter__(self) -> 'VpnStatusDaemon':
@@ -109,12 +111,15 @@ class VpnStatusDaemon:
     def update_status(self, check_vulnboxes: bool) -> list[VpnStatus]:
         with db_session_2() as session:
             states = [VpnStatus(team) for team in session.query(Team).order_by(Team.id).all()]
-            if USE_WIREGUARD:
+            if self.check_wg:
                 self.update_team_wireguard_status(states)
                 session.commit()
-            self.ping_teams_threadpool([s for s in states if s.connected], check_vulnboxes)
             session.expunge_all()
-            return states
+
+        if self.complete:
+            self.ping_teams_threadpool([s for s in states if s.connected], check_vulnboxes)
+
+        return states
 
     def update_team_wireguard_status(self, states: list[VpnStatus]) -> None:
         """Fetch the current wireguard status from wireguard and write to DB"""
@@ -127,7 +132,7 @@ class VpnStatusDaemon:
                     team_status.wg = get_wireguard_status(team.id, wg=wg)
                 except ValueError as e:
                     self._logger.warning(f'Team {team.id} has no readable interface ({e})')
-                    if team.wg_boxes_connected or team.wg_vulnbox_connected:
+                    if self.complete and (team.wg_boxes_connected or team.wg_vulnbox_connected):
                         team.wg_boxes_connected = False
                         team.wg_vulnbox_connected = False
                         team.vpn_connection_count = 0
@@ -207,8 +212,13 @@ class VpnStatusDaemon:
         check_vulnboxes = self._vpn_status.vulnbox_connection_available
         states = self.update_status(check_vulnboxes)
 
-        for handler in self._handlers:
-            handler.update(states, self._vpn_status.banned_teams, check_vulnboxes, start)
+        if self.check_wg:
+            for handler in self._handlers:
+                handler.update_wireguard([s for s in states if s.wg is not None], self._vpn_status.banned_teams, check_vulnboxes, start)
+
+        if self.complete:
+            for handler in self._handlers:
+                handler.update_all(states, self._vpn_status.banned_teams, check_vulnboxes, start)
 
         duration = time.time() - start
         self._logger.info(f'Created VPN board, took {duration:.3f} seconds '
@@ -239,9 +249,19 @@ if __name__ == '__main__':
     setup_default_metrics()
     init_database()
 
-    use_nping = '--system-ping' not in sys.argv
-    with VpnStatusDaemon(use_nping) as vpn_status_daemon:
-        if '--daemon' in sys.argv:
+    parser = argparse.ArgumentParser('''VPN Status Daemon. Modes:
+    --check-wg:            Pull wireguard status info from this host
+    --complete:            Ping & write VPN board with infos from database
+    --check-wg --complete: Pull wireguard status, ping, and create vpnboard (single router only)
+    ''')
+    parser.add_argument('--daemon', action='store_true', help='Run as daemon (vs: run once)')
+    parser.add_argument('--complete', action='store_true', help='This daemon sees all states')
+    parser.add_argument('--check-wg', action='store_true', help='Check wireguard status of existing interfaces')
+    parser.add_argument('--system-ping', action='store_true', help='Use system default ping utility instead of nping')
+    args = parser.parse_args()
+
+    with VpnStatusDaemon(complete=args.complete, check_wg=args.check_wg, use_nping=not args.system_ping) as vpn_status_daemon:
+        if args.daemon:
             vpn_status_daemon.run_loop()
         else:
             vpn_status_daemon.run_once()

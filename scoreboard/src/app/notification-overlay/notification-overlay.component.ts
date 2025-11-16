@@ -5,6 +5,7 @@ import {RateLimiter} from "../ratelimiter";
 import {animate, keyframes, query, stagger, state, style, transition, trigger} from "@angular/animations";
 import {UiService} from "../ui.service";
 import {Team} from "../models";
+import { environment } from '../../environments/environment';
 
 
 /**
@@ -77,6 +78,7 @@ export class NotificationOverlayComponent implements OnInit, OnDestroy {
 	public teamname: string = null;
 	public servicename: string = null;
 	public visible = false;
+    public teamsInEndscreen = environment.show_teams_in_endscreen;
 
 	constructor(public backend: BackendService, public ui: UiService) {
 	}

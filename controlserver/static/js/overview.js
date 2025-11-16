@@ -236,6 +236,8 @@ app.controller('ComponentsController', function ($scope, $http) {
 app.controller('VPNController', function ($scope, $http) {
 	$scope.state = 'off';
 	$scope.newvpnstate = null;
+    $scope.openVulnboxAccessAt = null;
+    $scope.serverTime = 0;
 	$scope.banned = [];
 	$scope.bantick = null;
 	$scope.banteam = null;
@@ -272,6 +274,8 @@ app.controller('VPNController', function ($scope, $http) {
 		$http.get('/overview/vpn', {params: {last: $scope.traffic_last}}).then(function (xhr) {
 			$scope.state = xhr.data.state || 'off';
 			if ($scope.newvpnstate === null) $scope.newvpnstate = $scope.state;
+            $scope.openVulnboxAccessAt = xhr.data.openVulnboxAccessAt;
+            $scope.serverTime = xhr.data.serverTime;
 			$scope.banned = xhr.data.banned;
 			$scope.permissions = xhr.data.permissions;
 			$scope.teams_online = xhr.data.teams_online;
@@ -326,6 +330,13 @@ app.controller('VPNController', function ($scope, $http) {
 		$http.post('/overview/set_vpn', {state: state}).then($scope.updateComponents);
 	};
 
+    $scope.setOpenVulnboxAccessAt = function (ts) {
+		if (typeof ts === 'string') {
+			ts = moment(ts, DATE_FORMAT).unix();
+		}
+		$http.post('/overview/set_timing', {"openVulnboxAccessAt": ts}).then($scope.updateComponents);
+	};
+
 	$scope.ban = function (id, tick) {
 		if (!id) return;
 		if (confirm('Really ban team #' + id + '?')) {
@@ -349,6 +360,13 @@ app.controller('VPNController', function ($scope, $http) {
 	};
 
 	setInterval($scope.updateComponents, 28 * 1000);
+    setInterval(function () {
+		$scope.$apply(function () {
+			$scope.serverTime++;
+			if ($scope.serverTime === $scope.openVulnboxAccessAt + 1)
+				$scope.updateComponents();
+		});
+	}, 1000);
 	$scope.updateComponents();
 });
 

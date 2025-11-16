@@ -5,7 +5,7 @@ from vpnboard import VpnStatusHandler, VpnStatus
 
 
 class MetricStatusHandler(VpnStatusHandler):
-    def update(self, states: list[VpnStatus], banned_teams: set[int], check_vulnboxes: bool, start: float) -> None:
+    def update_all(self, states: list[VpnStatus], banned_teams: set[int], check_vulnboxes: bool, start: float) -> None:
         routers_up = 0
         testbox_up = 0
         vulnbox_up = 0
@@ -36,16 +36,18 @@ class WireguardPeerLogger(VpnStatusHandler):
     def __init__(self) -> None:
         self._logger = logging.getLogger(self.__class__.__name__)
 
-    def update(self, states: list[VpnStatus], banned_teams: set[int], check_vulnboxes: bool, start: float) -> None:
+    def update_wireguard(self, states: list[VpnStatus], banned_teams: set[int], check_vulnboxes: bool, start: float) -> None:
         for state in states:
-            if state.wg is None:
-                continue
-            for peer in state.wg.peers:
-                if peer.connected:
-                    logging.info(f'connected peer for {peer.address}', extra={
-                        'team_id': state.team.id,
-                        'address': peer.address,
-                        'last_handshake': peer.last_handshake,
-                        'remote_addr': peer.remote_addr,
-                        'remote_port': peer.remote_port,
-                    })
+            if state.wg is not None:
+                for peer in state.wg.peers:
+                    if peer.connected:
+                        logging.info(f'connected peer for {peer.address}', extra={
+                            'team_id': state.team.id,
+                            'address': peer.address,
+                            'last_handshake': peer.last_handshake,
+                            'remote_addr': peer.remote_addr,
+                            'remote_port': peer.remote_port,
+                        })
+
+    def update_all(self, states: list[VpnStatus], banned_teams: set[int], check_vulnboxes: bool, start: float) -> None:
+        pass

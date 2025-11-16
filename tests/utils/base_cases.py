@@ -20,7 +20,7 @@ config_basis = {
     "external_timer": False,
     "scoring": {
         "flags_rounds_valid": 10,
-        "nop_team_id": 1
+        "nop_team_id": 1,
     },
     "network": {
         "game": "127.0.0.0/16",
@@ -33,31 +33,30 @@ config_basis = {
         "gameserver_ip": "10.13.0.2",
         "vpn_host": "10.13.0.1",
         "vpn_peer_ips": [127, [200, 256, 48], [1, 200, 0], 1],
-        "gameserver_range": "10.32.250.0/24"
-    }
+        "gameserver_range": "10.32.250.0/24",
+    },
 }
-config_file: Path = Path(__file__).absolute().parent.parent.parent / 'config.test.json'
-os.environ['SAARCTF_CONFIG'] = str(config_file)
+config_file: Path = Path(__file__).absolute().parent.parent.parent / "config.test.yaml"
+os.environ["SAARCTF_CONFIG"] = str(config_file)
 
 
 class TestCase(unittest.TestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         super().setUpClass()
         load_default_config_file(config_file, config_basis)
-        assert config.CONFIG_FILE.name == 'config.test.json'
+        assert config.CONFIG_FILE.name == "config.test.yaml"
 
 
 class DatabaseTestCase(TestCase):
-
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         super().setUpClass()
         init_database()
         Base.metadata.drop_all(bind=Database.db_engine)
         Base.metadata.create_all(bind=Database.db_engine)
 
-    def setUp(self):
+    def setUp(self) -> None:
         session = db_session()
         Team.query.delete()
         TeamLogo.query.delete()
@@ -67,22 +66,21 @@ class DatabaseTestCase(TestCase):
         LogMessage.query.delete()
         session.commit()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         db_session().close()
 
     @classmethod
-    def tearDownClass(cls):
+    def tearDownClass(cls) -> None:
         Base.metadata.drop_all(bind=Database.db_engine)
         with Database.db_engine.connect() as conn:
             conn.execute(text("DROP TABLE IF EXISTS alembic_version;"))
         close_database()
 
-    def demo_team_services(self) -> None:
+    def demo_team_services(self, *, num_teams: int = 4) -> None:
         with db_session_2() as session:
             session.add(Team(id=1, name='NOP'))
-            session.add(Team(id=2, name='Team2'))
-            session.add(Team(id=3, name='Team3'))
-            session.add(Team(id=4, name='Team4'))
+            for i in range(2, num_teams + 1):
+                session.add(Team(id=i, name=f'Team{i}'))
             session.add(Service(
                 id=1, name='Service1',
                 checker_script='checker_runner.demo_checker:WorkingService', checker_timeout=1,
@@ -101,14 +99,14 @@ class DatabaseTestCase(TestCase):
             session.commit()
 
     def get_logs(self) -> list[LogMessage]:
-        return list(LogMessage.query.order_by('created', 'id'))
+        return list(LogMessage.query.order_by("created", "id"))
 
     def print_logs(self) -> None:
         for log in self.get_logs():
-            print(f'- {log.level} [{log.component}] {log.title} ({log.text})')
+            print(f"- {log.level} [{log.component}] {log.title} ({log.text})")
 
     def assert_in_logs(self, title: str) -> None:
         for log in self.get_logs():
             if log.title and title in log.title:
                 return
-        raise AssertionError(f'Title {repr(title)} not found in logs')
+        raise AssertionError(f"Title {repr(title)} not found in logs")

@@ -363,6 +363,7 @@ int main(int argc, char **argv) {
 
 	// Load configuration
 	Config::load();
+    Config::loadFromEnv();
 
 	// Check config
 #ifndef CHECK_EXPIRED

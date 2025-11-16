@@ -19,7 +19,8 @@
 					{{backend.teams[teamId].name}}
 					<button type="button" *ngIf="backend.teams[teamId].aff || backend.teams[teamId].web"
 							class="btn btn-xs btn-link info-link" triggers="focus"
-							[popover]="'Affiliation: '+(backend.teams[teamId].aff||'-')+'; Website: '+(backend.teams[teamId].web || '-')">
+							[popover]="'Affiliation: '+(backend.teams[teamId].aff||'-')+'; Website: '+(backend.teams[teamId].web || '-')"
+                            aria-label="Team Infos">
 						<span class="fas fa-info"></span>
 					</button>
 				</h4>

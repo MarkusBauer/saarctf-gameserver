@@ -16,7 +16,7 @@ ARGUMENTS: Team-ID
 """
 
 
-def main():
+def main() -> None:
     team_id = int(sys.argv[1])
     changes = Team.query.filter(Team.id == team_id).update(dict(vpn_connection_count=0), synchronize_session=False)
     db_session().commit()

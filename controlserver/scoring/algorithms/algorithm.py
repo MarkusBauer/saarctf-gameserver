@@ -169,14 +169,14 @@ class ScoreTickAlgorithmBase(ScoreTickAlgorithm, FlagPointAlgorithm, DefensiveAl
         return new_tick_points
 
     def _flag_stolen_attacker(self, new_tick_points: dict[TeamServicePair, TeamPointsLite], flag: StolenFlag,
-                              service_flags_per_tick: float, victim_rank: int):
+                              service_flags_per_tick: float, victim_rank: int) -> None:
         """Give each attacker points"""
         attacker = new_tick_points[(flag.flag.submitted_by, flag.flag.service_id)]
         attacker.flag_captured_count += 1
         attacker.off_points += self.off_points(flag, victim_rank) / service_flags_per_tick * self.config.off_factor
 
     def _flag_stolen_victim(self, new_tick_points: dict[TeamServicePair, TeamPointsLite], flag: StolenFlag,
-                            service_flags_per_tick: float, num_active_teams: int):
+                            service_flags_per_tick: float, num_active_teams: int) -> None:
         """Deduce defensive points"""
         # Victim's SLA points when the flag was stored (0 if the flag couldn't be stored)
         victim = new_tick_points[(flag.flag.team_id, flag.flag.service_id)]

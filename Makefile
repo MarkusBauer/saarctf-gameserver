@@ -26,7 +26,7 @@ venv/deps-script: venv gamelib/checker-default-requirements.txt
 check: check-mypy
 check-mypy: deps
 	#TODO add --disallow-untyped-defs at some point
-	$(IN_VENV) ; mypy --config-file mypy.ini --no-incremental checker_runner controlserver gamelib saarctf_commons scripts tests vpn vpnboard wireguard-sync/wireguard_sync
+	$(IN_VENV) ; mypy --no-incremental --disallow-untyped-defs
 
 
 # run all the unittests

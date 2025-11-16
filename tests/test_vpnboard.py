@@ -20,14 +20,14 @@ class VpnBoardTests(DatabaseTestCase):
 
     def _assert_valid_vpnboard(self, d: Path) -> None:
         files = os.listdir(d)
-        self.assertIn('vpn.html', files)
-        self.assertIn('favicon.png', files)
-        self.assertIn('index.css', files)
-        self.assertIn('all_teams.json', files)
-        self.assertIn('available_teams.json', files)
-        vpn: str = (d / 'vpn.html').read_text()
-        self.assertLessEqual(vpn.count('label-warning'), 1)
-        self.assertLessEqual(vpn.count('label-danger'), 1)
+        self.assertIn("vpn.html", files)
+        self.assertIn("favicon.png", files)
+        self.assertIn("index.css", files)
+        self.assertIn("all_teams.json", files)
+        self.assertIn("available_teams.json", files)
+        vpn: str = (d / "vpn.html").read_text()
+        self.assertLessEqual(vpn.count("label-warning"), 1)
+        self.assertLessEqual(vpn.count("label-danger"), 1)
 
     def test_vpnboard_script(self) -> None:
         self.demo_team_services()
@@ -38,17 +38,17 @@ class VpnBoardTests(DatabaseTestCase):
 
         with TemporaryDirectory() as directory:
             config.current_config.VPNBOARD_PATH = Path(directory)
-            result = ScriptRunner.run_script('vpnboard/vpn_status_daemon.py', ['--system-ping'])
+            result = ScriptRunner.run_script("vpnboard/vpn_status_daemon.py", ["--system-ping", "--complete"])
             ScriptRunner.assert_no_exception(result)
-            self.assertIn(b'Created VPN board', result.stderr)
+            self.assertIn(b"Created VPN board", result.stderr)
             self._assert_valid_vpnboard(config.current_config.VPNBOARD_PATH)
 
-            influx_data = ScriptRunner.parse_influx_format(result.stdout.decode('utf-8'))
-            self.assertEqual(len(influx_data['vpn_connection']), 4)
-            self.assertEqual(len(influx_data['vpn_board']), 1)
-            for entry in influx_data['vpn_board']:
-                self.assertEqual(entry['router_up'], '1i')
-                self.assertEqual(entry['testbox_up'], '1i')
-                self.assertEqual(entry['testbox_ok'], '1i')
-                self.assertIn('router_ping_ms', entry)
-                self.assertIn('testbox_ping_ms', entry)
+            influx_data = ScriptRunner.parse_influx_format(result.stdout.decode("utf-8"))
+            self.assertEqual(len(influx_data["vpn_connection"]), 4)
+            self.assertEqual(len(influx_data["vpn_board"]), 1)
+            for entry in influx_data["vpn_board"]:
+                self.assertEqual(entry["router_up"], "1i")
+                self.assertEqual(entry["testbox_up"], "1i")
+                self.assertEqual(entry["testbox_ok"], "1i")
+                self.assertIn("router_ping_ms", entry)
+                self.assertIn("testbox_ping_ms", entry)

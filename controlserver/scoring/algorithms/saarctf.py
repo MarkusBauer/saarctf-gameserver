@@ -1,5 +1,8 @@
+from abc import ABC
+
 from controlserver.models import CheckerResult
-from controlserver.scoring.algorithms.algorithm import SlaAlgorithm, StolenFlag, FlagPointAlgorithm, ScoreTickAlgorithmBase, DefensiveAlgorithm
+from controlserver.scoring.algorithms.algorithm import SlaAlgorithm, StolenFlag, FlagPointAlgorithm, ScoreTickAlgorithmBase, DefensiveAlgorithm, \
+    ScoreTickAlgorithm
 
 
 class SlaSaarCtfDefault(SlaAlgorithm):
@@ -37,6 +40,7 @@ class DefensiveSaarCtfDefault(DefensiveAlgorithm):
     """
     FORMULA: DEF = (num_submissions / num_active_teams)^0.3 * SLA
     """
+
     def def_points(self, flag: StolenFlag, num_active_teams: int, victim_sla_when_issued: float) -> float:
         """Lost points caused by this flag (all steals in all ticks so far)"""
         submissions = flag.num_previous_submissions + flag.num_submissions
@@ -49,4 +53,20 @@ class DefensiveSaarCtfDefault(DefensiveAlgorithm):
 
 
 class SaarctfScoreAlgorithm(FlagPointsSaarCtfDefault, DefensiveSaarCtfDefault, SlaSaarCtfDefault, ScoreTickAlgorithmBase):
+    pass
+
+
+class HappyHourFlagPointsSaarctfDefault(ScoreTickAlgorithm, FlagPointsSaarCtfDefault, ABC):
+    def factor(self, tick: int) -> float:
+        return 2.0 if tick >= self.config.data.get('happy_hour_tick', 0xffffff) else 1.0
+
+    def off_points(self, flag: StolenFlag, victim_rank: int) -> float:
+        return super().off_points(flag, victim_rank) * self.factor(flag.flag.tick_issued)
+
+    def off_points_previous(self, flag: StolenFlag, victim_rank: int) -> float:
+        p = super().off_points_previous(flag, victim_rank)
+        return p * self.factor(flag.flag.tick_issued) if p is not None else None
+
+
+class SaarctfScoreAlgorithmWithHappyHour(HappyHourFlagPointsSaarctfDefault, DefensiveSaarCtfDefault, SlaSaarCtfDefault, ScoreTickAlgorithmBase):
     pass

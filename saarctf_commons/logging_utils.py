@@ -7,7 +7,7 @@ class DefaultAttributesFilter(logging.Filter):
         super().__init__()
         self._default_attrs = attributes
 
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         for k, v in self._default_attrs.items():
             if not hasattr(record, k):
                 setattr(record, k, v)
@@ -32,6 +32,7 @@ def add_ecs_logging() -> None:
     ecs_logfile = os.environ.get("ECS_LOGFILE", None)
     if ecs_logfile:
         import ecs_logging
+
         fh = logging.FileHandler(ecs_logfile)
         fh.setLevel(logging.INFO)
         fh.setFormatter(ecs_logging.StdlibFormatter())

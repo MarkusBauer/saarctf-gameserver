@@ -1,14 +1,11 @@
-import base64
-import hashlib
-import hmac
 import os
 import random
-import struct
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from saarctf_commons.config import config, load_default_config
+from gamelib.gamelib import get_flag
 
 """
 Generates valid flags
@@ -28,16 +25,13 @@ struct __attribute__((__packed__)) FlagFormat {
 
 
 def generate_flag(team: int, service: int, game_tick: int | None = None) -> str:
-    assert team < 2 ** 16
-    assert service < 2 ** 16
+    assert team < 2**16
+    assert service < 2**16
 
     if not game_tick:
         game_tick = 1
-    assert game_tick < 2 ** 16
-    flag = struct.pack("<HHHH", game_tick, team, service, random.getrandbits(16))
-    mac = hmac.new(config.SECRET_FLAG_KEY, flag, hashlib.sha256)
-    flag += mac.digest()[:16]
-    return f"SAAR{{{base64.b64encode(flag).replace(b'+', b'-').replace(b'/', b'_').decode()}}}"
+    assert game_tick < 2**16
+    return get_flag(team, service, game_tick, random.getrandbits(15))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,20 @@
+// not like the other styles - this one is triggered by a ".unredacted" class in html attribute
+// and: can be added to other labels (e.g. "dev"), thus it's html:before, not body:before, and has different position.
+
+html.unredacted:before {
+  content: "unredacted";
+
+  position: fixed;
+  z-index: 105; // 100 is default for intern/dev, so we'll overlay this
+  bottom: 3.5rem;
+  right: 3.5rem;
+  transform: rotate(-45deg) translate(50%, -100%);
+  transform-origin: right bottom;
+  padding: 0.25rem 7rem;
+
+  font-size: 1.5rem;
+  font-weight: bold;
+  font-variant: small-caps;
+  color: #fff;
+  background-color: #5cb85c;
+}

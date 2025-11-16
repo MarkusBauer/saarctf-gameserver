@@ -60,6 +60,8 @@ Flags
 Current format: `SAAR\{[A-Za-z0-9-_]{32}\}`. 
 Example: `SAAR{8VHsWgEACAD-_wAAfQScbWZat3KXyYe9}`
 
+The prefix `SAAR` can be changed in `config.yaml`: set `flag_prefix` to something else (4 upper chars only so far).
+
 
 Folders
 -------
@@ -107,6 +109,7 @@ How? Configure a service like this:
 
 Set as usual:
 - `flag_ids`: `['custom', 'custom', ...]`  for every putflag that uses attack_info
+  > NO SPACES ALLOWED!
 - `num_payloads`: number of flag variants
 - `flags_per_tick`: number of flag variants
 
@@ -118,7 +121,7 @@ Developers
 ----------
 For type checking do `make check`.
 
-To prepare unit tests, copy `config.sample.json` to `config.test.json` and configure:
+To prepare unit tests, copy `config.sample.yaml` to `config.test.yaml` and configure:
 - an empty postgresql database (will be wiped during tests)
 - an empty redis database
 - a working rabbitmq connection

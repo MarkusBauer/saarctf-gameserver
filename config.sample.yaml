@@ -32,6 +32,7 @@ grafana_url: ''
 
 # paths
 scoreboard_path: "/dev/shm/scoreboard"
+# scoreboard_path_internal: "/dev/shm/scoreboard-internal"  # not affected by scoreboard freeze
 vpnboard_path: "/dev/shm/vpnboard"
 checker_packages_path: "/dev/shm/packages"
 patches_path: "/dev/shm/patches"
@@ -39,9 +40,12 @@ patches_public_path: "/dev/shm/patches-webroot"
 
 # Setup
 external_timer: false  # false for local test setup without dedicated ctftimer script, true for production setup
+tick_duration_default: 120
+environment: dev  # use "intern" or "dev" to add a visual tag, null to remove tags. Run "npm run build" to apply.
 
 # Flags / scoring
 secret_flags: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+flag_prefix: SAAR  # must be exactly 4 letters
 scoring:
   flags_rounds_valid: 10
   nop_team_id: 1
@@ -50,7 +54,12 @@ scoring:
   sla_factor: 1
   # algorithm: "saarctf:SaarctfScoreAlgorithm"  # if you define alternate algorithms
 
+# Do not update results after a certain tick (except on "internal" scoreboard)
+# this is the last tick that's completely published, every tick afterwards will keep this tick's results
+# scoreboard_freeze: 30
+
 runner:
+  dispatcher: dispatcher:CeleryDispatcher
   eno:
     check_past_ticks: 5
     timeout: 15  # in seconds
@@ -81,3 +90,5 @@ network:
 wireguard_sync:
   api_server: https://ctf.saarland
   api_token: "..."
+
+ctfroute_namespace: cte25

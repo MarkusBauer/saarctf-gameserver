@@ -32,10 +32,6 @@ class Pagination:
 
 def paginate_query(query: Query, page: int, per_page: int) -> Pagination:
     offset = (page - 1) * per_page
-    items = query[offset:offset + per_page]
+    items = query[offset : offset + per_page]
     count = query.count()
-    return Pagination(
-        page=page,
-        pages=(count + per_page - 1) // per_page,
-        items=items
-    )
+    return Pagination(page=page, pages=(count + per_page - 1) // per_page, items=items)

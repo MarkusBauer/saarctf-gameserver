@@ -12,6 +12,9 @@ import itertools
 import json
 import random
 import time
+from abc import ABC, abstractmethod
+from datetime import datetime, timezone, timedelta
+from typing import TypeAlias, Any
 
 from billiard.exceptions import WorkerLostError
 from celery import group, states, Task
@@ -24,20 +27,30 @@ from checker_runner.runner import celery_worker
 from controlserver.flag_id_file import FlagIDFileGenerator
 from controlserver.logger import log
 from controlserver.models import Team, Service, LogMessage, CheckerResult, db_session, db_session_2
+from controlserver.utils.import_factory import ImportFactory
 from saarctf_commons.config import config
 from saarctf_commons.redis import get_redis_connection
 
+DispatchRef: TypeAlias = str
+Tick: TypeAlias = int
+TeamID: TypeAlias = int
+ServiceID: TypeAlias = int
 
-class Dispatcher:
-    # Singleton (for better cache usage)
-    default: 'Dispatcher' = None  # type: ignore[assignment]
 
-    def __init__(self) -> None:
-        # caches, also stored in Redis
-        self.tick_taskgroups: dict[int, GroupResult] = {}
-        self.tick_combination_ids: dict[int, list[tuple[int, int]]] = {}
+class GenericDispatcher(ABC):
+    @abstractmethod
+    def _dispatch(self, combinations: list[tuple[Team, Service, Tick]], **overrides: Any) -> DispatchRef:
+        raise NotImplementedError()
 
-    def dispatch_checker_scripts(self, tick: int) -> None:
+    @abstractmethod
+    def _revoke(self, ref: DispatchRef) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def _collect(self, ref: DispatchRef, combinations: list[tuple[TeamID, ServiceID, Tick]]) -> None:
+        raise NotImplementedError()
+
+    def dispatch_checker_scripts(self, tick: Tick) -> None:
         with db_session_2() as session:
             with get_redis_connection() as redis:
                 if config.DISPATCHER_CHECK_VPN_STATUS:
@@ -47,20 +60,89 @@ class Dispatcher:
                 else:
                     teams = session.query(Team).all()
                 services = session.query(Service).order_by(Service.id).filter(Service.checker_enabled == True).all()
-                combinations = list(itertools.product(teams, services))
+                combinations = [(t, s, tick) for t, s in itertools.product(teams, services)]
                 if len(combinations) > 0:
                     random.shuffle(combinations)
-                    taskgroup_sig: Signature = group([self.__prepare_checker_script(team, service, tick) for team, service in combinations])
-                    taskgroup: GroupResult = taskgroup_sig.apply_async()
-                    taskgroup.save()
-                    self.tick_taskgroups[tick] = taskgroup
-                    combination_ids = [(team.id, service.id) for team, service in combinations]
-                    self.tick_combination_ids[tick] = combination_ids
-                    redis.set('dispatcher:taskgroup:{}:order'.format(tick), json.dumps(combination_ids))
-                    redis.set('dispatcher:taskgroup:{}:id'.format(tick), taskgroup.id)
+                    ref = self._dispatch(combinations)
+                    combination_ids = [(team.id, service.id, tick) for team, service, tick in combinations]
+                    redis.set(f'dispatcher:order:{tick}', json.dumps(combination_ids))
+                    redis.set(f'dispatcher:ref:{tick}', ref)
                     FlagIDFileGenerator().generate_and_save(teams, services, tick)
 
-    def __prepare_checker_script(self, team: Team, service: Service, tick: int, package: str | None = None, route: str | None = None) -> Task:
+    def dispatch_test_script(self, team: Team, service: Service, tick: Tick, package: str | None = None) -> tuple[DispatchRef, CheckerResult]:
+        session = db_session()  # operation called from cp only
+        # cleanup database
+        session.query(CheckerResult) \
+            .filter(CheckerResult.team_id == team.id, CheckerResult.service_id == service.id, CheckerResult.tick == tick) \
+            .delete()
+        result = CheckerResult(team_id=team.id, service_id=service.id, tick=tick, status='PENDING')
+        session.add(result)
+        # dispatch
+        ref = self._dispatch([(team, service, tick)], package=package, route=service.checker_route or 'tests')
+        result.celery_id = ref
+        session.commit()
+        return ref, result
+
+    def dispatch_test_script_many(self, team: Team, service: Service, ticks: list[Tick], *,
+                                  package: str | None = None, route: str | None = None) -> DispatchRef:
+        return self._dispatch([(team, service, tick) for tick in ticks], package=package, route=route)
+
+    def get_checker_results(self, tick: Tick) -> list[CheckerResult]:
+        """
+        :param tick:
+        :return: All the results of a given tick
+        """
+        return CheckerResult.query.filter(CheckerResult.tick == tick).all()
+
+    def get_tick_combinations(self, tick: Tick) -> list[tuple[TeamID, ServiceID]]:
+        with get_redis_connection() as redis:
+            data = redis.get(f'dispatcher:order:{tick}')
+            if data:
+                return [(t, s) for t, s, _ in json.loads(data)]
+            return []
+
+    def revoke_checker_scripts(self, tick: Tick) -> None:
+        with get_redis_connection() as redis:
+            ref: bytes | None = redis.get(f'dispatcher:ref:{tick}')
+        if ref:
+            self._revoke(ref.decode())
+
+    def collect_checker_results(self, tick: Tick) -> None:
+        if tick <= 0:
+            return
+
+        with get_redis_connection() as redis:
+            ref: bytes | None = redis.get(f'dispatcher:ref:{tick}')
+            data = redis.get(f'dispatcher:order:{tick}')
+            combinations = json.loads(data) if data else []
+
+        if ref:
+            self._collect(ref.decode(), combinations)
+
+        with db_session_2() as session:
+            # Log checker script errors
+            # print(stats)
+            crashed = session.query(CheckerResult.service_id, func.count()) \
+                .filter(CheckerResult.tick == tick).filter(CheckerResult.status == 'CRASHED') \
+                .group_by(CheckerResult.service_id).all()
+            for service_id, count in crashed:
+                service = session.query(Service).filter(Service.id == service_id).first()
+                log('dispatcher', f'Checker scripts for {service.name if service else service_id} produced {count} errors in tick {tick}',
+                    level=LogMessage.ERROR)
+
+    def collect_test_results_many(self, team: Team, service: Service, ticks: list[Tick], ref: DispatchRef) -> None:
+        if ref:
+            self._collect(ref, [(team.id, service.id, tick) for tick in ticks])
+
+
+class CeleryDispatcher(GenericDispatcher):
+    def _dispatch(self, combinations: list[tuple[Team, Service, Tick]], **overrides: Any) -> DispatchRef:
+        taskgroup_sig: Signature = group([self._create_celery_task(team, service, tick, **overrides) for team, service, tick in combinations])
+        taskgroup: GroupResult = taskgroup_sig.apply_async()
+        taskgroup.save()
+        return taskgroup.id
+
+    def _create_celery_task(self, team: Team, service: Service, tick: int, package: str | None = None, route: str | None = None, **kwargs: Any) -> Task:
         if service.checker_subprocess:
             run_func = celery_worker.run_checkerscript_external
             timeout = service.checker_timeout + 5
@@ -79,101 +161,52 @@ class Dispatcher:
             ),
             time_limit=timeout + 5, soft_time_limit=timeout,
             countdown=150 if service.checker_script == 'pendingtest' else None,
-            queue=route or service.checker_route or 'celery'
+            queue=route or service.checker_route or 'celery',
+            **kwargs
         )
 
-    def dispatch_test_script(self, team: Team, service: Service, tick: int, package: str | None = None) -> tuple[AsyncResult, CheckerResult]:
-        session = db_session()  # operation called from cp only
-        # cleanup database
-        session.query(CheckerResult) \
-            .filter(CheckerResult.team_id == team.id, CheckerResult.service_id == service.id, CheckerResult.tick == tick) \
-            .delete()
-        result = CheckerResult(team_id=team.id, service_id=service.id, tick=tick, status='PENDING')
-        session.add(result)
-        # dispatch
-        sig = self.__prepare_checker_script(team, service, tick, package, route=service.checker_route or 'tests')
-        task: AsyncResult = sig.apply_async()
-        result.celery_id = task.id
-        session.commit()
-        return task, result
+    def _ref_to_group(self, ref: DispatchRef) -> GroupResult:
+        return GroupResult.restore(ref, app=celery_worker.app)
 
-    def dispatch_test_script_many(self, team: Team, service: Service, ticks: list[int], *,
-                                  package: str | None = None, route: str | None = None) -> GroupResult:
-        taskgroup_sig: Signature = group([self.__prepare_checker_script(team, service, tick, package=package, route=route) for tick in ticks])
-        taskgroup: GroupResult = taskgroup_sig.apply_async()
-        taskgroup.save()
-        return taskgroup
-
-    def get_tick_taskgroup(self, tick: int) -> GroupResult | None:
-        if tick not in self.tick_taskgroups:
-            redis = get_redis_connection()
-            group_id = redis.get(f'dispatcher:taskgroup:{tick}:id')
-            if not group_id:
-                return None
-            self.tick_taskgroups[tick] = GroupResult.restore(group_id, app=celery_worker.app)
-        return self.tick_taskgroups[tick]
-
-    def get_tick_combinations(self, tick) -> list[tuple[int, int]] | None:
-        """
-        :param tick:
-        :return: The order in which the tasks have been dispatched in this tick. None if tasks aren't fully dispatched yet.
-        """
-        if tick not in self.tick_combination_ids:
-            redis = get_redis_connection()
-            data = redis.get('dispatcher:taskgroup:{}:order'.format(tick))
-            if not data:
-                return None
-            self.tick_combination_ids[tick] = json.loads(data)
-        return self.tick_combination_ids[tick]
-
-    def revoke_checker_scripts(self, tick: int) -> None:
-        taskgroup = self.get_tick_taskgroup(tick)
-        if taskgroup:
-            taskgroup.revoke()
+    def _revoke(self, ref: DispatchRef) -> None:
+        self._ref_to_group(ref).revoke()
         time.sleep(0.5)
 
-    def collect_checker_results(self, tick: int) -> None:
-        if tick <= 0:
-            return
-
-        taskgroup = self.get_tick_taskgroup(tick)
-        combinations = self.get_tick_combinations(tick)
+    def _collect(self, ref: DispatchRef, combinations: list[tuple[TeamID, ServiceID, Tick]]) -> None:
         collect_time = time.time()
+        taskgroup = self._ref_to_group(ref)
 
         with db_session_2() as session:
             stats = {states.SUCCESS: 0, states.STARTED: 0, states.REVOKED: 0, states.FAILURE: 0}
             if taskgroup and combinations:
-                for (team_id, service_id), result in zip(combinations, taskgroup.results):
-                    status = self.__collect_checker_result(session, team_id, service_id, tick, result)
+                for (team_id, service_id, tick), result in zip(combinations, taskgroup.results):
+                    status = self._handle_celery_result(session, team_id, service_id, tick, result)
                     stats[status] += 1
                 session.commit()
 
-                # Warning if time runs out
-                if stats[states.REVOKED] > 0:
-                    log('dispatcher',
-                        'Not all checker scripts have been executed. {} / {} revoked, {} / {} still active'.format(
-                            stats[states.REVOKED], len(combinations), stats[states.STARTED], len(combinations)),
-                        level=LogMessage.WARNING)
-                elif stats[states.STARTED] > 0:
-                    log('dispatcher', 'Not all checker scripts finished in time: {} / {} still active'.format(
-                        stats[states.STARTED], len(combinations)), level=LogMessage.WARNING)
-                else:
-                    last_finished = session.query(func.max(CheckerResult.finished)).filter(CheckerResult.tick == tick).scalar()
-                    if last_finished and collect_time - last_finished.timestamp() <= 3.5:
-                        log('dispatcher', 'Worker close to overload: Last checker script finished {:.1f} sec before deadline'.format(
-                            collect_time - last_finished.timestamp()), level=LogMessage.WARNING)
+                if combinations[0][2] >= 0:
+                    self._issue_warnings(session, stats, combinations[0][2], collect_time)
 
-            # Log checker script errors
-            # print(stats)
-            crashed = session.query(CheckerResult.service_id, func.count()) \
-                .filter(CheckerResult.tick == tick).filter(CheckerResult.status == 'CRASHED') \
-                .group_by(CheckerResult.service_id).all()
-            for service_id, count in crashed:
-                service = session.query(Service).filter(Service.id == service_id).first()
-                log('dispatcher', f'Checker scripts for {service.name if service else service_id} produced {count} errors in tick {tick}',
-                    level=LogMessage.ERROR)
+    def _issue_warnings(self, session: Session, stats: dict, tick: Tick, collect_time: float) -> float:
+        total = sum(stats.values())
+        # Warning if time runs out
+        if stats[states.REVOKED] > 0:
+            log('dispatcher',
+                'Not all checker scripts have been executed. {} / {} revoked, {} / {} still active'.format(
+                    stats[states.REVOKED], total, stats[states.STARTED], total),
+                level=LogMessage.WARNING)
+        elif stats[states.STARTED] > 0:
+            log('dispatcher', 'Not all checker scripts finished in time: {} / {} still active'.format(
+                stats[states.STARTED], total), level=LogMessage.WARNING)
+        else:
+            last_finished = session.query(func.max(CheckerResult.finished)).filter(CheckerResult.tick == tick).scalar()
+            if last_finished and collect_time - last_finished.timestamp() <= 3.5:
+                log('dispatcher', 'Worker close to overload: Last checker script finished {:.1f} sec before deadline'.format(
+                    collect_time - last_finished.timestamp()), level=LogMessage.WARNING)
+            return collect_time - last_finished.timestamp()
+        return 0.0
 
-    def __collect_checker_result(self, session: Session, team_id: int, service_id: int, tick: int, result: AsyncResult) -> str:
+    def _handle_celery_result(self, session: Session, team_id: int, service_id: int, tick: Tick, result: AsyncResult) -> str:
         try:
             status = result.status
         except WorkerLostError:
@@ -216,21 +249,55 @@ class Dispatcher:
             result.forget()
         return status
 
-    def collect_test_results_many(self, team: Team, service: Service, ticks: list[int], taskgroup: GroupResult) -> dict[str, int]:
-        with db_session_2() as session:
-            stats = {states.SUCCESS: 0, states.STARTED: 0, states.REVOKED: 0, states.FAILURE: 0}
-            for tick, result in zip(ticks, taskgroup.results):
-                status = self.__collect_checker_result(session, team.id, service.id, tick, result)
-                stats[status] += 1
-            session.commit()
-            return stats
 
-    def get_checker_results(self, tick: int) -> list[CheckerResult]:
-        """
-        :param tick:
-        :return: All the results of a given tick
-        """
-        return CheckerResult.query.filter(CheckerResult.tick == tick).all()
+class DelayingCeleryDispatcher(CeleryDispatcher):
+    def _dispatch(self, combinations: list[tuple[Team, Service, Tick]], **overrides: Any) -> DispatchRef:
+        # special handling only if all combinations are from one tick
+        ticks = set(t for _, _, t in combinations)
+        if len(ticks) != 1 or (tick := next(iter(ticks))) < 0:
+            return super()._dispatch(combinations, **overrides)
+
+        # ... and this tick has times, and we're in this tick atm
+        from controlserver.timer import Timer
+        now = time.time()
+        if tick != Timer.current_tick or Timer.tick_start is None or Timer.tick_end is None or not (Timer.tick_start <= now < Timer.tick_end):
+            return super()._dispatch(combinations, **overrides)
+        # sanity check: we should not delay things for too long
+        if Timer.tick_end - now >= 900:
+            return super()._dispatch(combinations, **overrides)
+
+        # get the "spreading" right
+        counts: dict[int, int] = {}  # ID => # elements
+        factors: dict[int, int] = {}  # ID => max delay time
+        for _, service, _ in combinations:
+            counts[service.id] = counts.get(service.id, 0) + 1
+            if service.id not in factors:
+                factors[service.id] = Timer.tick_end - Timer.tick_start - service.checker_timeout - (15 if service.checker_subprocess else 10)
+
+        # build tasks with delay
+        tasks = []
+        seen = {k: 0 for k in counts.keys()}
+        start = datetime.fromtimestamp(Timer.tick_start, timezone.utc)
+        for team, service, tick in combinations:
+            delay = factors[service.id] * seen[service.id] / counts[service.id]
+            if delay < 3:
+                delay = 0
+            tasks.append(self._create_celery_task(team, service, tick, eta=start + timedelta(seconds=delay), **overrides))
+            seen[service.id] += 1
+
+        # task to taskgroup, as usual
+        taskgroup_sig: Signature = group(tasks)
+        taskgroup: GroupResult = taskgroup_sig.apply_async()
+        taskgroup.save()
+        return taskgroup.id
 
 
-Dispatcher.default = Dispatcher()
+class DispatcherFactory(ImportFactory[GenericDispatcher]):
+    base_class = GenericDispatcher
+    _singletons: dict[str, GenericDispatcher] = {}
+
+    @classmethod
+    def build(cls, name: str) -> GenericDispatcher:
+        if name not in cls._singletons:
+            cls._singletons[name] = cls.get_class(name)()
+        return cls._singletons[name]

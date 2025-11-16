@@ -158,7 +158,7 @@ def update_service_ports() -> None:
     logging.info('[OK] Wrote service ports to bpf maps')
 
 
-def main():
+def main() -> None:
     update_service_ports()
     redis = get_redis_connection()
     fd = open_bpfmap('/sys/fs/bpf/tc/globals/counting_map')

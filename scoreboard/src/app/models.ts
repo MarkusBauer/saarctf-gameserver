@@ -1,8 +1,15 @@
+export interface FirstBlood {
+    name: string;
+    ts: number;
+    confirmed: boolean;
+    level: number;
+}
+
 export interface Service {
     name: string;
-    attackers: number;
-    victims: number;
-    first_blood: Array<string>;
+    attackers: number | '?';  // '?' = frozen => black out
+    victims: number | '?';
+    first_blood: Array<FirstBlood>;
     flag_stores: number;
     flag_stores_exploited: number;
 }
@@ -57,8 +64,8 @@ export interface TeamHistoryInformation {
 }
 
 export interface ServiceStat {
-    a: number;  // attackers
-    v: number;  // victims
+    a: number | '?';  // attackers
+    v: number | '?';  // victims
 }
 
 export interface ServiceStatsInformation {

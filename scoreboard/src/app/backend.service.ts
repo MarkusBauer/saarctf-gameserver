@@ -4,6 +4,7 @@ import {HttpClient} from "@angular/common/http";
 import {map} from "rxjs/operators";
 import {BehaviorSubject, Observable, of, Subject} from "rxjs";
 import {retryWithBackoff} from "./retryWithBackoff";
+import { environment } from '../environments/environment';
 
 
 export enum GameStates {
@@ -18,6 +19,7 @@ interface CurrentStateJson {
     current_tick_until: number;
     scoreboard_tick: number;
     banned_teams?: number[];
+    frozen?: boolean;
 }
 
 
@@ -29,9 +31,7 @@ interface CurrentStateJson {
     providedIn: 'root'
 })
 export class BackendService {
-
-    private readonly url_base = 'api/';
-    //private readonly url_base = 'http://localhost/scoreboard-api/api/';
+    private url_base = environment.api_url;
 
     public teams: { [key: number]: Team } = {};
 
@@ -61,11 +61,13 @@ export class BackendService {
                 if (tick == this.currentState.scoreboard_tick && (tick - 1) in this.round_ranking) {
                     let old_firstbloods = {};
                     for (let service of this.round_ranking[tick - 1].services) {
-                        old_firstbloods[service.name] = service.first_blood.length;
+                        old_firstbloods[service.name] = service.first_blood.filter(fb => fb.confirmed).length;
                     }
                     for (let service of json.services) {
                         for (let i = old_firstbloods[service.name]; i < service.first_blood.length; i++) {
-                            this.eventNotifications.next(['firstblood', service.name, service.first_blood[i]]);
+                            if (service.first_blood[i].confirmed) {
+                                this.eventNotifications.next(['firstblood', service.name, service.first_blood[i].name]);
+                            }
                         }
                     }
                     // check for "final" notifications
