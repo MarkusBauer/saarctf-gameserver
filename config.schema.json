@@ -1,0 +1,968 @@
+{
+  "$defs": {
+    "DatabaseConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "postgres": {
+          "$ref": "#/$defs/PostgresConfig"
+        },
+        "redis": {
+          "$ref": "#/$defs/RedisConfig"
+        },
+        "rabbitmq": {
+          "$ref": "#/$defs/RabbitmqConfig"
+        },
+        "metrics": {
+          "$ref": "#/$defs/MetricsConfig"
+        }
+      },
+      "title": "DatabaseConfig",
+      "type": "object"
+    },
+    "EnoRunnerConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "check_past_ticks": {
+          "default": 10,
+          "description": "Should match flags_ticks_valid. Good value for ECSC: 4",
+          "exclusiveMinimum": 0,
+          "title": "Check Past Ticks",
+          "type": "integer"
+        },
+        "timeout": {
+          "default": 15,
+          "description": "Checker request timeout in seconds",
+          "exclusiveMinimum": 0,
+          "title": "Timeout",
+          "type": "number"
+        }
+      },
+      "title": "EnoRunnerConfig",
+      "type": "object"
+    },
+    "ExternalSystems": {
+      "additionalProperties": false,
+      "properties": {
+        "flower_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Flower Url"
+        },
+        "flower_internal_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Flower Internal Url"
+        },
+        "flower_ajax_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Flower Ajax Url"
+        },
+        "coder_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coder Url"
+        },
+        "scoreboard_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scoreboard Url"
+        },
+        "grafana_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grafana Url"
+        },
+        "patches_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Patches Url"
+        },
+        "trace_id_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL to link OpenTelemetry traces. Supports placeholders like $TRACEID",
+          "title": "Trace Id Url"
+        },
+        "website_team_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL to get teams from website",
+          "title": "Website Team Url"
+        },
+        "website_logo_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL to get logos from website",
+          "title": "Website Logo Url"
+        }
+      },
+      "title": "ExternalSystems",
+      "type": "object"
+    },
+    "GameConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "secret_flag_key": {
+          "description": "Secret key used to generate flags. Must be unique for each competition!",
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[a-fA-F0-9]*$",
+          "title": "Secret Flag Key",
+          "type": "string"
+        },
+        "tick_duration_default": {
+          "default": 120,
+          "title": "Tick Duration Default",
+          "type": "integer"
+        },
+        "flag_prefix": {
+          "default": "SAAR",
+          "description": "Flag prefix XXXX{...}",
+          "maxLength": 4,
+          "minLength": 4,
+          "title": "Flag Prefix",
+          "type": "string"
+        },
+        "scoreboard_freeze": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Freeze the scoreboard after this tick. The last tick that's completely published; every tick afterward will keep this tick's results",
+          "title": "Scoreboard Freeze"
+        }
+      },
+      "required": [
+        "secret_flag_key"
+      ],
+      "title": "GameConfig",
+      "type": "object"
+    },
+    "MetricsConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "server": {
+          "default": "localhost",
+          "description": "Metrics postgres server",
+          "title": "Server",
+          "type": "string"
+        },
+        "port": {
+          "default": 5432,
+          "description": "Metrics postgres port",
+          "title": "Port",
+          "type": "integer"
+        },
+        "database": {
+          "default": "saarctf_metrics",
+          "description": "Metrics postgres database name",
+          "title": "Database",
+          "type": "string"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Metrics postgres username",
+          "title": "Username"
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Metrics postgres password",
+          "title": "Password"
+        }
+      },
+      "title": "MetricsConfig",
+      "type": "object"
+    },
+    "NetworkConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "vulnbox_ip": {
+          "description": "Vulnbox IP pattern",
+          "examples": [
+            [
+              10,
+              [
+                200,
+                256,
+                32
+              ],
+              [
+                1,
+                200,
+                0
+              ],
+              2
+            ]
+          ],
+          "items": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Vulnbox Ip",
+          "type": "array"
+        },
+        "gateway_ip": {
+          "description": "Team Gateway IP pattern",
+          "examples": [
+            [
+              10,
+              [
+                200,
+                256,
+                32
+              ],
+              [
+                1,
+                200,
+                0
+              ],
+              1
+            ]
+          ],
+          "items": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Gateway Ip",
+          "type": "array"
+        },
+        "testbox_ip": {
+          "description": "Testbox IP pattern",
+          "examples": [
+            [
+              10,
+              [
+                200,
+                256,
+                32
+              ],
+              [
+                1,
+                200,
+                0
+              ],
+              3
+            ]
+          ],
+          "items": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Testbox Ip",
+          "type": "array"
+        },
+        "vpn_peer_ip": {
+          "description": "First IP of the inner VPN tunnel",
+          "examples": [
+            [
+              10,
+              [
+                200,
+                256,
+                48
+              ],
+              [
+                1,
+                200,
+                0
+              ],
+              1
+            ]
+          ],
+          "items": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Vpn Peer Ip",
+          "type": "array"
+        },
+        "gameserver_ip": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gameserver Ip"
+        },
+        "vpn_host": {
+          "default": "",
+          "description": "The VPN host for build VPN configuration files",
+          "title": "Vpn Host",
+          "type": "string"
+        },
+        "game": {
+          "default": "",
+          "description": "The full game network, in CIDR",
+          "examples": [
+            "10.32.0.0/15"
+          ],
+          "title": "Game",
+          "type": "string"
+        },
+        "gameserver_range": {
+          "default": "",
+          "description": "The internal gameserver network, in CIDR",
+          "examples": [
+            "10.32.250.0/24"
+          ],
+          "title": "Gameserver Range",
+          "type": "string"
+        },
+        "team_range": {
+          "description": "The IP range for each team (including /24 suffix)",
+          "examples": [
+            [
+              10,
+              [
+                200,
+                256,
+                32
+              ],
+              [
+                1,
+                200,
+                0
+              ],
+              0,
+              24
+            ]
+          ],
+          "items": {
+            "anyOf": [
+              {
+                "maxItems": 3,
+                "minItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "maxItems": 5,
+          "minItems": 5,
+          "type": "array"
+        }
+      },
+      "required": [
+        "vulnbox_ip",
+        "gateway_ip",
+        "testbox_ip",
+        "team_range"
+      ],
+      "title": "NetworkConfig",
+      "type": "object"
+    },
+    "PathConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "vpn_base": {
+          "default": ".",
+          "format": "path",
+          "title": "Vpn Base",
+          "type": "string"
+        },
+        "scoreboard": {
+          "default": "/dev/shm/scoreboard",
+          "format": "path",
+          "title": "Scoreboard",
+          "type": "string"
+        },
+        "scoreboard_internal": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scoreboard Internal"
+        },
+        "vpnboard": {
+          "default": "/dev/shm/vpnboard",
+          "format": "path",
+          "title": "Vpnboard",
+          "type": "string"
+        },
+        "checker_packages": {
+          "default": "/dev/shm/checker_packages",
+          "format": "path",
+          "title": "Checker Packages",
+          "type": "string"
+        },
+        "checker_packages_lfs": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": ".",
+          "title": "Checker Packages Lfs"
+        },
+        "services": {
+          "default": ".",
+          "format": "path",
+          "title": "Services",
+          "type": "string"
+        },
+        "patches": {
+          "default": ".",
+          "format": "path",
+          "title": "Patches",
+          "type": "string"
+        },
+        "patches_public": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Patches Public"
+        }
+      },
+      "title": "PathConfig",
+      "type": "object"
+    },
+    "PostgresConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "server": {
+          "default": "localhost",
+          "description": "Postgres server",
+          "title": "Server",
+          "type": "string"
+        },
+        "port": {
+          "default": 5432,
+          "description": "Postgres port",
+          "title": "Port",
+          "type": "integer"
+        },
+        "database": {
+          "default": "saarctf",
+          "description": "Postgres database name",
+          "title": "Database",
+          "type": "string"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Postgres username",
+          "title": "Username"
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Postgres password",
+          "title": "Password"
+        },
+        "use_socket": {
+          "default": false,
+          "title": "Use Socket",
+          "type": "boolean"
+        }
+      },
+      "title": "PostgresConfig",
+      "type": "object"
+    },
+    "RabbitmqConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "default": "localhost",
+          "description": "RabbitMQ server",
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 5672,
+          "description": "RabbitMQ port",
+          "title": "Port",
+          "type": "integer"
+        },
+        "vhost": {
+          "default": "",
+          "description": "RabbitMQ virtual host",
+          "title": "Vhost",
+          "type": "string"
+        },
+        "username": {
+          "default": "",
+          "description": "RabbitMQ username",
+          "title": "Username",
+          "type": "string"
+        },
+        "password": {
+          "default": "",
+          "description": "RabbitMQ password",
+          "title": "Password",
+          "type": "string"
+        }
+      },
+      "title": "RabbitmqConfig",
+      "type": "object"
+    },
+    "RedisConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "default": "localhost",
+          "description": "Redis server",
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 6379,
+          "description": "Redis port",
+          "title": "Port",
+          "type": "integer"
+        },
+        "db": {
+          "default": 0,
+          "description": "Redis database",
+          "title": "Db",
+          "type": "integer"
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Redis password",
+          "title": "Password"
+        }
+      },
+      "title": "RedisConfig",
+      "type": "object"
+    },
+    "RunnerConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "dispatcher": {
+          "default": "dispatcher:CeleryDispatcher",
+          "title": "Dispatcher",
+          "type": "string"
+        },
+        "dispatcher_check_vpn_status": {
+          "default": true,
+          "title": "Dispatcher Check Vpn Status",
+          "type": "boolean"
+        },
+        "eno": {
+          "$ref": "#/$defs/EnoRunnerConfig"
+        }
+      },
+      "title": "RunnerConfig",
+      "type": "object"
+    },
+    "ScoringConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "flags_ticks_valid": {
+          "default": 10,
+          "description": "Number of full ticks a flag is valid for (in addition to the tick it is stored)",
+          "exclusiveMinimum": 0,
+          "title": "Flags Ticks Valid",
+          "type": "integer"
+        },
+        "nop_team_id": {
+          "default": 1,
+          "description": "Team ID of the nop team, set to 0 to disable",
+          "title": "Nop Team Id",
+          "type": "integer"
+        },
+        "off_factor": {
+          "default": 1.0,
+          "description": "Constant factor multiplied on all offensive points",
+          "title": "Off Factor",
+          "type": "number"
+        },
+        "def_factor": {
+          "default": 1.0,
+          "description": "Constant factor multiplied on all defensive points",
+          "title": "Def Factor",
+          "type": "number"
+        },
+        "sla_factor": {
+          "default": 1.0,
+          "description": "Constant factor multiplied on all SLA points",
+          "title": "Sla Factor",
+          "type": "number"
+        },
+        "algorithm": {
+          "default": "saarctf:SaarctfScoreAlgorithm",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "firstblood_algorithm": {
+          "default": "firstblood:DefaultFirstBloodAlgorithm",
+          "title": "Firstblood Algorithm",
+          "type": "string"
+        },
+        "data": {
+          "additionalProperties": true,
+          "title": "Data",
+          "type": "object"
+        }
+      },
+      "title": "ScoringConfig",
+      "type": "object"
+    },
+    "TelemetryConfig": {
+      "additionalProperties": false,
+      "description": "OpenTelemetry exporter config",
+      "properties": {
+        "prefix": {
+          "default": "gameserver-",
+          "description": "Prefix for OpenTelemetry resource names",
+          "title": "Prefix",
+          "type": "string"
+        },
+        "otlp_endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "OTLP GRPC endpoint URL",
+          "title": "Otlp Endpoint"
+        },
+        "otlp_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "OTLP endpoint authentication key",
+          "title": "Otlp Key"
+        }
+      },
+      "title": "TelemetryConfig",
+      "type": "object"
+    },
+    "WireguardSyncConfig": {
+      "additionalProperties": false,
+      "description": "(legacy) wireguard-sync config",
+      "properties": {
+        "api_server": {
+          "title": "Api Server",
+          "type": "string"
+        },
+        "api_token": {
+          "title": "Api Token",
+          "type": "string"
+        },
+        "api_base": {
+          "default": "/api/router/",
+          "title": "Api Base",
+          "type": "string"
+        },
+        "api_concurrency": {
+          "default": 1,
+          "title": "Api Concurrency",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "api_server",
+        "api_token"
+      ],
+      "title": "WireguardSyncConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "environment": {
+      "default": "dev",
+      "description": "Color mark for this environment (dev/intern/<empty>)",
+      "enum": [
+        "",
+        "dev",
+        "intern"
+      ],
+      "title": "Environment",
+      "type": "string"
+    },
+    "game": {
+      "$ref": "#/$defs/GameConfig"
+    },
+    "databases": {
+      "$ref": "#/$defs/DatabaseConfig"
+    },
+    "network": {
+      "$ref": "#/$defs/NetworkConfig"
+    },
+    "paths": {
+      "$ref": "#/$defs/PathConfig"
+    },
+    "external": {
+      "$ref": "#/$defs/ExternalSystems"
+    },
+    "scoring": {
+      "$ref": "#/$defs/ScoringConfig"
+    },
+    "runner": {
+      "$ref": "#/$defs/RunnerConfig"
+    },
+    "telemetry": {
+      "$ref": "#/$defs/TelemetryConfig"
+    },
+    "wireguard_sync": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WireguardSyncConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "service_remotes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Service Remotes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "game",
+    "databases",
+    "network",
+    "paths"
+  ],
+  "title": "Config",
+  "type": "object"
+}
